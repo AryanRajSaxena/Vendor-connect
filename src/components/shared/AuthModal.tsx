@@ -149,51 +149,62 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-large max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {isLogin ? 'Login' : 'Sign Up'}
-          </h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {isLogin ? 'Login to continue' : 'Join VendorConnect today'}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div className="alert-error animate-slide-down">
+              <div className="w-5 h-5 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
+                <span className="text-red-600 text-xs font-bold">!</span>
+              </div>
+              <p className="text-sm font-medium">{error}</p>
             </div>
           )}
 
           {/* Success Message */}
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
-              {successMessage}
+            <div className="alert-success animate-slide-down">
+              <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center flex-shrink-0">
+                <span className="text-green-600 text-xs font-bold">✓</span>
+              </div>
+              <p className="text-sm font-medium">{successMessage}</p>
             </div>
           )}
 
           {/* Role Selection (Sign Up only) */}
           {!isLogin && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">I am a:</label>
+              <label className="label">I am a:</label>
               <div className="grid grid-cols-3 gap-2">
                 {(['vendor', 'seller', 'customer'] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
                     onClick={() => setRole(r)}
-                    className={`py-2 px-3 rounded-lg border-2 transition text-sm font-medium ${
+                    className={`py-2.5 px-3 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${
                       role === r
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-gray-200 text-gray-700 hover:border-primary'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm'
+                        : 'border-gray-200 text-gray-700 hover:border-primary-300 hover:bg-gray-50'
                     }`}
                   >
                     {r.charAt(0).toUpperCase() + r.slice(1)}
@@ -205,16 +216,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
           {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-700">Email Address</label>
-            <div className="relative mt-1">
-              <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+            <label className="label">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="Enter your email"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="you@example.com"
+                className="input pl-11"
                 disabled={isLoading}
               />
             </div>
@@ -223,16 +234,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* Name (Sign Up only) */}
           {!isLogin && (
             <div>
-              <label className="text-sm font-medium text-gray-700">Full Name</label>
-              <div className="relative mt-1">
-                <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <label className="label">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="Enter your full name"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="John Doe"
+                  className="input pl-11"
                   disabled={isLoading}
                 />
               </div>
@@ -242,16 +253,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* Phone (Sign Up only) */}
           {!isLogin && (
             <div>
-              <label className="text-sm font-medium text-gray-700">Phone Number</label>
-              <div className="relative mt-1">
-                <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <label className="label">Phone Number</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  placeholder="10-digit phone number"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="9876543210"
+                  className="input pl-11"
                   disabled={isLoading}
                 />
               </div>
@@ -261,16 +272,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* Business Name (Vendor only) */}
           {!isLogin && role === 'vendor' && (
             <div>
-              <label className="text-sm font-medium text-gray-700">Business Name</label>
-              <div className="relative mt-1">
-                <Building2 className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <label className="label">Business Name</label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   name="businessName"
                   value={formData.businessName}
                   onChange={handleInputChange}
-                  placeholder="Your business name"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Your Business Pvt Ltd"
+                  className="input pl-11"
                   disabled={isLoading}
                 />
               </div>
@@ -280,16 +291,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* GST Number (Vendor only) */}
           {!isLogin && role === 'vendor' && (
             <div>
-              <label className="text-sm font-medium text-gray-700">GST Number</label>
-              <div className="relative mt-1">
-                <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <label className="label">GST Number</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   name="gstNumber"
                   value={formData.gstNumber}
                   onChange={handleInputChange}
-                  placeholder="15-digit GST number"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="22AAAAA0000A1Z5"
+                  className="input pl-11"
                   disabled={isLoading}
                 />
               </div>
@@ -299,16 +310,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* PAN Number (Seller only) */}
           {!isLogin && role === 'seller' && (
             <div>
-              <label className="text-sm font-medium text-gray-700">PAN Number</label>
-              <div className="relative mt-1">
-                <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <label className="label">PAN Number</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   name="panNumber"
                   value={formData.panNumber}
                   onChange={handleInputChange}
-                  placeholder="10-character PAN"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="ABCDE1234F"
+                  className="input pl-11"
                   disabled={isLoading}
                 />
               </div>
@@ -317,52 +328,67 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
           {/* Password */}
           <div>
-            <label className="text-sm font-medium text-gray-700">Password</label>
-            <div className="relative mt-1">
-              <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+            <label className="label">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                placeholder="Minimum 6 characters"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="••••••••"
+                className="input pl-11"
                 disabled={isLoading}
               />
             </div>
+            {!isLogin && (
+              <p className="text-xs text-gray-500 mt-1.5">Must be at least 6 characters</p>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full btn-primary btn-lg"
           >
-            {isLoading ? 'Loading...' : isLogin ? 'Login' : 'Create Account'}
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="spinner w-5 h-5"></div>
+                Processing...
+              </span>
+            ) : isLogin ? (
+              'Login to Account'
+            ) : (
+              'Create Account'
+            )}
           </button>
 
           {/* Toggle Login/Signup */}
-          <div className="text-center text-sm text-gray-600">
-            {isLogin ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setFormData({
-                  email: '',
-                  password: '',
-                  name: '',
-                  phone: '',
-                  businessName: '',
-                  gstNumber: '',
-                  panNumber: '',
-                });
-              }}
-              className="text-primary font-semibold hover:underline"
-            >
-              {isLogin ? 'Sign Up' : 'Login'}
-            </button>
+          <div className="text-center pt-2">
+            <p className="text-sm text-gray-600">
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                  setSuccessMessage('');
+                  setFormData({
+                    email: '',
+                    password: '',
+                    name: '',
+                    phone: '',
+                    businessName: '',
+                    gstNumber: '',
+                    panNumber: '',
+                  });
+                }}
+                className="text-primary-600 font-semibold hover:text-primary-700 hover:underline transition-colors"
+              >
+                {isLogin ? 'Sign Up' : 'Login'}
+              </button>
+            </p>
           </div>
         </form>
       </div>

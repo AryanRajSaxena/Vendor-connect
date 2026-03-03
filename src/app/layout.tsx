@@ -16,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body className="bg-gray-50">
+      <body className="bg-gray-50 antialiased">
         <AuthProvider>
           <Header />
           <main className="min-h-[calc(100vh-200px)]">
