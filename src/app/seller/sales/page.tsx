@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { AlertCircle, FileText } from 'lucide-react';
+import {
+  ShoppingBag,
+  DollarSign,
+  CheckCircle,
+  TrendingUp,
+  AlertCircle,
+  FileText,
+  Clock,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
 
@@ -11,283 +18,412 @@ interface SalesOrder {
   id: string;
   orderNumber: string;
   productName: string;
-  customerId: string;
   quantity: number;
-  basePrice: number;
   finalPrice: number;
   sellerCommission: number;
   status: string;
   createdAt: string;
 }
 
-type FilterStatus = 'all' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+interface CommissionRecord {
+  id: string;
+  amount: number;
+  status: 'completed' | 'processing';
+  orderId: string;
+  productName: string;
+  createdAt: string;
+}
+
+type FilterStatus = 'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 
 export default function SellerSalesPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
+  const [commissionRecords, setCommissionRecords] = useState<CommissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'earnings'>('recent');
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('month');
+  const [totals, setTotals] = useState({ totalEarned: 0, totalPaid: 0, processing: 0 });
 
   useEffect(() => {
-    if (!isLoading && user?.role !== 'seller') {
-      router.push('/');
-      return;
-    }
-
-    if (user?.id) {
-      fetchSalesData();
-    }
+    if (!isLoading && user?.role !== 'seller') router.push('/');
   }, [user, isLoading, router]);
 
-  const fetchSalesData = async () => {
+  useEffect(() => {
+    if (user?.id) fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Note: This would need a dedicated /api/seller/sales endpoint
-      // For now, we'll fetch all orders and filter by seller
-      const response = await fetch(`/api/orders?sellerId=${user?.id}`);
-      if (!response.ok) throw new Error('Failed to fetch sales data');
+      const [productsRes, ordersRes] = await Promise.all([
+        fetch(`/api/seller-products?sellerId=${user!.id}`),
+        fetch(`/api/orders?sellerId=${user!.id}`),
+      ]);
 
-      const data = await response.json();
-      const rawOrders = Array.isArray(data) ? data : data.orders || [];
-      
-      // Transform snake_case API response to camelCase
-      const transformedOrders = rawOrders.map((o: any) => ({
-        id: o.id,
-        orderNumber: o.order_number,
-        productName: o.product_name,
-        customerId: o.customer_id,
-        quantity: o.quantity || 0,
-        basePrice: o.base_price || 0,
-        finalPrice: o.final_price || 0,
-        sellerCommission: o.seller_commission || 0,
-        status: o.status,
-        createdAt: o.created_at,
-      }));
-      setOrders(transformedOrders);
+      let totalEarned = 0;
+      if (productsRes.ok) {
+        const raw = await productsRes.json();
+        const prods = Array.isArray(raw) ? raw : raw.products || [];
+        totalEarned = prods.reduce((s: number, p: any) => s + (p.earnings || 0), 0);
+      }
+
+      let orderList: SalesOrder[] = [];
+      let records: CommissionRecord[] = [];
+      let totalPaid = 0;
+      let processing = 0;
+
+      if (ordersRes.ok) {
+        const raw = await ordersRes.json();
+        const list: any[] = Array.isArray(raw) ? raw : raw.orders || [];
+        orderList = list.map((o) => ({
+          id: o.id,
+          orderNumber: o.order_number || o.orderNumber || o.id,
+          productName: o.product?.name || o.product_name || '—',
+          quantity: o.quantity || 1,
+          finalPrice: o.final_price || o.finalPrice || 0,
+          sellerCommission: o.seller_commission || o.sellerCommission || 0,
+          status: o.order_status || o.status || 'pending',
+          createdAt: o.created_at || o.createdAt || '',
+        }));
+        list.forEach((o) => {
+          const commission = o.seller_commission || o.sellerCommission || 0;
+          const status = (o.order_status || o.status || '').toLowerCase();
+          records.push({
+            id: o.id,
+            amount: commission,
+            status: status === 'delivered' ? 'completed' : 'processing',
+            orderId: o.order_number || o.orderNumber || o.id,
+            productName: o.product?.name || o.product_name || '—',
+            createdAt: o.created_at || o.createdAt || '',
+          });
+          if (status === 'delivered') totalPaid += commission;
+          else if (['pending', 'confirmed', 'shipped'].includes(status)) processing += commission;
+        });
+        records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+
+      setOrders(orderList);
+      setCommissionRecords(records);
+      setTotals({ totalEarned, totalPaid, processing });
     } catch (err) {
       setError((err as Error).message);
-      console.error('Failed to fetch sales data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAndSorted = orders
+  const filteredOrders = orders
     .filter((o) => filterStatus === 'all' || o.status.toLowerCase() === filterStatus)
-    .sort((a, b) => {
-      if (sortBy === 'earnings') return b.sellerCommission - a.sellerCommission;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+    .sort((a, b) =>
+      sortBy === 'earnings'
+        ? b.sellerCommission - a.sellerCommission
+        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
   const stats = {
-    totalOrders: orders.length,
-    totalEarnings: orders.reduce((sum, o) => sum + o.sellerCommission, 0),
-    completedOrders: orders.filter((o) => o.status === 'delivered').length,
-    pendingOrders: orders.filter((o) => o.status === 'pending' || o.status === 'processing').length,
+    total: orders.length,
+    completed: orders.filter((o) => o.status === 'delivered').length,
+    pending: orders.filter((o) => ['pending', 'confirmed'].includes(o.status.toLowerCase())).length,
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'shipped':
-        return 'bg-blue-100 text-blue-800';
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'pending':
-        return 'bg-orange-100 text-orange-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      delivered: 'bg-green-100 text-green-700',
+      shipped: 'bg-blue-100 text-blue-700',
+      confirmed: 'bg-yellow-100 text-yellow-700',
+      pending: 'bg-orange-100 text-orange-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return map[status.toLowerCase()] || 'bg-gray-100 text-gray-700';
+  };
+
+  const exportCSV = () => {
+    const rows = [
+      ['Order ID', 'Product', 'Qty', 'Price', 'Commission', 'Status', 'Date'],
+      ...filteredOrders.map((o) => [
+        o.orderNumber,
+        o.productName,
+        o.quantity,
+        o.finalPrice,
+        o.sellerCommission,
+        o.status,
+        new Date(o.createdAt).toLocaleDateString(),
+      ]),
+    ];
+    const csv = rows.map((r) => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'sales.csv';
+    a.click();
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
-
-  if (!user || user.role !== 'seller') {
-    return null;
-  }
+  if (!user || user.role !== 'seller') return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href="/seller/dashboard" className="text-primary hover:underline mb-2 inline-block">
-            ← Back to Dashboard
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Sales History</h1>
-          <p className="text-gray-600">Track your orders and earnings</p>
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-gray-900">Sales & Earnings</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Your order history and commission earnings</p>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-5 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
         </div>
+      )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600">Total Orders</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+      {/* KPI cards — Orders */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ShoppingBag className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Total Orders</span>
           </div>
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600">Completed</p>
-            <p className="text-2xl font-bold text-green-600">{stats.completedOrders}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600">Pending</p>
-            <p className="text-2xl font-bold text-orange-600">{stats.pendingOrders}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600">Total Earnings</p>
-            <p className="text-2xl font-bold text-purple-600">{formatCurrency(stats.totalEarnings)}</p>
-          </div>
+          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.total}</p>
         </div>
-
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Completed</span>
           </div>
-        )}
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg p-4 mb-6 flex gap-4 items-center flex-wrap">
-          <div>
-            <label className="text-sm font-semibold text-gray-700 mr-2">Status:</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">All Orders</option>
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-gray-700 mr-2">Sort by:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="recent">Most Recent</option>
-              <option value="earnings">Highest Earnings</option>
-            </select>
-          </div>
-
-          <div className="ml-auto text-sm text-gray-600">
-            {filteredAndSorted.length} order{filteredAndSorted.length !== 1 ? 's' : ''}
-          </div>
+          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.completed}</p>
         </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">In Progress</span>
+          </div>
+          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.pending}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Total Commissions</span>
+          </div>
+          <p className="text-2xl font-semibold tabular-nums text-gray-900">
+            {formatCurrency(totals.totalEarned)}
+          </p>
+          <p className="text-[10px] text-gray-400 mt-1">10% of all sales</p>
+        </div>
+      </div>
 
-        {/* Orders Table */}
-        {loading ? (
-          <div className="text-center py-12 bg-white rounded-lg">
-            <p className="text-gray-500">Loading orders...</p>
+      {/* KPI cards — Earnings breakdown */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-sm text-gray-600">Processing</span>
+            <span className="text-[10px] text-gray-400">· from pending orders</span>
           </div>
-        ) : filteredAndSorted.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No sales orders yet</p>
-            <p className="text-sm text-gray-500">Add products to your store to start earning</p>
+          <span className="text-sm font-semibold tabular-nums text-gray-900">
+            {formatCurrency(totals.processing)}
+          </span>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-sm text-gray-600">Paid Out</span>
+            <span className="text-[10px] text-gray-400">· automatically processed</span>
           </div>
-        ) : (
-          <div className="bg-white rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Order ID</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Product</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Quantity</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Unit Price</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Your Commission (10%)</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Status</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSorted.map((order) => (
-                    <tr key={order.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-gray-900">{order.orderNumber}</td>
-                      <td className="px-6 py-4 text-gray-700 max-w-xs truncate">{order.productName}</td>
-                      <td className="px-6 py-4 text-right text-gray-700">{order.quantity}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div>
-                          <p className="font-semibold text-gray-900">{formatCurrency(order.finalPrice)}</p>
-                          <p className="text-xs text-gray-500">final</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <p className="font-bold text-green-600">{formatCurrency(order.sellerCommission)}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block ${getStatusColor(order.status)}`}>
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 text-xs">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <span className="text-sm font-semibold tabular-nums text-gray-900">
+            {formatCurrency(totals.totalPaid)}
+          </span>
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <div className="bg-white rounded-lg border border-gray-200 p-5 mb-5">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">How It Works</h2>
+        <div className="grid sm:grid-cols-3 gap-4 text-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-semibold text-gray-600">1</span>
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Add products</p>
+              <p className="text-xs text-gray-500 mt-0.5">Browse the marketplace and add products to your store</p>
             </div>
           </div>
-        )}
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-semibold text-gray-600">2</span>
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Share your link</p>
+              <p className="text-xs text-gray-500 mt-0.5">Share your referral link with your audience</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-semibold text-gray-600">3</span>
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Earn 10%</p>
+              <p className="text-xs text-gray-500 mt-0.5">Get paid automatically when the order is delivered</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Export Button */}
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3.5 mb-5 flex flex-wrap items-center gap-2">
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700"
+        >
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'recent' | 'earnings')}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700"
+        >
+          <option value="recent">Most Recent</option>
+          <option value="earnings">Highest Commission</option>
+        </select>
+        <span className="ml-auto text-xs text-gray-400">
+          {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
+        </span>
         {orders.length > 0 && (
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={() => {
-                const csv = [
-                  ['Order ID', 'Product', 'Quantity', 'Unit Price', 'Your Commission', 'Status', 'Date'].join(','),
-                  ...filteredAndSorted.map((o) =>
-                    [
-                      o.orderNumber,
-                      o.productName,
-                      o.quantity,
-                      o.finalPrice,
-                      o.sellerCommission,
-                      o.status,
-                      new Date(o.createdAt).toLocaleDateString(),
-                    ].join(',')
-                  ),
-                ].join('\n');
+          <button
+            onClick={exportCSV}
+            className="text-xs text-gray-500 hover:text-gray-900 transition-colors border border-gray-200 px-3 py-2 rounded-md"
+          >
+            Export CSV
+          </button>
+        )}
+      </div>
 
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'sales-history.csv';
-                a.click();
-              }}
-              className="text-primary hover:underline text-sm font-semibold"
-            >
-              📥 Export as CSV
-            </button>
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16 bg-white rounded-lg border border-gray-200">
+          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 py-16 text-center">
+          <FileText className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm text-gray-400">No orders found</p>
+          <p className="text-xs text-gray-400 mt-1">Add products to your store to start earning</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Order</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Product</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Price</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Commission</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{order.orderNumber}</td>
+                    <td className="px-4 py-3 text-gray-900 max-w-[200px] truncate">{order.productName}</td>
+                    <td className="px-4 py-3 text-right text-gray-900 tabular-nums">
+                      {formatCurrency(order.finalPrice)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-gray-900">
+                      {formatCurrency(order.sellerCommission)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge(order.status)}`}
+                      >
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Commission History */}
+      <div className="bg-white rounded-lg border border-gray-200 mt-5">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-800">Commission History</h2>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : commissionRecords.length === 0 ? (
+          <div className="py-16 text-center">
+            <TrendingUp className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-400">No commissions yet</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Commissions appear here once customers receive their orders
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {commissionRecords.map((record) => (
+              <div key={record.id} className="flex items-center justify-between px-5 py-3.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{record.productName}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-xs text-gray-400 font-mono">{record.orderId}</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(record.createdAt).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      record.status === 'completed'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}
+                  >
+                    {record.status === 'completed' ? 'Paid' : 'Processing'}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-gray-900">
+                    {formatCurrency(record.amount)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

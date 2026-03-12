@@ -1,8 +1,5 @@
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Vendor Dashboard - VendorConnect',
-  description: 'Manage your products and sales',
-};
-
-export { default } from '@/components/shared/layouts/VendorLayout';
+export default function VendorIndexPage() {
+  redirect('/vendor/dashboard');
+}

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingCart, ChevronDown, Star, Filter, Package } from 'lucide-react';
-import { formatCurrency } from '@/utils/calculations';
+import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface Product {
   id: string;
@@ -256,8 +256,16 @@ export default function ProductsPage() {
                     <div key={product.id} className="card-interactive group">
                       {/* Image */}
                       <div className="relative">
-                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-xl p-8 h-52 flex items-center justify-center text-5xl group-hover:scale-105 transition-transform duration-300">
-                          {product.images?.[0] || '📦'}
+                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-xl h-52 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                          {getImageUrl(product.images?.[0]) ? (
+                            <img
+                              src={getImageUrl(product.images?.[0])!}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-5xl">📦</span>
+                          )}
                         </div>
                         {product.markup_percentage > 0 && (
                           <div className="absolute top-3 right-3 badge-error font-bold shadow-sm">

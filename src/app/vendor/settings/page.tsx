@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Save, Home, Lock, Mail, Briefcase } from 'lucide-react';
+import { AlertCircle, Lock, Edit2 } from 'lucide-react';
 
 export default function VendorSettings() {
   const router = useRouter();
@@ -12,6 +11,7 @@ export default function VendorSettings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [locked, setLocked] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,44 +22,52 @@ export default function VendorSettings() {
   });
 
   useEffect(() => {
-    if (!isLoading && user?.role !== 'vendor') {
-      router.push('/');
-    }
-
+    if (!isLoading && user?.role !== 'vendor') router.push('/');
     if (user) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        businessName: user.businessName || '',
-        gstNumber: user.gstNumber || '',
-        panNumber: user.panNumber || '',
-      });
+      const u = user as any;
+      const data = {
+        name: u.name ?? '',
+        email: u.email ?? '',
+        phone: u.phone ?? '',
+        businessName: u.businessName ?? u.business_name ?? '',
+        gstNumber: u.gstNumber ?? u.gst_number ?? '',
+        panNumber: u.panNumber ?? u.pan_number ?? '',
+      };
+      setFormData(data);
+      if (data.name && data.businessName && data.phone) setLocked(true);
     }
   }, [user, isLoading, router]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(false);
-
     try {
-      if (!formData.name.trim()) {
-        throw new Error('Name is required');
-      }
-      if (!formData.businessName.trim()) {
-        throw new Error('Business name is required');
-      }
+      if (!formData.name.trim()) throw new Error('Name is required');
+      if (!formData.businessName.trim()) throw new Error('Business name is required');
+      if (!formData.phone.trim()) throw new Error('Phone number is required');
 
+      const res = await fetch(`/api/users/${user!.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          business_name: formData.businessName,
+          gst_number: formData.gstNumber,
+          pan_number: formData.panNumber,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? 'Failed to save details');
+      }
       updateUser({
         name: formData.name,
         phone: formData.phone,
@@ -67,9 +75,9 @@ export default function VendorSettings() {
         gstNumber: formData.gstNumber,
         panNumber: formData.panNumber,
       });
-
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setLocked(true);
+      setTimeout(() => setSuccess(false), 4000);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -78,227 +86,134 @@ export default function VendorSettings() {
   };
 
   const handleLogout = () => {
-    if (confirm('Are you sure you want to logout?')) {
+    if (confirm('Sign out of your account?')) {
       logout();
       router.push('/');
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!user || user.role !== 'vendor') {
-    return null;
-  }
+  if (isLoading) return null;
+  if (!user || user.role !== 'vendor') return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href="/vendor/dashboard" className="text-primary hover:underline mb-4 inline-flex items-center gap-1">
-            <Home className="w-4 h-4" /> Back to Dashboard
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Settings</h1>
-          <p className="text-gray-600">Manage your vendor account and business details</p>
+    <div className="px-6 py-8 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage your account and business details</p>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg mb-5">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
         </div>
+      )}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg mb-5">
+          Details saved and locked successfully. Click Edit to make changes.
+        </div>
+      )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
+      {/* Business info */}
+      {locked ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-5">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-gray-700">Business Information</h2>
+            <button
+              onClick={() => setLocked(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Edit
+            </button>
           </div>
-        )}
-
-        {/* Success Alert */}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>Profile updated successfully!</p>
-          </div>
-        )}
-
-        {/* Business Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Briefcase className="w-6 h-6" /> Business Information
-          </h2>
-
-          <form onSubmit={handleSaveProfile} className="space-y-6">
-            {/* Business Name */}
+          <dl className="space-y-4">
+            {[
+              { label: 'Business Name', value: formData.businessName },
+              { label: 'Owner / Manager Name', value: formData.name },
+              { label: 'Phone', value: formData.phone },
+              { label: 'GST Number', value: formData.gstNumber || '—' },
+              { label: 'PAN Number', value: formData.panNumber || '—' },
+              { label: 'Email', value: formData.email },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-start justify-between">
+                <dt className="text-sm text-gray-500 w-40 flex-shrink-0">{label}</dt>
+                <dd className="text-sm font-medium text-gray-900 text-right">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : (
+        <form onSubmit={handleSave}>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4 mb-5">
+            <h2 className="text-sm font-semibold text-gray-700">Business Information</h2>
+            {[
+              { label: 'Business Name', name: 'businessName', placeholder: 'Your business name', hint: 'Used for invoicing and marketplace display' },
+              { label: 'Owner / Manager Name', name: 'name', placeholder: 'Your full name' },
+              { label: 'Phone', name: 'phone', placeholder: '+91 9876543210', hint: 'For order notifications and support', type: 'tel' },
+              { label: 'GST Number', name: 'gstNumber', placeholder: '27AABCT1234H1Z0', hint: 'GST registration number (optional)' },
+              { label: 'PAN Number', name: 'panNumber', placeholder: 'AAAPA1234P', hint: 'For tax reporting (optional)' },
+            ].map(({ label, name, placeholder, hint, type }) => (
+              <div key={name}>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
+                <input
+                  type={type ?? 'text'}
+                  name={name}
+                  value={(formData as any)[name]}
+                  onChange={handleChange}
+                  placeholder={placeholder}
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+              </div>
+            ))}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name</label>
-              <input
-                type="text"
-                name="businessName"
-                value={formData.businessName}
-                onChange={handleInputChange}
-                placeholder="Your Business Name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Legal business name for invoicing</p>
-            </div>
-
-            {/* Owner Name */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Owner/Manager Name</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Your Full Name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Name of primary account holder</p>
-            </div>
-
-            {/* GST Number */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">GST Number</label>
-              <input
-                type="text"
-                name="gstNumber"
-                value={formData.gstNumber}
-                onChange={handleInputChange}
-                placeholder="27AABCT1234H1Z0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">GST registration number (optional)</p>
-            </div>
-
-            {/* PAN Number */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">PAN Number</label>
-              <input
-                type="text"
-                name="panNumber"
-                value={formData.panNumber}
-                onChange={handleInputChange}
-                placeholder="AAAPA1234P"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">PAN for tax purposes (optional)</p>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Business Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="+91 9876543210"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Contact number for orders and support</p>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <Mail className="w-4 h-4" /> Email Address
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
               <input
                 type="email"
                 value={formData.email}
                 disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
               />
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed. Contact support if needed.</p>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex gap-4 pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
-              >
-                <Save className="w-5 h-5" />
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Account Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Security</h2>
-
-          <div className="space-y-6">
-            {/* Change Password */}
-            <div>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <Lock className="w-5 h-5 text-gray-400 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Change Password</h3>
-                    <p className="text-sm text-gray-600 mt-1">Update your account password</p>
-                  </div>
-                </div>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                  Update
-                </button>
-              </div>
-            </div>
-
-            <hr className="my-6" />
-
-            {/* Account Info */}
-            <div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">Account Type</h3>
-                  <p className="text-sm text-gray-600 mt-1">Vendor Account</p>
-                </div>
-                <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                  Active
-                </span>
-              </div>
+              <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
             </div>
           </div>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-red-900 mb-6">Danger Zone</h2>
-
-          <div className="space-y-4">
-            {/* Logout */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Logout From All Devices</h3>
-                <p className="text-sm text-gray-600 mt-1">Sign out from your account</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+            >
+              <Lock className="w-4 h-4" />
+              {loading ? 'Saving...' : 'Save & Lock'}
+            </button>
+            {formData.name && formData.businessName && formData.phone && (
               <button
-                onClick={handleLogout}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+                type="button"
+                onClick={() => setLocked(true)}
+                className="px-4 py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Logout
+                Cancel
               </button>
-            </div>
-
-            <hr className="my-4" />
-
-            {/* Deactivate Account */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Deactivate Account</h3>
-                <p className="text-sm text-gray-600 mt-1">Temporarily deactivate your vendor account</p>
-              </div>
-              <button className="px-6 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-semibold">
-                Deactivate
-              </button>
-            </div>
+            )}
           </div>
+        </form>
+      )}
+
+      {/* Danger zone */}
+      <div className="mt-8 bg-white rounded-lg border border-red-100 p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Sign out</p>
+            <p className="text-xs text-gray-400 mt-0.5">Log out from your vendor account</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </div>

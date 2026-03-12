@@ -2,94 +2,91 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Plus, AlertCircle } from 'lucide-react';
+import {
+  Search,
+  Users,
+  AlertCircle,
+  Plus,
+  CheckCircle2,
+  Tag,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency } from '@/utils/calculations';
+import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface Product {
   id: string;
   name: string;
   category: string;
+  description: string;
   basePrice: number;
   finalPrice: number;
-  stock: number;
   images?: string[];
-  vendorId: string;
-  description: string;
+  sellerCount: number;
+  isSellerProduct: boolean;
 }
 
-interface SellerProduct {
-  productId: string;
-}
+const categoryGradient = (category: string) => {
+  const map: Record<string, string> = {
+    'Course': 'from-violet-100 to-purple-50',
+    'Ebook': 'from-sky-100 to-blue-50',
+    'Template': 'from-teal-100 to-emerald-50',
+    'Software': 'from-orange-100 to-amber-50',
+    'Design': 'from-pink-100 to-rose-50',
+    'Music': 'from-indigo-100 to-blue-50',
+    'Video': 'from-red-100 to-orange-50',
+  };
+  return map[category] || 'from-gray-100 to-gray-50';
+};
 
 export default function SellerMarketplacePage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
+
   const [products, setProducts] = useState<Product[]>([]);
-  const [sellerProducts, setSellerProducts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('');
-  const [filterPrice, setFilterPrice] = useState<'all' | 'budget' | 'mid' | 'premium'>('all');
-  const [sortBy, setSortBy] = useState<'relevant' | 'price-low' | 'price-high' | 'newest'>('relevant');
-  const [addingProduct, setAddingProduct] = useState<string | null>(null);
-  const [pricePercentage, setPricePercentage] = useState<{ [key: string]: number }>({});
+  const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [addingProducts, setAddingProducts] = useState<Set<string>>(new Set());
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'seller') {
       router.push('/');
-      return;
-    }
-
-    if (user?.id) {
-      fetchMarketplaceData();
     }
   }, [user, isLoading, router]);
 
-  const fetchMarketplaceData = async () => {
+  useEffect(() => {
+    if (user?.id) {
+      fetchProducts();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const fetchProducts = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [productsRes, sellerProdsRes] = await Promise.all([
-        fetch('/api/products'),
-        fetch(`/api/seller-products?sellerId=${user?.id}`),
-      ]);
+      const res = await fetch(`/api/products/with-seller-count?isActive=true&sellerId=${user!.id}`);
+      if (!res.ok) throw new Error('Failed to fetch products');
 
-      if (!productsRes.ok) throw new Error('Failed to fetch products');
-
-      const allProducts = await productsRes.json();
-      const products = Array.isArray(allProducts) ? allProducts : allProducts.products || [];
-      
-      // Transform snake_case API response to camelCase
-      const transformedProducts = products.map((p: any) => ({
+      const raw = await res.json();
+      const data = (Array.isArray(raw) ? raw : raw.products || []).map((p: any) => ({
         id: p.id,
         name: p.name,
-        category: p.category,
+        category: p.category || '',
+        description: p.description || '',
         basePrice: p.base_price || 0,
         finalPrice: p.final_price || 0,
-        stock: p.stock || 0,
         images: p.images || [],
-        vendorId: p.vendor_id,
-        description: p.description,
-        createdAt: p.created_at,
+        sellerCount: p.sellerCount || 0,
+        isSellerProduct: p.isSellerProduct || false,
       }));
-      setProducts(transformedProducts);
 
-      if (sellerProdsRes.ok) {
-        const sellerProds = await sellerProdsRes.json();
-        const rawProducts = Array.isArray(sellerProds) ? sellerProds : sellerProds.products || [];
-        
-        // Transform snake_case to camelCase
-        const productIdSet = new Set(
-          rawProducts.map((p: any) => p.product_id || p.productId)
-        );
-        setSellerProducts(productIdSet);
-      }
+      setProducts(data);
     } catch (err) {
       setError((err as Error).message);
-      console.error('Failed to fetch marketplace data:', err);
     } finally {
       setLoading(false);
     }
@@ -97,266 +94,224 @@ export default function SellerMarketplacePage() {
 
   const handleAddProduct = async (productId: string) => {
     try {
-      setAddingProduct(productId);
+      setAddingProducts((prev) => new Set([...prev, productId]));
+      setAddError(null);
 
-      // Generate a short referral code (max 20 chars)
-      const shortSellerId = (user?.id || '').substring(0, 6);
+      const shortSellerId = (user!.id).substring(0, 6);
       const shortProductId = productId.substring(0, 6);
       const rand = Math.random().toString(36).substring(2, 5).toUpperCase();
       const referralCode = `${shortSellerId}${shortProductId}${rand}`.substring(0, 20);
 
-      const response = await fetch('/api/seller-products', {
+      const res = await fetch('/api/seller-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sellerId: user?.id,
-          productId: productId,
-          referralCode,
-        }),
+        body: JSON.stringify({ sellerId: user!.id, productId, referralCode }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to add product');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to add product');
       }
 
-      setSellerProducts((prev) => new Set([...prev, productId]));
-      alert('✓ Product added to your store!');
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId
+            ? { ...p, isSellerProduct: true, sellerCount: p.sellerCount + 1 }
+            : p
+        )
+      );
     } catch (err) {
-      alert('Error: ' + (err as Error).message);
+      setAddError((err as Error).message);
     } finally {
-      setAddingProduct(null);
+      setAddingProducts((prev) => {
+        const s = new Set(prev);
+        s.delete(productId);
+        return s;
+      });
     }
   };
 
-  const filteredAndSorted = products
-    .filter((p) => !filterCategory || p.category === filterCategory)
-    .filter((p) => {
-      if (filterPrice === 'budget') return p.basePrice <= 2000;
-      if (filterPrice === 'mid') return p.basePrice > 2000 && p.basePrice <= 10000;
-      if (filterPrice === 'premium') return p.basePrice > 10000;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'price-low') return a.basePrice - b.basePrice;
-      if (sortBy === 'price-high') return b.basePrice - a.basePrice;
-      if (sortBy === 'newest') return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
-      return 0;
-    });
+  const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
 
-  const categories = Array.from(new Set(products.map((p) => p.category)));
+  const filtered = products.filter((p) => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
+    const matchCategory = !filterCategory || p.category === filterCategory;
+    return matchSearch && matchCategory;
+  });
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!user || user.role !== 'seller') {
-    return null;
-  }
+  if (!user || user.role !== 'seller') return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <Link href="/seller/dashboard" className="text-primary hover:underline mb-2 inline-block">
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-bold text-gray-900">Marketplace</h1>
-            <p className="text-gray-600">Browse and add products to your store</p>
-          </div>
-        </div>
+    <div className="p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-gray-900 mb-1">Marketplace</h1>
+        <p className="text-sm text-gray-500">
+          Browse vendor products and add them to your store — earn 10% commission on every sale.
+        </p>
+      </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
-          </div>
+      {/* Add error */}
+      {addError && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-5 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {addError}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3.5 mb-5 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products..."
+            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+          />
+        </div>
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700"
+        >
+          <option value="">All Categories</option>
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        {(search || filterCategory) && (
+          <button
+            onClick={() => { setSearch(''); setFilterCategory(''); }}
+            className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded transition-colors"
+          >
+            Clear
+          </button>
         )}
+        <span className="ml-auto text-xs text-gray-400">
+          {filtered.length} product{filtered.length !== 1 ? 's' : ''}
+        </span>
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range</label>
-              <select
-                value={filterPrice}
-                onChange={(e) => setFilterPrice(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="all">All Prices</option>
-                <option value="budget">Budget (0-₹2000)</option>
-                <option value="mid">Mid-range (₹2000-₹10000)</option>
-                <option value="premium">Premium (₹10000+)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="relevant">Most Relevant</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="newest">Newest First</option>
-              </select>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setFilterCategory('');
-                  setFilterPrice('all');
-                  setSortBy('relevant');
-                }}
-                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Reset Filters
-              </button>
-            </div>
-          </div>
+      {/* Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : error ? (
+        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 py-16 text-center">
+          <Search className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm text-gray-400">No products found</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((product) => {
+            const imgUrl = getImageUrl(product.images?.[0]);
+            const commission = product.finalPrice * 0.1;
 
-        {/* Products Grid */}
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">Loading products...</p>
-          </div>
-        ) : filteredAndSorted.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg">
-            <p className="text-gray-500 mb-4">No products match your filters</p>
-            <button
-              onClick={() => {
-                setFilterCategory('');
-                setFilterPrice('all');
-              }}
-              className="text-primary hover:underline"
-            >
-              Clear filters →
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAndSorted.map((product) => (
-              <div key={product.id} className="bg-white rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                {/* Product Image */}
-                <div className="h-48 bg-gray-100 flex items-center justify-center text-5xl">
-                  {product.images?.[0] || '📦'}
-                </div>
-
-                {/* Product Info */}
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-900 truncate">{product.name}</h3>
-                  <p className="text-xs text-gray-500 mb-2">{product.category}</p>
-
-                  {/* Description */}
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-4">{product.description}</p>
-
-                  {/* Pricing */}
-                  <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs text-gray-600">Vendor Base Price:</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(product.basePrice)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Customer Final Price:</span>
-                      <span className="font-bold text-primary">{formatCurrency(product.finalPrice)}</span>
-                    </div>
-                    {sellerProducts.has(product.id) && (
-                      <div className="text-xs text-green-600 font-semibold mt-2">✓ Already in your store</div>
-                    )}
-                  </div>
-
-                  {/* Your Markup */}
-                  {!sellerProducts.has(product.id) && (
-                    <div className="mb-4">
-                      <label className="text-xs text-gray-700 font-semibold mb-1 block">
-                        Your Markup % (optional):
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={pricePercentage[product.id] || 0}
-                        onChange={(e) =>
-                          setPricePercentage({ ...pricePercentage, [product.id]: parseFloat(e.target.value) || 0 })
-                        }
-                        placeholder="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        You'll earn 10% commission from {formatCurrency(product.finalPrice)}
-                      </p>
+            return (
+              <div
+                key={product.id}
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors flex flex-col"
+              >
+                {/* Cover */}
+                <div
+                  className={`h-36 bg-gradient-to-br ${categoryGradient(product.category)} flex-shrink-0 overflow-hidden relative`}
+                >
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : null}
+                  {product.isSellerProduct && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full border border-green-200">
+                      <CheckCircle2 className="w-3 h-3" />
+                      In Store
                     </div>
                   )}
+                </div>
 
-                  {/* Stock Status */}
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-600">
-                      Vendor Stock:{' '}
-                      <span className={product.stock > 10 ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>
-                        {product.stock} units
-                      </span>
-                    </p>
+                {/* Content */}
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-start gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">
+                        {product.name}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Action Button */}
-                  {sellerProducts.has(product.id) ? (
-                    <Link
-                      href={`/seller/dashboard/products/${product.id}`}
-                      className="w-full btn btn-outline text-center"
-                    >
-                      View in Store
-                    </Link>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <Tag className="w-2.5 h-2.5" />
+                      {product.category}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                      <Users className="w-2.5 h-2.5" />
+                      {product.sellerCount} seller{product.sellerCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between mb-1 mt-auto">
+                    <span className="text-base font-semibold text-gray-900">
+                      {formatCurrency(product.finalPrice || product.basePrice)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      Earn <span className="font-medium text-gray-700">{formatCurrency(commission)}</span>
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-3">10% commission per sale</p>
+
+                  {product.isSellerProduct ? (
+                    <div className="flex items-center justify-center gap-1.5 w-full py-2 bg-gray-50 border border-gray-200 text-gray-500 text-sm rounded-md">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                      Added to your store
+                    </div>
                   ) : (
                     <button
                       onClick={() => handleAddProduct(product.id)}
-                      disabled={addingProduct === product.id}
-                      className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+                      disabled={addingProducts.has(product.id)}
+                      className="flex items-center justify-center gap-1.5 w-full py-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-60 text-white text-sm font-medium rounded-md transition-colors"
                     >
-                      <Plus className="w-4 h-4" />
-                      {addingProduct === product.id ? 'Adding...' : 'Add to Store'}
+                      {addingProducts.has(product.id) ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          Add to Store
+                        </>
+                      )}
                     </button>
                   )}
-
-                  {/* View Product */}
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="w-full block text-center mt-2 text-primary hover:underline text-sm"
-                  >
-                    View Details
-                  </Link>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

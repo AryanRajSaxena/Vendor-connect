@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Edit2, Trash2, Plus } from 'lucide-react';
+import { Edit2, Trash2, Plus, Search, Package, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency } from '@/utils/calculations';
+import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface Product {
   id: string;
@@ -13,10 +13,9 @@ interface Product {
   category: string;
   basePrice: number;
   finalPrice: number;
-  stock: number;
-  soldCount?: number;
-  images?: string[];
-  vendorId: string;
+  soldCount: number;
+  isActive: boolean;
+  coverImage?: string;
   createdAt: string;
 }
 
@@ -26,67 +25,51 @@ export default function VendorProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'recent' | 'price' | 'stock'>('recent');
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') {
       router.push('/');
-      return;
     }
-
-    if (user?.id) {
-      fetchProducts();
-    }
+    if (user?.id) fetchProducts();
   }, [user, isLoading, router]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      const response = await fetch(`/api/products?vendorId=${user?.id}`);
-      if (!response.ok) throw new Error('Failed to fetch products');
-
-      const data = await response.json();
-      const products = Array.isArray(data) ? data : data.products || [];
-      
-      // Transform snake_case API response to camelCase
-      const transformedProducts = products.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        basePrice: p.base_price || 0,
-        finalPrice: p.final_price || 0,
-        stock: p.stock || 0,
-        soldCount: p.sold_count || 0,
-        images: p.images || [],
-        vendorId: p.vendor_id,
-        createdAt: p.created_at || new Date().toISOString(),
-      }));
-      
-      setProducts(transformedProducts);
+      const res = await fetch(`/api/products?vendorId=${user?.id}`);
+      if (!res.ok) throw new Error('Failed to fetch products');
+      const data = await res.json();
+      const raw: any[] = Array.isArray(data) ? data : data.products ?? [];
+      setProducts(
+        raw.map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          basePrice: p.base_price ?? p.basePrice ?? 0,
+          finalPrice: p.final_price ?? p.finalPrice ?? 0,
+          soldCount: p.sold_count ?? p.soldCount ?? 0,
+          isActive: p.is_active !== false,
+          coverImage: p.images?.[0] ?? undefined,
+          createdAt: p.created_at ?? p.createdAt ?? '',
+        }))
+      );
     } catch (err) {
       setError((err as Error).message);
-      console.error('Failed to fetch products:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (productId: string) => {
+  const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete product');
-
-      setProducts(products.filter((p) => p.id !== productId));
-      setDeleteConfirm(null);
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete product');
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setDeleteTarget(null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -94,233 +77,163 @@ export default function VendorProductsPage() {
     }
   };
 
-  const filteredProducts = products
-    .filter((p) => !filterCategory || p.category === filterCategory)
-    .sort((a, b) => {
-      if (sortBy === 'price') return b.basePrice - a.basePrice;
-      if (sortBy === 'stock') return b.stock - a.stock;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+  const filtered = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.category.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const categories = Array.from(new Set(products.map((p) => p.category)));
-
-  const totalStockValue = products.reduce((sum, p) => sum + p.basePrice * p.stock, 0);
-  const totalSold = products.reduce((sum, p) => sum + (p.soldCount || 0), 0);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!user || user.role !== 'vendor') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Unauthorized access</p>
-      </div>
-    );
-  }
+  if (isLoading) return null;
+  if (!user || user.role !== 'vendor') return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <Link href="/vendor/dashboard" className="text-primary hover:underline mb-2 inline-block">
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-bold text-gray-900">Your Products</h1>
-            <p className="text-gray-600">Manage and monitor your product listings</p>
-          </div>
-          <Link href="/vendor/add-product" className="btn btn-primary flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Add Product
-          </Link>
+    <div className="px-6 py-8 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Products</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {products.length} product{products.length !== 1 ? 's' : ''} listed
+          </p>
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Total Products</p>
-            <p className="text-2xl font-bold text-gray-900">{products.length}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Total Sold</p>
-            <p className="text-2xl font-bold text-green-600">{totalSold}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Stock Value</p>
-            <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalStockValue)}</p>
-          </div>
-          <div className="bg-white rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Avg Base Price</p>
-            <p className="text-2xl font-bold text-purple-600">
-              {products.length > 0
-                ? formatCurrency(products.reduce((sum, p) => sum + p.basePrice, 0) / products.length)
-                : '₹0'}
-            </p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg p-4 mb-6 flex gap-4 items-center flex-wrap">
-          {categories.length > 0 && (
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mr-2">Category:</label>
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="text-sm font-semibold text-gray-700 mr-2">Sort By:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="recent">Most Recent</option>
-              <option value="price">Price (High to Low)</option>
-              <option value="stock">Stock (High to Low)</option>
-            </select>
-          </div>
-
-          <div className="ml-auto text-sm text-gray-600">
-            Showing {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6">
-            {error}
-          </div>
-        )}
-
-        {/* Products Table */}
-        {loading ? (
-          <div className="bg-white rounded-lg p-8 text-center">
-            <p className="text-gray-500">Loading products...</p>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="bg-white rounded-lg p-12 text-center">
-            <p className="text-gray-500 mb-4">No products found</p>
-            <Link href="/vendor/add-product" className="btn btn-primary">
-              Add Your First Product
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Product</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Category</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Base Price / Final Price</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Stock</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Sold</th>
-                    <th className="px-6 py-3 text-center font-semibold text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((product) => (
-                    <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                            {product.images?.[0] ? (
-                              product.images[0].startsWith('data:image') ? (
-                                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-2xl">{product.images[0]}</span>
-                              )
-                            ) : (
-                              <span className="text-2xl">📦</span>
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 max-w-xs truncate">{product.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {new Date(product.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-700">{product.category}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div>
-                          <p className="font-semibold text-gray-900">{formatCurrency(product.basePrice)}</p>
-                          <p className="text-xs text-gray-500">{formatCurrency(product.finalPrice)} final</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right font-semibold text-gray-900">
-                        <span className={product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-yellow-600' : 'text-red-600'}>
-                          {product.stock} units
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right text-gray-700">{product.soldCount || 0}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center gap-2">
-                          <Link
-                            href={`/vendor/products/${product.id}/edit`}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit product"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Link>
-
-                          <button
-                            onClick={() => setDeleteConfirm(product.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete product"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <Link
+          href="/vendor/add-product"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          New Product
+        </Link>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Product</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this product? This action cannot be undone.
+      {error && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg mb-5">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Search */}
+      {products.length > 0 && (
+        <div className="relative mb-6">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products..."
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          />
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center min-h-48">
+          <div className="w-7 h-7 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 py-16 text-center">
+          <Package className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">
+            {search ? 'No products match your search' : 'No products listed yet'}
+          </p>
+          {!search && (
+            <Link
+              href="/vendor/add-product"
+              className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add your first product
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 hover:border-gray-300 transition-colors"
+            >
+              {/* Thumbnail */}
+              <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {getImageUrl(product.coverImage) ? (
+                  <img
+                    src={getImageUrl(product.coverImage)!}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Package className="w-6 h-6 text-gray-400" />
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      product.isActive
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {product.isActive ? 'Live' : 'Draft'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">{product.category}</p>
+              </div>
+
+              {/* Stats */}
+              <div className="hidden sm:flex items-center gap-6 flex-shrink-0 text-center">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{formatCurrency(product.finalPrice)}</p>
+                  <p className="text-xs text-gray-400">Price</p>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-700">{product.soldCount}</p>
+                  <p className="text-xs text-gray-400">Sold</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Link
+                  href={`/vendor/products/${product.id}/edit`}
+                  className="p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Link>
+                <button
+                  onClick={() => setDeleteTarget(product.id)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full">
+            <h3 className="text-base font-bold text-gray-900 mb-2">Delete product?</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              This action cannot be undone. The product will be permanently removed from the
+              marketplace.
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteConfirm(null)}
-                disabled={deleting}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleDelete(deleteConfirm)}
+                onClick={() => handleDelete(deleteTarget)}
                 disabled={deleting}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>

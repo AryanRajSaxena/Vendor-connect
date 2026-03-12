@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
     const vendorId = searchParams.get('vendorId');
     const sellerId = searchParams.get('sellerId');
 
-    let query = supabase.from('orders').select('*');
+    let query = supabase.from('orders').select(
+      '*, product:products!product_id(name)'
+    );
 
     if (customerId) {
       query = query.eq('customer_id', customerId);

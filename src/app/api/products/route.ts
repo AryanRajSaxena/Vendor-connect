@@ -16,9 +16,8 @@ export async function GET(request: NextRequest) {
 
     if (vendorId) {
       query = query.eq('vendor_id', vendorId);
-    }
-
-    if (isActive) {
+    } else if (isActive) {
+      // Only filter active products for public marketplace queries (no vendorId)
       query = query.eq('is_active', true);
     }
 

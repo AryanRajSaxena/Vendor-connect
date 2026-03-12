@@ -1,6 +1,4 @@
-import { Order } from '@/types';
-
-const DEFAULT_MARKUP_PERCENTAGE = 25;
+const DEFAULT_VENDOR_PAYOUT_PERCENTAGE = 80;
 const DEFAULT_SELLER_COMMISSION_PERCENTAGE = 10;
 
 export interface CommissionBreakdown {
@@ -18,19 +16,18 @@ export interface CommissionBreakdown {
  */
 export function calculateCommissions(
   basePrice: number,
-  markupPercentage: number = DEFAULT_MARKUP_PERCENTAGE,
+  vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE,
   sellerCommissionPercentage: number = DEFAULT_SELLER_COMMISSION_PERCENTAGE
 ): CommissionBreakdown {
-  const markup = basePrice * (markupPercentage / 100);
-  const finalPrice = basePrice + markup;
+  const finalPrice = basePrice; // no markup — listed at vendor's price
+  const vendorPayout = finalPrice * (vendorPayoutPercentage / 100);
   const sellerCommission = finalPrice * (sellerCommissionPercentage / 100);
-  const platformCommission = finalPrice * ((markupPercentage - sellerCommissionPercentage) / 100);
-  const vendorPayout = basePrice;
+  const platformCommission = finalPrice - vendorPayout - sellerCommission;
 
   return {
     basePrice,
-    markup: Math.round(markup * 100) / 100,
-    markupPercentage,
+    markup: 0,
+    markupPercentage: 0,
     finalPrice: Math.round(finalPrice * 100) / 100,
     sellerCommission: Math.round(sellerCommission * 100) / 100,
     platformCommission: Math.round(platformCommission * 100) / 100,
@@ -50,9 +47,31 @@ export function validateCommissionBreakdown(breakdown: CommissionBreakdown): boo
  * Generate referral code
  */
 export function generateReferralCode(sellerId: string, productId: string): string {
-  const timestamp = Date.now().toString(36);
   const hash = Math.random().toString(36).substring(2, 8);
   return `${sellerId.substring(0, 4).toUpperCase()}_${productId.substring(0, 4).toUpperCase()}_${hash}`.substring(0, 8);
+}
+
+/**
+ * Convert a cover image URL to a directly embeddable src.
+ * Handles Google Drive share links → direct view URL.
+ * Returns null if the value is empty or an emoji (non-http string).
+ */
+export function getImageUrl(url: string | undefined | null): string | null {
+  if (!url || !url.startsWith('http')) return null;
+
+  // Google Drive: https://drive.google.com/file/d/FILE_ID/view...
+  const driveFile = url.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
+  if (driveFile) {
+    return `https://drive.google.com/thumbnail?id=${driveFile[1]}&sz=w800`;
+  }
+
+  // Google Drive: https://drive.google.com/open?id=FILE_ID
+  const driveOpen = url.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
+  if (driveOpen) {
+    return `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w800`;
+  }
+
+  return url;
 }
 
 /**

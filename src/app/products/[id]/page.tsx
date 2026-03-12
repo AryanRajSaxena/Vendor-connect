@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Star, ShoppingCart, Heart, Share2, Check } from 'lucide-react';
-import { formatCurrency } from '@/utils/calculations';
+import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface Product {
   id: string;
@@ -125,19 +125,31 @@ export default function ProductDetailPage() {
           {/* Image Section */}
           <div>
             <div className="bg-white rounded-lg p-8 mb-4">
-              <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-9xl">
-                {product.images?.[0] || '📦'}
+              <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                {getImageUrl(product.images?.[0]) ? (
+                  <img
+                    src={getImageUrl(product.images?.[0])!}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-9xl">📦</span>
+                )}
               </div>
             </div>
-            {product.images && product.images.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto">
-                {product.images.map((img, idx) => (
-                  <div key={idx} className="w-20 h-20 bg-white rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
-                    {img}
+                {product.images && product.images.length > 1 && (
+                  <div className="flex gap-4 overflow-x-auto">
+                    {product.images.map((img, idx) => (
+                      <div key={idx} className="w-20 h-20 bg-white rounded-lg flex items-center justify-center overflow-hidden text-2xl flex-shrink-0">
+                        {getImageUrl(img) ? (
+                          <img src={getImageUrl(img)!} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{img}</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
           </div>
 
           {/* Details Section */}
