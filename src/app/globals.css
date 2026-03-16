@@ -7,15 +7,102 @@
 
 /* Smooth scrolling handled via data-scroll-behavior attribute on <html> tag */
 
+:root {
+  color-scheme: dark;
+}
+
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  color: #e5e7eb;
+  background-color: #0b1220;
   font-feature-settings: "rlig" 1, "calt" 1;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Force dark mode across existing utility-based UI */
+.bg-white {
+  background-color: #111827 !important;
+}
+
+.bg-gray-50 {
+  background-color: #0f172a !important;
+}
+
+.bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+.bg-gray-200 {
+  background-color: #273449 !important;
+}
+
+.text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+.text-gray-400 {
+  color: #64748b !important;
+}
+
+.text-gray-300 {
+  color: #475569 !important;
+}
+
+.border-gray-50,
+.border-gray-100,
+.border-gray-200,
+.border-gray-300 {
+  border-color: #273449 !important;
+}
+
+.hover\:bg-gray-50:hover,
+.hover\:bg-gray-100:hover {
+  background-color: #1e293b !important;
+}
+
+.hover\:border-gray-200:hover,
+.hover\:border-gray-300:hover {
+  border-color: #334155 !important;
+}
+
+.from-white,
+.to-white,
+.via-white {
+  --tw-gradient-from: #111827 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(17 24 39 / 0) var(--tw-gradient-to-position) !important;
+}
+
+input,
+textarea,
+select {
+  background-color: #111827 !important;
+  color: #e5e7eb !important;
+  border-color: #334155 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b !important;
 }
 
 a {
@@ -206,7 +293,7 @@ select:focus {
 }
 
 .gradient-hero {
-  @apply bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600;
+  @apply bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800;
 }
 
 /* Text Gradients */

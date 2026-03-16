@@ -236,6 +236,9 @@ export default function AddProductPage() {
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <p className="text-xs text-gray-400 mt-1">Recommended: 1200�630px, JPEG or PNG</p>
+              <p className="text-xs text-amber-500 mt-1">
+                If using Google Drive, set the file access to "Anyone with the link".
+              </p>
             </div>
 
             <div>

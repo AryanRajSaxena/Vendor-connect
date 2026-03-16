@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
+function buildSellerReferralCode(sellerId: string) {
+  const clean = sellerId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  return `SEL${clean.slice(0, 9)}`.slice(0, 20);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -43,7 +48,7 @@ export async function GET(request: NextRequest) {
 
       const { data: products, error: prodError } = await supabase
         .from('products')
-        .select('id, name, description, base_price, final_price, stock, images, category, vendor_id')
+        .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications')
         .in('id', productIds);
 
       if (prodError) {
@@ -71,6 +76,7 @@ export async function GET(request: NextRequest) {
           earnings: sp.earnings || 0,
           images: product?.images || [],
           category: product?.category || '',
+          specifications: product?.specifications || {},
           referral_code: sp.referral_code,
           vendor_id: product?.vendor_id,
           created_at: sp.added_at,
@@ -124,12 +130,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a short referral code (max 20 chars) using first 6 chars of seller ID and product ID
-    // Format: SEL-PROD-RAND (e.g., c2b607-e68cd-ab12)
-    const shortSellerId = (sellerId || '').substring(0, 6);
-    const shortProductId = (productId || '').substring(0, 6);
-    const rand = Math.random().toString(36).substring(2, 5).toUpperCase();
-    const finalReferralCode = referralCode || `${shortSellerId}${shortProductId}${rand}`.substring(0, 20);
+    // One referral code per seller across all courses/products.
+    // Reuse an existing code if seller already has one.
+    let finalReferralCode = '';
+
+    const { data: existingSellerCode } = await supabase
+      .from('seller_products')
+      .select('referral_code')
+      .eq('seller_id', sellerId)
+      .not('referral_code', 'is', null)
+      .order('added_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingSellerCode?.referral_code) {
+      finalReferralCode = String(existingSellerCode.referral_code).trim();
+    } else {
+      finalReferralCode = (referralCode ? String(referralCode).trim().toUpperCase() : '') || buildSellerReferralCode(sellerId);
+
+      // In case referral_code has global unique constraint in DB, avoid collisions.
+      const { data: collision } = await supabase
+        .from('seller_products')
+        .select('id, seller_id')
+        .eq('referral_code', finalReferralCode)
+        .neq('seller_id', sellerId)
+        .limit(1)
+        .maybeSingle();
+
+      if (collision?.id) {
+        const suffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+        finalReferralCode = `${buildSellerReferralCode(sellerId).slice(0, 16)}${suffix}`.slice(0, 20);
+      }
+    }
 
     const insertData: any = {
       seller_id: sellerId,
@@ -150,6 +182,13 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Backfill older rows for this seller to keep one code across all products.
+    await supabase
+      .from('seller_products')
+      .update({ referral_code: finalReferralCode })
+      .eq('seller_id', sellerId)
+      .neq('referral_code', finalReferralCode);
 
     return NextResponse.json(sellerProduct, { status: 201 });
   } catch (error) {

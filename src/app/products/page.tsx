@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingCart, ChevronDown, Star, Filter, Package } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface Product {
@@ -25,13 +26,33 @@ interface Product {
 
 export default function ProductsPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || '');
   const [sortBy, setSortBy] = useState('relevance');
-  const [priceRange, setPriceRange] = useState([0, 10000]);
   const [showFilters, setShowFilters] = useState(false);
+  const [activeReferralCode, setActiveReferralCode] = useState<string>('');
+
+  const getSafeCart = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Invalid cart in localStorage, resetting cart.', error);
+    }
+
+    localStorage.setItem('cart', '[]');
+    return [];
+  };
+
+  const syncLocalCart = (cart: any[]) => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+    window.dispatchEvent(new Event('cart-updated'));
+  };
 
   const categories = [
     'Electronics',
@@ -53,6 +74,26 @@ export default function ProductsPage() {
   ];
 
   // Fetch products
+  useEffect(() => {
+    const code =
+      searchParams.get('ref') ||
+      searchParams.get('referral') ||
+      searchParams.get('code') ||
+      '';
+
+    const normalized = code.trim().toUpperCase();
+    if (normalized) {
+      setActiveReferralCode(normalized);
+      localStorage.setItem('referralCode', normalized);
+      return;
+    }
+
+    const storedCode = (localStorage.getItem('referralCode') || '').trim().toUpperCase();
+    if (storedCode) {
+      setActiveReferralCode(storedCode);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -76,11 +117,6 @@ export default function ProductsPage() {
 
         const data = await response.json();
         let filtered = data;
-
-        // Filter by price range
-        filtered = filtered.filter(
-          (p: Product) => p.final_price >= priceRange[0] && p.final_price <= priceRange[1]
-        );
 
         // Sort products
         if (sortBy === 'price-low') {
@@ -106,11 +142,11 @@ export default function ProductsPage() {
     };
 
     fetchProducts();
-  }, [selectedCategory, sortBy, priceRange]);
+  }, [selectedCategory, sortBy]);
 
   const handleAddToCart = (product: Product) => {
-    try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const addToLocalCart = () => {
+      const cart = getSafeCart();
       const existingItem = cart.find((item: any) => item.id === product.id);
 
       if (existingItem) {
@@ -126,11 +162,49 @@ export default function ProductsPage() {
         });
       }
 
-      localStorage.setItem('cart', JSON.stringify(cart));
-      alert('Product added to cart!');
-    } catch (error) {
-      console.error('Failed to add to cart:', error);
+      syncLocalCart(cart);
+    };
+
+    if (!user?.id) {
+      try {
+        addToLocalCart();
+        alert('Product added to cart!');
+      } catch (error) {
+        console.error('Failed to add to cart:', error);
+      }
+      return;
     }
+
+    (async () => {
+      try {
+        const response = await fetch('/api/cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: user.id,
+            productId: product.id,
+            quantity: 1,
+          }),
+        });
+
+        if (!response.ok) {
+          const apiError = await response.json().catch(() => ({}));
+          throw new Error(apiError.error || 'Failed to add to database cart');
+        }
+
+        const data = await response.json();
+        syncLocalCart(data.items || []);
+        alert('Product added to cart!');
+      } catch (error) {
+        console.error('Failed to add to database cart, falling back to local cart:', error);
+        try {
+          addToLocalCart();
+          alert('Product added to cart!');
+        } catch (fallbackError) {
+          console.error('Failed to add to fallback local cart:', fallbackError);
+        }
+      }
+    })();
   };
 
   return (
@@ -184,27 +258,6 @@ export default function ProductsPage() {
                       <span className="ml-3 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">{cat}</span>
                     </label>
                   ))}
-                </div>
-              </div>
-
-              <div className="divider"></div>
-
-              {/* Price Range Filter */}
-              <div>
-                <h3 className="font-bold text-gray-900 mb-4">Price Range</h3>
-                <div className="space-y-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="10000"
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-500"
-                  />
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-gray-900">{formatCurrency(priceRange[0])}</span>
-                    <span className="text-sm font-semibold text-primary-600">{formatCurrency(priceRange[1])}</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -267,11 +320,6 @@ export default function ProductsPage() {
                             <span className="text-5xl">📦</span>
                           )}
                         </div>
-                        {product.markup_percentage > 0 && (
-                          <div className="absolute top-3 right-3 badge-error font-bold shadow-sm">
-                            {product.markup_percentage}% OFF
-                          </div>
-                        )}
                       </div>
 
                       {/* Details */}
@@ -284,44 +332,33 @@ export default function ProductsPage() {
                         </div>
 
                         {/* Pricing */}
-                        <div className="flex items-baseline gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="text-2xl font-bold text-gray-900">
                             {formatCurrency(product.final_price)}
                           </span>
-                          {product.base_price !== product.final_price && (
-                            <span className="text-sm text-gray-500 line-through">
-                              {formatCurrency(product.base_price)}
-                            </span>
-                          )}
                         </div>
 
-                        {/* Stock & Rating */}
-                        <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
-                          <div className="flex items-center gap-1.5">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-gray-700 font-semibold">{product.sold_count} sold</span>
-                          </div>
-                          <div>
-                            {product.stock > 0 ? (
-                              <span className="badge-success text-xs">In Stock</span>
-                            ) : (
-                              <span className="badge-error text-xs">Out of Stock</span>
-                            )}
-                          </div>
+                        {/* Rating */}
+                        <div className="flex items-center gap-1.5 text-sm pt-2 border-t border-gray-100">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <span className="text-gray-700 font-semibold">{product.sold_count} sold</span>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-2 gap-2 pt-2">
                           <Link
-                            href={`/products/${product.id}`}
+                            href={
+                              activeReferralCode
+                                ? `/products/${product.id}?ref=${encodeURIComponent(activeReferralCode)}`
+                                : `/products/${product.id}`
+                            }
                             className="btn-outline text-center py-2.5 text-sm"
                           >
                             View Details
                           </Link>
                           <button
                             onClick={() => handleAddToCart(product)}
-                            disabled={product.stock === 0}
-                            className="btn-primary flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50"
+                            className="btn-primary flex items-center justify-center gap-2 py-2.5 text-sm"
                           >
                             <ShoppingCart className="w-4 h-4" />
                             Add

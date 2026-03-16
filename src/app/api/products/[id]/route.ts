@@ -51,19 +51,62 @@ export async function PUT(
     console.log('Update request for product:', id);
     console.log('Update data:', body);
 
+    const { data: existingProduct, error: existingError } = await supabase
+      .from('products')
+      .select('id, base_price')
+      .eq('id', id)
+      .single();
+
+    if (existingError || !existingProduct) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
     // Convert camelCase to snake_case for database columns
     const updateData: any = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.basePrice !== undefined) updateData.base_price = body.basePrice;
-    if (body.finalPrice !== undefined) updateData.final_price = body.finalPrice;
-    if (body.markup !== undefined) updateData.markup = body.markup;
-    if (body.markupPercentage !== undefined) updateData.markup_percentage = body.markupPercentage;
+    if (body.basePrice !== undefined) updateData.base_price = Number(body.basePrice);
     if (body.images !== undefined) updateData.images = body.images;
     if (body.specifications !== undefined) updateData.specifications = body.specifications;
     if (body.stock !== undefined) updateData.stock = body.stock;
     if (body.isActive !== undefined) updateData.is_active = body.isActive;
+
+    if (
+      body.basePrice !== undefined ||
+      body.finalPrice !== undefined ||
+      body.markup !== undefined ||
+      body.markupPercentage !== undefined
+    ) {
+      const effectiveBasePrice = Number(
+        body.basePrice !== undefined ? body.basePrice : existingProduct.base_price
+      );
+      if (!Number.isFinite(effectiveBasePrice) || effectiveBasePrice < 0) {
+        return NextResponse.json(
+          { error: 'Invalid base price' },
+          { status: 400 }
+        );
+      }
+
+      const { data: settings } = await supabase
+        .from('admin_settings')
+        .select('platform_markup_percentage')
+        .limit(1)
+        .single();
+
+      const platformMarkupPercentage = Number(settings?.platform_markup_percentage ?? 25);
+      const computedMarkup =
+        Math.round(effectiveBasePrice * (platformMarkupPercentage / 100) * 100) / 100;
+      const computedFinalPrice = Math.round((effectiveBasePrice + computedMarkup) * 100) / 100;
+
+      updateData.base_price = effectiveBasePrice;
+      updateData.markup_percentage = platformMarkupPercentage;
+      updateData.markup = computedMarkup;
+      updateData.final_price = computedFinalPrice;
+    }
     updateData.updated_at = new Date().toISOString();
 
     console.log('Converted update data:', updateData);

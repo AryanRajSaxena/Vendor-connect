@@ -9,6 +9,7 @@ interface Order {
   id: string;
   order_status: string;
   payment_method: string;
+  payment_status?: string;
   final_price: number;
   created_at: string;
   delivery_address: {
@@ -140,8 +141,16 @@ export default function OrderConfirmationPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Payment Status</span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
-                  Pending
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                  order?.payment_status === 'completed'
+                    ? 'bg-green-100 text-green-800'
+                    : order?.payment_status === 'failed'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {order?.payment_status
+                    ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)
+                    : 'Pending'}
                 </span>
               </div>
             </div>

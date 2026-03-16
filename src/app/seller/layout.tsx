@@ -96,6 +96,14 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         {/* Browse CTA */}
         <div className="px-3 pb-4">
           <Link
+            href="/seller/dashboard"
+            onClick={() => setSidebarOpen(false)}
+            className="mb-2 flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm rounded-md transition-colors"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            My Store
+          </Link>
+          <Link
             href="/seller/marketplace"
             onClick={() => setSidebarOpen(false)}
             className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-medium text-sm rounded-md transition-colors"

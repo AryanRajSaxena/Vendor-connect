@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Plus, Minus } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency } from '@/utils/calculations';
+import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface CartItem {
   id: string;
@@ -20,35 +20,92 @@ export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load cart from localStorage
-  useEffect(() => {
+  const getSafeCart = (): CartItem[] => {
     try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartItems(cart);
-      setLoading(false);
+      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     } catch (error) {
-      console.error('Failed to load cart:', error);
-      setLoading(false);
+      console.warn('Invalid cart in localStorage, resetting cart.', error);
     }
-  }, []);
 
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
-
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      handleRemoveItem(id);
-      return;
-    }
-    setCartItems(
-      cartItems.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))
-    );
+    localStorage.setItem('cart', '[]');
+    return [];
   };
 
-  const handleRemoveItem = (id: string) => {
-    setCartItems(cartItems.filter((item) => item.id !== id));
+  const syncLocalCart = (items: CartItem[]) => {
+    localStorage.setItem('cart', JSON.stringify(items));
+    window.dispatchEvent(new Event('cart-updated'));
+  };
+
+  const loadDatabaseCart = async (customerId: string) => {
+    const response = await fetch(`/api/cart?customerId=${encodeURIComponent(customerId)}`);
+    if (!response.ok) {
+      const apiError = await response.json().catch(() => ({}));
+      throw new Error(apiError.error || 'Failed to fetch cart');
+    }
+
+    const data = await response.json();
+    const items = (data.items || []) as CartItem[];
+    setCartItems(items);
+    syncLocalCart(items);
+  };
+
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        setLoading(true);
+        if (user?.id) {
+          await loadDatabaseCart(user.id);
+        } else {
+          const cart = getSafeCart();
+          setCartItems(cart);
+          syncLocalCart(cart);
+        }
+      } catch (error) {
+        console.error('Failed to load cart:', error);
+        const cart = getSafeCart();
+        setCartItems(cart);
+        syncLocalCart(cart);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCart();
+  }, [user?.id]);
+
+  const handleRemoveItem = async (id: string) => {
+    if (!user?.id) {
+      const nextItems = cartItems.filter((item) => item.id !== id);
+      setCartItems(nextItems);
+      syncLocalCart(nextItems);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: user.id,
+          productId: id,
+        }),
+      });
+
+      if (!response.ok) {
+        const apiError = await response.json().catch(() => ({}));
+        throw new Error(apiError.error || 'Failed to remove cart item');
+      }
+
+      const data = await response.json();
+      const items = (data.items || []) as CartItem[];
+      setCartItems(items);
+      syncLocalCart(items);
+    } catch (error) {
+      console.error('Failed to remove cart item:', error);
+    }
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -79,42 +136,25 @@ export default function CartPage() {
                     className="flex items-center gap-4 p-4 border-b border-gray-200 last:border-0"
                   >
                     {/* Product Image */}
-                    <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-3xl flex-shrink-0">
-                      {item.image}
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden">
+                      {getImageUrl(item.image) ? (
+                        <img
+                          src={getImageUrl(item.image)!}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>📦</span>
+                      )}
                     </div>
 
                     {/* Product Info */}
                     <div className="flex-grow">
                       <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-                      <p className="text-gray-600 text-sm mb-2">
-                        Price: {formatCurrency(item.price)} each
+                      <p className="text-primary font-semibold text-lg">
+                        {formatCurrency(item.price)}
                       </p>
-                      <p className="text-primary font-semibold">
-                        {formatCurrency(item.price * item.quantity)}
-                      </p>
-                    </div>
-
-                    {/* Quantity Controls */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                        className="p-1 hover:bg-gray-100 rounded"
-                      >
-                        <Minus className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
-                        min="1"
-                        className="w-12 text-center border border-gray-300 rounded py-1"
-                      />
-                      <button
-                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="p-1 hover:bg-gray-100 rounded"
-                      >
-                        <Plus className="w-4 h-4 text-gray-600" />
-                      </button>
+                      <p className="text-gray-500 text-xs mt-1">Digital Product • Instant access</p>
                     </div>
 
                     {/* Remove Button */}

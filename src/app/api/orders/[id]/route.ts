@@ -38,13 +38,47 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { orderStatus, commissionStatus, commissionReleaseDate } = body;
+    const { orderStatus, commissionStatus, commissionReleaseDate, paymentStatus } = body;
+
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('payment_method, payment_status, commission_release_date, commission_status')
+      .eq('id', id)
+      .single();
 
     const updateData: any = {};
     if (orderStatus) updateData.order_status = orderStatus;
     if (commissionStatus) updateData.commission_status = commissionStatus;
     if (commissionReleaseDate)
       updateData.commission_release_date = commissionReleaseDate;
+    if (paymentStatus) updateData.payment_status = paymentStatus;
+
+    // COD orders are marked paid when they are delivered unless explicitly overridden
+    if (
+      !paymentStatus &&
+      orderStatus === 'delivered' &&
+      existingOrder?.payment_method === 'cod' &&
+      existingOrder?.payment_status !== 'completed'
+    ) {
+      updateData.payment_status = 'completed';
+    }
+
+    const nextPaymentStatus = updateData.payment_status || existingOrder?.payment_status;
+    const releaseDate = existingOrder?.commission_release_date
+      ? new Date(existingOrder.commission_release_date)
+      : null;
+    const canReleaseCommission =
+      nextPaymentStatus === 'completed' &&
+      (!releaseDate || Number.isNaN(releaseDate.getTime()) || releaseDate <= new Date());
+
+    if (
+      canReleaseCommission &&
+      existingOrder?.commission_status !== 'paid' &&
+      !commissionStatus
+    ) {
+      updateData.commission_status = 'available';
+    }
+
     updateData.updated_at = new Date().toISOString();
 
     const { data: order, error } = await supabase

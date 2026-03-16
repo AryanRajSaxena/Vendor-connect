@@ -84,7 +84,10 @@ Create `.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://iuuteecnutmqugbjtntg.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_0XpZsUiq-Zbx9IYQMEF01A_1UEaFRFK
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 ```
+
+`SUPABASE_SERVICE_ROLE_KEY` is required for server API routes to perform trusted reads/writes when RLS is enabled.
 
 4. **Run development server**
 ```bash

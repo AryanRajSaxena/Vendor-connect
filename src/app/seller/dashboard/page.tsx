@@ -114,7 +114,6 @@ export default function SellerDashboard() {
           images: p.images || [],
           created_at: p.created_at || '',
         }));
-        setSellerProducts(products);
       }
 
       let orders: any[] = [];
@@ -123,6 +122,7 @@ export default function SellerDashboard() {
         orders = (Array.isArray(raw) ? raw : raw.orders || []).map((o: any) => ({
           sellerCommission: o.seller_commission || o.sellerCommission || 0,
           createdAt: o.created_at || o.createdAt || '',
+          productId: o.product_id || o.productId || '',
         }));
       }
 
@@ -130,10 +130,27 @@ export default function SellerDashboard() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const thisMonthOrders = orders.filter((o) => new Date(o.createdAt) >= monthStart);
 
+      const earningsByProduct = orders.reduce((acc: Record<string, { earnings: number; sales: number }>, o) => {
+        const key = o.productId;
+        if (!key) return acc;
+        if (!acc[key]) acc[key] = { earnings: 0, sales: 0 };
+        acc[key].earnings += Number(o.sellerCommission || 0);
+        acc[key].sales += 1;
+        return acc;
+      }, {});
+
+      const enrichedProducts = products.map((p) => ({
+        ...p,
+        earnings: Math.round((earningsByProduct[p.productId]?.earnings || 0) * 100) / 100,
+        sold_count: earningsByProduct[p.productId]?.sales || 0,
+      }));
+
+      setSellerProducts(enrichedProducts);
+
       setStats({
         totalProducts: products.length,
-        totalSales: products.reduce((s, p) => s + (p.sold_count || 0), 0),
-        totalEarnings: products.reduce((s, p) => s + (p.earnings || 0), 0),
+        totalSales: orders.length,
+        totalEarnings: Math.round(orders.reduce((s, o) => s + Number(o.sellerCommission || 0), 0) * 100) / 100,
         thisMonthSales: thisMonthOrders.length,
         thisMonthEarnings: thisMonthOrders.reduce((s, o) => s + o.sellerCommission, 0),
       });
@@ -154,30 +171,49 @@ export default function SellerDashboard() {
 
   if (!user || user.role !== 'seller') return null;
 
+  const dayOfMonth = new Date().getDate();
+  const estimatedMonthClose =
+    dayOfMonth > 0 ? (stats.thisMonthEarnings / dayOfMonth) * 30 : stats.thisMonthEarnings;
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-xs text-gray-400 mb-0.5">
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-          <h1 className="text-xl font-semibold text-gray-900">
-            {getGreeting()}, {user.name?.split(' ')[0] || 'there'}
-          </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {stats.totalEarnings > 0
-              ? `${formatCurrency(stats.totalEarnings)} earned across ${stats.totalProducts} product${stats.totalProducts !== 1 ? 's' : ''}`
-              : 'Start earning 10% on every sale you drive'}
-          </p>
+      <div className="mb-6 rounded-xl border border-emerald-400/20 bg-gradient-to-r from-slate-900 to-slate-800 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs text-slate-400 mb-1">
+              {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+            <h1 className="text-2xl font-semibold text-slate-100">
+              {getGreeting()}, {user.name?.split(' ')[0] || 'there'}
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              {stats.totalEarnings > 0
+                ? 'You are in earning mode. Scale your payouts by adding high-converting products and driving repeat sales.'
+                : 'Your first commission is one product away. Add a product and start earning today.'}
+            </p>
+          </div>
+          <Link
+            href="/seller/marketplace"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-md transition-colors"
+          >
+            <Store className="w-3.5 h-3.5" />
+            Browse Products
+          </Link>
         </div>
-        <Link
-          href="/seller/marketplace"
-          className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md transition-colors"
-        >
-          <Store className="w-3.5 h-3.5" />
-          Browse Products
-        </Link>
+
+        <div className="mt-4 rounded-lg border border-emerald-400/25 bg-emerald-400/10 p-4">
+          <p className="text-[11px] uppercase tracking-wide text-emerald-300 font-semibold">Commission Wallet</p>
+          <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+            <p className="text-3xl font-black tracking-tight text-emerald-300 tabular-nums [text-shadow:0_0_6px_rgba(52,211,153,0.2)]">
+              {formatCurrency(stats.totalEarnings)}
+            </p>
+            <p className="text-sm text-emerald-200">
+              Estimated month close: <span className="font-bold tabular-nums">{formatCurrency(estimatedMonthClose)}</span>
+            </p>
+          </div>
+          <p className="mt-1 text-[11px] text-emerald-200/90">Lifetime commissions earned from your store sales</p>
+        </div>
       </div>
 
       {/* Error */}
@@ -189,48 +225,49 @@ export default function SellerDashboard() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-md bg-primary-50 flex items-center justify-center">
-              <Store className="w-3.5 h-3.5 text-primary-500" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-lg border border-teal-400/25 bg-teal-500/10 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-md bg-teal-400/20 flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5 text-teal-300" />
             </div>
-            <span className="text-xs text-gray-500">My Products</span>
+            <span className="text-xs text-teal-200">This Month</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.totalProducts}</p>
+          <p className="text-2xl font-semibold tabular-nums text-teal-200">{formatCurrency(stats.thisMonthEarnings)}</p>
+          <p className="text-[10px] text-teal-200/80 mt-1">{stats.thisMonthSales} sales this month</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+
+        <div className="rounded-lg border border-emerald-400/20 p-4 bg-emerald-500/10">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-md bg-primary-50 flex items-center justify-center">
-              <ShoppingBag className="w-3.5 h-3.5 text-primary-500" />
+            <div className="w-6 h-6 rounded-md bg-emerald-400/20 flex items-center justify-center">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
             </div>
-            <span className="text-xs text-gray-500">Total Sales</span>
+            <span className="text-xs text-emerald-200">Projected Month Close</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.totalSales}</p>
+          <p className="text-2xl font-semibold tabular-nums text-emerald-200">{formatCurrency(estimatedMonthClose)}</p>
+          <p className="text-[10px] text-emerald-200/80 mt-1">based on current month pace</p>
         </div>
-        <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg p-4">
+
+        <div className="rounded-lg border border-slate-700 p-4 bg-slate-900/60">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center">
-              <DollarSign className="w-3.5 h-3.5 text-white" />
+            <div className="w-6 h-6 rounded-md bg-slate-800 flex items-center justify-center">
+              <ShoppingBag className="w-3.5 h-3.5 text-slate-300" />
             </div>
-            <span className="text-xs text-primary-200">Total Earned</span>
+            <span className="text-xs text-slate-400">Total Sales</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-white">
-            {formatCurrency(stats.totalEarnings)}
-          </p>
-          <p className="text-[10px] text-primary-300 mt-1">10% commission</p>
+          <p className="text-2xl font-semibold tabular-nums text-slate-100">{stats.totalSales}</p>
+          <p className="text-[10px] text-slate-400 mt-1">across {stats.totalProducts} active product{stats.totalProducts !== 1 ? 's' : ''}</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg p-4">
+
+        <div className="rounded-lg border border-slate-700 p-4 bg-slate-900/60">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center">
-              <TrendingUp className="w-3.5 h-3.5 text-white" />
+            <div className="w-6 h-6 rounded-md bg-slate-800 flex items-center justify-center">
+              <Store className="w-3.5 h-3.5 text-slate-300" />
             </div>
-            <span className="text-xs text-emerald-100">This Month</span>
+            <span className="text-xs text-slate-400">My Products</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-white">
-            {formatCurrency(stats.thisMonthEarnings)}
-          </p>
-          <p className="text-[10px] text-emerald-200 mt-1">earned this month</p>
+          <p className="text-2xl font-semibold tabular-nums text-slate-100">{stats.totalProducts}</p>
+          <p className="text-[10px] text-slate-400 mt-1">more quality listings can unlock higher commissions</p>
         </div>
       </div>
 
@@ -270,8 +307,9 @@ export default function SellerDashboard() {
             {sellerProducts.map((product) => {
               const imgUrl = getImageUrl(product.images?.[0]);
               return (
-                <div
+                <Link
                   key={product.id}
+                  href={`/seller/dashboard/products/${product.id}`}
                   className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors"
                 >
                   {/* Thumbnail */}
@@ -312,14 +350,11 @@ export default function SellerDashboard() {
                     </div>
                   </div>
 
-                  {/* Link */}
-                  <Link
-                    href={`/seller/dashboard/products/${product.id}`}
-                    className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
-                  >
+                  {/* Enter */}
+                  <span className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0">
                     <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
+                  </span>
+                </Link>
               );
             })}
           </div>

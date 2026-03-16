@@ -39,7 +39,10 @@ export function calculateCommissions(
  * Validate commission breakdown
  */
 export function validateCommissionBreakdown(breakdown: CommissionBreakdown): boolean {
-  const calculated = breakdown.basePrice + breakdown.sellerCommission + breakdown.platformCommission;
+  const calculated =
+    breakdown.vendorPayout +
+    breakdown.sellerCommission +
+    breakdown.platformCommission;
   return Math.abs(calculated - breakdown.finalPrice) < 0.01;
 }
 
@@ -57,21 +60,47 @@ export function generateReferralCode(sellerId: string, productId: string): strin
  * Returns null if the value is empty or an emoji (non-http string).
  */
 export function getImageUrl(url: string | undefined | null): string | null {
-  if (!url || !url.startsWith('http')) return null;
+  if (!url) return null;
+
+  const raw = url.trim();
+  if (!raw) return null;
+
+  if (raw.startsWith('data:image/')) return raw;
+
+  // Normalize local/relative paths (including Windows-style backslashes)
+  const normalizedPath = raw.replace(/\\/g, '/').replace(/^\.\//, '');
+
+  if (normalizedPath.startsWith('/images/')) {
+    return normalizedPath;
+  }
+
+  if (normalizedPath.startsWith('images/')) {
+    return `/${normalizedPath}`;
+  }
+
+  if (normalizedPath.startsWith('public/images/')) {
+    return `/${normalizedPath.replace(/^public\//, '')}`;
+  }
+
+  if (normalizedPath.startsWith('src/images/')) {
+    return `/${normalizedPath.replace(/^src\//, '')}`;
+  }
+
+  if (!raw.startsWith('http')) return null;
 
   // Google Drive: https://drive.google.com/file/d/FILE_ID/view...
-  const driveFile = url.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
+  const driveFile = raw.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
   if (driveFile) {
     return `https://drive.google.com/thumbnail?id=${driveFile[1]}&sz=w800`;
   }
 
   // Google Drive: https://drive.google.com/open?id=FILE_ID
-  const driveOpen = url.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
+  const driveOpen = raw.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
   if (driveOpen) {
     return `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w800`;
   }
 
-  return url;
+  return raw;
 }
 
 /**

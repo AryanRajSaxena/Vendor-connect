@@ -51,9 +51,32 @@ export async function POST(request: NextRequest) {
       bankName,
     } = body;
 
-    if (!sellerId || !amount || !withdrawalMethod) {
+    const parsedAmount = Number(amount);
+
+    if (!sellerId || !withdrawalMethod || !Number.isFinite(parsedAmount)) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (parsedAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Withdrawal amount must be greater than 0' },
+        { status: 400 }
+      );
+    }
+
+    const { data: settings } = await supabase
+      .from('admin_settings')
+      .select('min_withdrawal_amount')
+      .limit(1)
+      .single();
+
+    const minWithdrawalAmount = Number(settings?.min_withdrawal_amount ?? 500);
+    if (parsedAmount < minWithdrawalAmount) {
+      return NextResponse.json(
+        { error: `Minimum withdrawal amount is ${minWithdrawalAmount}` },
         { status: 400 }
       );
     }
@@ -77,7 +100,7 @@ export async function POST(request: NextRequest) {
       .insert([
         {
           seller_id: sellerId,
-          amount,
+          amount: Math.round(parsedAmount * 100) / 100,
           withdrawal_method: withdrawalMethod,
           upi_id: upiId,
           bank_account: bankAccount,

@@ -47,7 +47,17 @@ export default function AdminSettingsPage() {
       const response = await fetch('/api/admin/settings');
       if (response.ok) {
         const data = await response.json();
-        setSettings(data);
+        setSettings({
+          platformMarkupPercentage:
+            data.platformMarkupPercentage ?? data.platform_markup_percentage ?? 25,
+          sellerCommissionPercentage:
+            data.sellerCommissionPercentage ?? data.seller_commission_percentage ?? 10,
+          minimumWithdrawalAmount:
+            data.minimumWithdrawalAmount ?? data.min_withdrawal_amount ?? 500,
+          platformCommissionPercentage:
+            data.platformCommissionPercentage ?? data.platform_commission_percentage ?? 15,
+          taxPercentage: data.taxPercentage ?? data.tax_percentage ?? 0,
+        });
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
@@ -70,6 +80,14 @@ export default function AdminSettingsPage() {
         throw new Error('Seller commission must be between 0-100%');
       }
 
+      if (settings.platformCommissionPercentage < 0 || settings.platformCommissionPercentage > 100) {
+        throw new Error('Platform commission must be between 0-100%');
+      }
+
+      if (settings.sellerCommissionPercentage + settings.platformCommissionPercentage > 100) {
+        throw new Error('Seller + platform commission cannot exceed 100%');
+      }
+
       if (settings.minimumWithdrawalAmount < 0) {
         throw new Error('Minimum withdrawal must be positive');
       }
@@ -77,7 +95,13 @@ export default function AdminSettingsPage() {
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          platformMarkupPercentage: settings.platformMarkupPercentage,
+          sellerCommissionPercentage: settings.sellerCommissionPercentage,
+          platformCommissionPercentage: settings.platformCommissionPercentage,
+          minWithdrawalAmount: settings.minimumWithdrawalAmount,
+          commissionCoolingPeriodDays: 15,
+        }),
       });
 
       if (!response.ok) {

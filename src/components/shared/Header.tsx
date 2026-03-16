@@ -11,7 +11,25 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const getCartCount = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (!Array.isArray(parsed)) {
+        return 0;
+      }
+
+      return parsed.reduce((total, item) => {
+        const qty = Number(item?.quantity || 0);
+        return total + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+      }, 0);
+    } catch (error) {
+      console.warn('Invalid cart in localStorage while reading badge count.', error);
+      return 0;
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -23,6 +41,19 @@ export default function Header() {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const updateCount = () => setCartCount(getCartCount());
+
+    updateCount();
+    window.addEventListener('storage', updateCount);
+    window.addEventListener('cart-updated', updateCount);
+
+    return () => {
+      window.removeEventListener('storage', updateCount);
+      window.removeEventListener('cart-updated', updateCount);
+    };
   }, []);
 
   const getRoleBasedDashboardLink = () => {
@@ -50,6 +81,17 @@ export default function Header() {
     return labels[user.role] || 'Dashboard';
   };
 
+  const getRoleLabel = () => {
+    if (!user) return 'User';
+    const labels: Record<string, string> = {
+      vendor: 'Vendor',
+      seller: 'Seller',
+      admin: 'Admin',
+      customer: 'Customer',
+    };
+    return labels[user.role] || 'User';
+  };
+
   const getRoleBasedSettingsLink = () => {
     if (!user) return '/';
     switch (user.role) {
@@ -66,15 +108,18 @@ export default function Header() {
 
   return (
     <header className="bg-white shadow-soft sticky top-0 z-50 border-b border-gray-100">
-      <nav className="container-custom py-4 flex items-center justify-between">
+      <nav className="container-custom py-3.5 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="bg-gradient-primary p-2 rounded-xl shadow-sm group-hover:shadow-md transition-all duration-300">
+          <div className="bg-gradient-primary p-2 rounded-xl shadow-sm ring-1 ring-primary-200/60 group-hover:shadow-md transition-all duration-300">
             <Package className="w-6 h-6 text-white" />
           </div>
-          <span className="hidden sm:inline font-bold text-xl bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-            VendorConnect
-          </span>
+          <div className="hidden sm:block leading-tight">
+            <p className="font-semibold text-[18px] tracking-tight text-gray-900">Vendor Connect</p>
+            {isAuthenticated && (
+              <p className="text-[11px] uppercase tracking-[0.08em] text-gray-500">{getDashboardLabel()}</p>
+            )}
+          </div>
           <span className="sm:hidden font-bold text-xl text-primary-600">VC</span>
         </Link>
 
@@ -84,10 +129,13 @@ export default function Header() {
             <>
               <Link
                 href={getRoleBasedDashboardLink()}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
               >
                 <Home className="w-4 h-4" />
-                <span className="text-sm">{getDashboardLabel()}</span>
+                <div className="leading-tight">
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400">Workspace</p>
+                  <p className="text-sm font-semibold text-gray-800">{getDashboardLabel()}</p>
+                </div>
               </Link>
 
               {user?.role === 'customer' && (
@@ -96,19 +144,24 @@ export default function Header() {
                   className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium relative"
                 >
                   <ShoppingCart className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-sm">0</span>
+                  <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center font-bold shadow-sm">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
                 </Link>
               )}
 
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                  className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-sm">{user?.name?.split(' ')[0]}</span>
+                  <div className="text-left leading-tight">
+                    <p className="text-xs text-gray-400">{getRoleLabel()}</p>
+                    <p className="text-sm font-semibold text-gray-800 max-w-[110px] truncate">{user?.name}</p>
+                  </div>
                 </button>
                 {isProfileDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-large border border-gray-100 z-50 animate-slide-down overflow-hidden">

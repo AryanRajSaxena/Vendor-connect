@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency, calculateCommissions, generateReferralCode } from '@/utils/calculations';
+import { formatCurrency } from '@/utils/calculations';
 
 interface CartItem {
   id: string;
@@ -27,11 +27,14 @@ interface DeliveryData {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralFromLink, setReferralFromLink] = useState(false);
 
   // Form states
   const [deliveryData, setDeliveryData] = useState<DeliveryData>({
@@ -47,15 +50,91 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // Load cart
-  useEffect(() => {
+  const normalizeReferralCode = (value: string) => value.trim().toUpperCase();
+
+  const getSafeCart = (): CartItem[] => {
     try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartItems(cart);
+      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     } catch (error) {
-      console.error('Failed to load cart:', error);
+      console.warn('Invalid cart in localStorage, resetting cart.', error);
     }
-  }, []);
+
+    localStorage.setItem('cart', '[]');
+    return [];
+  };
+
+  const syncLocalCart = (items: CartItem[]) => {
+    localStorage.setItem('cart', JSON.stringify(items));
+    window.dispatchEvent(new Event('cart-updated'));
+  };
+
+  const loadDatabaseCart = async (customerId: string) => {
+    const response = await fetch(`/api/cart?customerId=${encodeURIComponent(customerId)}`);
+    if (!response.ok) {
+      const apiError = await response.json().catch(() => ({}));
+      throw new Error(apiError.error || 'Failed to fetch cart');
+    }
+
+    const data = await response.json();
+    const items = (data.items || []) as CartItem[];
+    setCartItems(items);
+    syncLocalCart(items);
+  };
+
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        if (user?.id) {
+          await loadDatabaseCart(user.id);
+        } else {
+          const cart = getSafeCart();
+          setCartItems(cart);
+          syncLocalCart(cart);
+        }
+      } catch (error) {
+        console.error('Failed to load cart:', error);
+        const cart = getSafeCart();
+        setCartItems(cart);
+        syncLocalCart(cart);
+      }
+    };
+
+    loadCart();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const codeFromUrl =
+      searchParams.get('ref') ||
+      searchParams.get('referral') ||
+      searchParams.get('code') ||
+      '';
+
+    const normalizedFromUrl = normalizeReferralCode(codeFromUrl);
+    if (normalizedFromUrl) {
+      setReferralCode(normalizedFromUrl);
+      setReferralFromLink(true);
+      localStorage.setItem('referralCode', normalizedFromUrl);
+      return;
+    }
+
+    const storedReferralCode = normalizeReferralCode(localStorage.getItem('referralCode') || '');
+    if (storedReferralCode) {
+      setReferralCode(storedReferralCode);
+      setReferralFromLink(false);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const normalized = normalizeReferralCode(referralCode);
+    if (normalized) {
+      localStorage.setItem('referralCode', normalized);
+    } else {
+      localStorage.removeItem('referralCode');
+    }
+  }, [referralCode]);
 
   // Redirect if not authenticated or cart is empty
   useEffect(() => {
@@ -109,63 +188,64 @@ export default function CheckoutPage() {
         throw new Error('Cart is empty');
       }
 
-      // Create order for each cart item (in production, handle multiple items)
-      const orderId = `ORD-${Date.now()}`;
-      const firstItem = cartItems[0];
+      const normalizedReferralCode = normalizeReferralCode(referralCode);
 
-      // Calculate commissions
-      const commission = calculateCommissions(firstItem.price * 0.8); // Assume 80% of final price is base
+      const createdOrders: any[] = [];
+      for (let index = 0; index < cartItems.length; index += 1) {
+        const item = cartItems[index];
+        const orderId = `ORD-${Date.now()}-${index + 1}`;
 
-      // Get referral code from localStorage if available
-      const referralCode = localStorage.getItem('referralCode') || undefined;
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: orderId,
+            customerId: user?.id,
+            vendorId: item.vendorId,
+            productId: item.id,
+            quantity: item.quantity,
+            referralCode: normalizedReferralCode || null,
+            customerDetails: {
+              name: deliveryData.name,
+              email: deliveryData.email,
+              phone: deliveryData.phone,
+            },
+            deliveryAddress: {
+              address: deliveryData.address,
+              city: deliveryData.city,
+              state: deliveryData.state,
+              pincode: deliveryData.pincode,
+            },
+            paymentMethod: paymentMethod,
+            orderStatus: 'pending',
+          }),
+        });
 
-      // Create order via API
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: orderId,
-          customerId: user?.id,
-          sellerId: referralCode ? generateReferralCode(user?.id || '', firstItem.id) : null,
-          vendorId: firstItem.vendorId,
-          productId: firstItem.id,
-          quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
-          finalPrice: calculateTotal(),
-          sellerCommission: commission.sellerCommission,
-          platformCommission: commission.platformCommission,
-          vendorPayout: commission.vendorPayout,
-          referralCode: referralCode || null,
-          customerDetails: {
-            name: deliveryData.name,
-            email: deliveryData.email,
-            phone: deliveryData.phone,
-          },
-          deliveryAddress: {
-            address: deliveryData.address,
-            city: deliveryData.city,
-            state: deliveryData.state,
-            pincode: deliveryData.pincode,
-          },
-          paymentMethod: paymentMethod,
-          paymentStatus: 'completed',
-          orderStatus: 'pending',
-          commissionStatus: 'pending',
-        }),
-      });
+        if (!response.ok) {
+          const responseError = await response.json();
+          const prefix = createdOrders.length > 0
+            ? `${createdOrders.length} item(s) already placed. `
+            : '';
+          throw new Error(prefix + (responseError.error || 'Failed to create order'));
+        }
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create order');
+        createdOrders.push(await response.json());
       }
 
-      const order = await response.json();
-
       // Clear cart
+      if (user?.id) {
+        await fetch('/api/cart', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId: user.id }),
+        });
+      }
+
       localStorage.removeItem('cart');
-      localStorage.removeItem('referralCode');
+      window.dispatchEvent(new Event('cart-updated'));
 
       // Redirect to confirmation
-      router.push(`/order-confirmation?orderId=${order.id}`);
+      router.push(`/order-confirmation?orderId=${createdOrders[0].id}`);
     } catch (err) {
       setError((err as Error).message);
       console.error('Failed to place order:', err);
@@ -179,7 +259,7 @@ export default function CheckoutPage() {
   };
 
   const subtotal = calculateTotal();
-  const deliveryCharges = subtotal > 500 ? 0 : 50;
+  const deliveryCharges = 0;
   const total = subtotal + deliveryCharges;
 
   if (!user) {
@@ -317,7 +397,7 @@ export default function CheckoutPage() {
 
             {/* Step 2: Payment Method */}
             {currentStep === 2 && (
-              <div className="bg-white rounded-lg p-6">
+              <div className="bg-white rounded-lg p-6 border border-slate-700/70 shadow-lg shadow-slate-950/30">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Payment Method</h2>
 
                 <div className="space-y-4 mb-6">
@@ -330,11 +410,11 @@ export default function CheckoutPage() {
                   ].map((method) => (
                     <label
                       key={method.value}
-                      className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all"
-                      style={{
-                        borderColor: paymentMethod === method.value ? '#FF6B35' : '#e5e7eb',
-                        backgroundColor: paymentMethod === method.value ? '#fff5f0' : 'white',
-                      }}
+                      className={`group flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                        paymentMethod === method.value
+                          ? 'border-emerald-500/80 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_8px_20px_rgba(16,185,129,0.1)]'
+                          : 'border-slate-700 bg-slate-900/35 hover:border-slate-500 hover:bg-slate-800/45'
+                      }`}
                     >
                       <input
                         type="radio"
@@ -342,23 +422,49 @@ export default function CheckoutPage() {
                         value={method.value}
                         checked={paymentMethod === method.value}
                         onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="w-4 h-4"
+                        className="w-4 h-4 accent-emerald-500"
                       />
                       <span className="text-xl ml-3">{method.icon}</span>
-                      <span className="ml-3 font-semibold text-gray-900">{method.label}</span>
+                      <span className={`ml-3 font-semibold ${paymentMethod === method.value ? 'text-emerald-200' : 'text-slate-200'}`}>
+                        {method.label}
+                      </span>
                     </label>
                   ))}
                 </div>
 
+                <div className="mb-6 p-4 rounded-xl border border-slate-700 bg-slate-900/40">
+                  <label className="block text-sm font-semibold text-slate-100 mb-2">
+                    Referral Code (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => {
+                      setReferralCode(e.target.value);
+                      if (referralFromLink) {
+                        setReferralFromLink(false);
+                      }
+                    }}
+                    placeholder="Enter referral code"
+                    maxLength={20}
+                    className="w-full px-4 py-2 border border-slate-600 rounded-lg bg-slate-950/60 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {referralFromLink && referralCode && (
+                    <p className="text-xs text-emerald-300 mt-2">
+                      Referral detected from your link and auto-filled.
+                    </p>
+                  )}
+                </div>
+
                 {/* Terms */}
-                <label className="flex items-start mb-6">
+                <label className="flex items-start mb-6 rounded-lg border border-slate-700 bg-slate-900/35 p-3">
                   <input
                     type="checkbox"
                     checked={agreeTerms}
                     onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="w-4 h-4 mt-1"
+                    className="w-4 h-4 mt-1 accent-emerald-500"
                   />
-                  <span className="ml-3 text-gray-600 text-sm">
+                  <span className="ml-3 text-slate-300 text-sm">
                     I agree to the terms and conditions and privacy policy
                   </span>
                 </label>
@@ -422,6 +528,13 @@ export default function CheckoutPage() {
                           : 'Other'}
                   </p>
                 </div>
+
+                {referralCode && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-gray-900 mb-2">Referral Code</h3>
+                    <p className="text-gray-600">{normalizeReferralCode(referralCode)}</p>
+                  </div>
+                )}
 
                 {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
 

@@ -28,6 +28,7 @@ export default function VendorProductsPage() {
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') {
@@ -154,11 +155,14 @@ export default function VendorProductsPage() {
             >
               {/* Thumbnail */}
               <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {getImageUrl(product.coverImage) ? (
+                {getImageUrl(product.coverImage) && !imageLoadErrors[product.id] ? (
                   <img
                     src={getImageUrl(product.coverImage)!}
                     alt={product.name}
                     className="w-full h-full object-cover"
+                    onError={() => {
+                      setImageLoadErrors((prev) => ({ ...prev, [product.id]: true }));
+                    }}
                   />
                 ) : (
                   <Package className="w-6 h-6 text-gray-400" />
@@ -185,8 +189,8 @@ export default function VendorProductsPage() {
               {/* Stats */}
               <div className="hidden sm:flex items-center gap-6 flex-shrink-0 text-center">
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(product.finalPrice)}</p>
-                  <p className="text-xs text-gray-400">Price</p>
+                  <p className="text-sm font-bold text-gray-900">{formatCurrency(product.basePrice)}</p>
+                  <p className="text-xs text-gray-400">Your Price</p>
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-700">{product.soldCount}</p>

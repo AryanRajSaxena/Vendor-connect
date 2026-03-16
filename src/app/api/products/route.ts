@@ -51,9 +51,6 @@ export async function POST(request: NextRequest) {
       category,
       description,
       basePrice,
-      finalPrice,
-      markup,
-      markupPercentage,
       images,
       specifications,
       stock,
@@ -66,6 +63,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const parsedBasePrice = Number(basePrice);
+    if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
+      return NextResponse.json(
+        { error: 'Invalid base price' },
+        { status: 400 }
+      );
+    }
+
+    const { data: settings } = await supabase
+      .from('admin_settings')
+      .select('platform_markup_percentage')
+      .limit(1)
+      .single();
+
+    const platformMarkupPercentage = Number(settings?.platform_markup_percentage ?? 25);
+    const computedMarkup = Math.round(parsedBasePrice * (platformMarkupPercentage / 100) * 100) / 100;
+    const computedFinalPrice = Math.round((parsedBasePrice + computedMarkup) * 100) / 100;
+
     const { data: product, error } = await supabase
       .from('products')
       .insert([
@@ -74,10 +89,10 @@ export async function POST(request: NextRequest) {
           name,
           category,
           description,
-          base_price: basePrice,
-          final_price: finalPrice,
-          markup,
-          markup_percentage: markupPercentage,
+          base_price: parsedBasePrice,
+          final_price: computedFinalPrice,
+          markup: computedMarkup,
+          markup_percentage: platformMarkupPercentage,
           images,
           specifications,
           stock,

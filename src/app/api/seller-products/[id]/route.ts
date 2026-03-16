@@ -35,7 +35,7 @@ export async function GET(
     // Get product details
     const { data: product, error: prodError } = await supabase
       .from('products')
-      .select('id, name, description, base_price, final_price, stock, images, category, vendor_id')
+      .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications')
       .eq('id', sellerProduct.product_id)
       .single();
 
@@ -57,6 +57,7 @@ export async function GET(
         earnings: sellerProduct.earnings || 0,
         images: [],
         category: '',
+        specifications: {},
         referral_code: sellerProduct.referral_code,
         vendor_id: '',
         created_at: sellerProduct.added_at,
@@ -79,6 +80,7 @@ export async function GET(
       earnings: sellerProduct.earnings || 0,
       images: product.images || [],
       category: product.category || '',
+      specifications: product.specifications || {},
       referral_code: sellerProduct.referral_code,
       vendor_id: product.vendor_id,
       created_at: sellerProduct.added_at,
@@ -134,12 +136,17 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { clicks, sales, earnings } = body;
+    const { clicks } = body;
 
     const updateData: any = {};
     if (clicks !== undefined) updateData.clicks = clicks;
-    if (sales !== undefined) updateData.sales = sales;
-    if (earnings !== undefined) updateData.earnings = earnings;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No updatable fields provided' },
+        { status: 400 }
+      );
+    }
 
     const { data: sellerProduct, error } = await supabase
       .from('seller_products')

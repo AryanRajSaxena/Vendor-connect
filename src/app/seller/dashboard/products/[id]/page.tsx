@@ -9,8 +9,6 @@ import {
   Copy,
   CheckCircle2,
   Share2,
-  TrendingUp,
-  MousePointerClick,
   DollarSign,
   AlertCircle,
   ExternalLink,
@@ -31,6 +29,7 @@ interface SellerProduct {
   clicks: number;
   earnings: number;
   images?: string[];
+  specifications?: Record<string, any>;
   created_at: string;
 }
 
@@ -80,6 +79,7 @@ export default function SellerProductDetailPage() {
         clicks: data.clicks || 0,
         earnings: data.earnings || 0,
         images: data.images || [],
+        specifications: data.specifications || {},
         created_at: data.created_at || '',
       });
     } catch (err) {
@@ -150,6 +150,12 @@ export default function SellerProductDetailPage() {
   const conversionRate = product.clicks > 0
     ? ((product.sold_count / product.clicks) * 100).toFixed(1)
     : null;
+  const highlightText = String(product.specifications?.highlights || '');
+  const features = highlightText
+    .split('|||')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -175,7 +181,7 @@ export default function SellerProductDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left: Product info + performance */}
+        {/* Left: Product info */}
         <div className="lg:col-span-2 space-y-5">
           {/* Product info */}
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -198,14 +204,33 @@ export default function SellerProductDetailPage() {
 
             <div className="p-5 space-y-4">
               <div>
+                <p className="text-xs font-medium text-gray-400 mb-1">Course Name</p>
+                <p className="text-base font-semibold text-gray-900">{product.product_name}</p>
+              </div>
+              <div>
                 <p className="text-xs font-medium text-gray-400 mb-1">Description</p>
                 <p className="text-sm text-gray-700 leading-relaxed">
                   {product.description || 'No description available.'}
                 </p>
               </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 mb-2">Features</p>
+                {features.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {features.map((feature, index) => (
+                      <li key={`${feature}-${index}`} className="text-sm text-gray-700 flex items-start gap-2">
+                        <span className="mt-1 inline-block w-1.5 h-1.5 rounded-full bg-gray-400" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No features added for this course yet.</p>
+                )}
+              </div>
               <div className="flex items-center gap-6 pt-3 border-t border-gray-100 text-sm">
                 <div>
-                  <p className="text-xs text-gray-400">Price</p>
+                  <p className="text-xs text-gray-400">Final Price (Customer Pays)</p>
                   <p className="font-semibold text-gray-900">{formatCurrency(product.final_price || product.base_price)}</p>
                 </div>
                 <div>
@@ -218,51 +243,6 @@ export default function SellerProductDetailPage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Performance metrics */}
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Performance</h2>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-xs text-gray-500">Sales</span>
-                </div>
-                <p className="text-xl font-semibold tabular-nums text-gray-900">{product.sold_count}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <MousePointerClick className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-xs text-gray-500">Clicks</span>
-                </div>
-                <p className="text-xl font-semibold tabular-nums text-gray-900">{product.clicks}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <DollarSign className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-xs text-gray-500">Earned</span>
-                </div>
-                <p className="text-xl font-semibold tabular-nums text-gray-900">
-                  {formatCurrency(product.earnings || 0)}
-                </p>
-              </div>
-            </div>
-
-            {conversionRate !== null && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-gray-500">Conversion rate</span>
-                  <span className="text-sm font-semibold text-gray-900">{conversionRate}%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-1.5">
-                  <div
-                    className="bg-primary-500 h-1.5 rounded-full transition-all"
-                    style={{ width: `${Math.min(Number(conversionRate), 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -318,17 +298,16 @@ export default function SellerProductDetailPage() {
             <h2 className="text-sm font-semibold text-gray-700 mb-4">Pricing</h2>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Base price</span>
-                <span className="font-medium text-gray-900">{formatCurrency(product.base_price)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Customer pays</span>
+                <span className="text-gray-500">Final price paid by customer</span>
                 <span className="font-medium text-gray-900">{formatCurrency(product.final_price)}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <span className="text-gray-700 font-medium">Your commission (10%)</span>
+                <span className="text-gray-700 font-medium">Your commission</span>
                 <span className="font-semibold text-gray-900">{formatCurrency(product.final_price * 0.1)}</span>
               </div>
+              <p className="text-xs text-gray-400 pt-1">
+                Final price is the vendor-set customer price (including taxes, if applicable).
+              </p>
             </div>
           </div>
         </div>

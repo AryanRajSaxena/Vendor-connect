@@ -10,6 +10,14 @@ export async function PUT(
     const body = await request.json();
     const { status, transactionRef, notes } = body;
 
+    const allowedStatuses = ['pending', 'approved', 'completed', 'rejected', 'failed', 'cancelled'];
+    if (status && !allowedStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: 'Invalid withdrawal status' },
+        { status: 400 }
+      );
+    }
+
     const updateData: any = {};
     if (status) updateData.status = status;
     if (transactionRef) updateData.transaction_ref = transactionRef;

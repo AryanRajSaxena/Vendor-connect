@@ -57,11 +57,11 @@ export async function PUT(request: NextRequest) {
         .from('admin_settings')
         .insert([
           {
-            platform_markup_percentage: platformMarkupPercentage || 25,
-            seller_commission_percentage: sellerCommissionPercentage || 10,
-            platform_commission_percentage: platformCommissionPercentage || 15,
-            min_withdrawal_amount: minWithdrawalAmount || 500,
-            commission_cooling_period_days: commissionCoolingPeriodDays || 15,
+            platform_markup_percentage: platformMarkupPercentage ?? 25,
+            seller_commission_percentage: sellerCommissionPercentage ?? 10,
+            platform_commission_percentage: platformCommissionPercentage ?? 15,
+            min_withdrawal_amount: minWithdrawalAmount ?? 500,
+            commission_cooling_period_days: commissionCoolingPeriodDays ?? 15,
           },
         ])
         .select()

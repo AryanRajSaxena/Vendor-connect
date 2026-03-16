@@ -148,6 +148,14 @@ export default function AdminWithdrawalsPage() {
       .reduce((sum, w) => sum + w.amount, 0),
   };
 
+  const statusCounts: Record<FilterStatus, number> = {
+    pending: withdrawals.filter((w) => w.status === 'pending').length,
+    approved: withdrawals.filter((w) => w.status === 'approved').length,
+    completed: withdrawals.filter((w) => w.status === 'completed').length,
+    rejected: withdrawals.filter((w) => w.status === 'rejected').length,
+    all: withdrawals.length,
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -232,7 +240,7 @@ export default function AdminWithdrawalsPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {status.charAt(0).toUpperCase() + status.slice(1)} ({filteredWithdrawals.length})
+              {status.charAt(0).toUpperCase() + status.slice(1)} ({statusCounts[status]})
             </button>
           ))}
         </div>
