@@ -9,7 +9,10 @@ import {
   Copy,
   CheckCircle2,
   Share2,
-  DollarSign,
+  Clock3,
+  GraduationCap,
+  ListChecks,
+  BookOpen,
   AlertCircle,
   ExternalLink,
 } from 'lucide-react';
@@ -30,6 +33,15 @@ interface SellerProduct {
   earnings: number;
   images?: string[];
   specifications?: Record<string, any>;
+  course_duration?: string;
+  prerequisites?: string[];
+  learning_outcomes?: string[];
+  curriculum?: Array<{
+    module?: number;
+    title?: string;
+    lessons?: number;
+    duration?: string;
+  }>;
   created_at: string;
 }
 
@@ -80,6 +92,10 @@ export default function SellerProductDetailPage() {
         earnings: data.earnings || 0,
         images: data.images || [],
         specifications: data.specifications || {},
+        course_duration: data.course_duration || data.courseDuration || '',
+        prerequisites: data.prerequisites || [],
+        learning_outcomes: data.learning_outcomes || data.learningOutcomes || [],
+        curriculum: data.curriculum || [],
         created_at: data.created_at || '',
       });
     } catch (err) {
@@ -156,18 +172,37 @@ export default function SellerProductDetailPage() {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 8);
+  const prerequisites = (Array.isArray(product.prerequisites) ? product.prerequisites : [])
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, 10);
+  const learningOutcomes = (Array.isArray(product.learning_outcomes) ? product.learning_outcomes : [])
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, 10);
+  const curriculum = (Array.isArray(product.curriculum) ? product.curriculum : [])
+    .map((module: any) => ({
+      title: String(module?.title || '').trim(),
+      lessons: Number(module?.lessons || 0),
+      duration: String(module?.duration || '').trim(),
+    }))
+    .filter((module) => module.title);
+  const effectiveFinalPrice = product.final_price || product.base_price;
+  const sellerCommission = effectiveFinalPrice * 0.1;
+  const totalLessons = curriculum.reduce((sum, module) => sum + (module.lessons > 0 ? module.lessons : 0), 0);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 rounded-xl border border-gray-200 bg-white p-4 md:p-5">
         <div className="flex items-center gap-3">
-          <Link href="/seller/dashboard" className="text-gray-400 hover:text-gray-700 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
+          <Link href="/seller/dashboard" className="text-gray-400 hover:text-gray-700 transition-colors rounded-md border border-gray-200 p-1.5">
+            <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{product.product_name}</h1>
-            <p className="text-xs text-gray-400 mt-0.5">{product.category}</p>
+            <p className="text-xs uppercase tracking-wide text-gray-400">My Store / Course Details</p>
+            <h1 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">{product.product_name}</h1>
+            <p className="text-xs text-gray-500 mt-0.5">{product.category || 'Online Course'}</p>
           </div>
         </div>
         <button
@@ -180,13 +215,32 @@ export default function SellerProductDetailPage() {
         </button>
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-lg border border-gray-200 bg-white p-3.5">
+          <p className="text-[11px] uppercase tracking-wide text-gray-400">Final Price</p>
+          <p className="text-lg font-semibold text-gray-900 mt-1">{formatCurrency(effectiveFinalPrice)}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3.5">
+          <p className="text-[11px] uppercase tracking-wide text-gray-400">Your Commission</p>
+          <p className="text-lg font-semibold text-emerald-600 mt-1">{formatCurrency(sellerCommission)}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3.5">
+          <p className="text-[11px] uppercase tracking-wide text-gray-400">Curriculum</p>
+          <p className="text-lg font-semibold text-gray-900 mt-1">{curriculum.length} modules</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3.5">
+          <p className="text-[11px] uppercase tracking-wide text-gray-400">Learning Outcomes</p>
+          <p className="text-lg font-semibold text-gray-900 mt-1">{learningOutcomes.length}</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Product info */}
         <div className="lg:col-span-2 space-y-5">
           {/* Product info */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             {/* Cover image */}
-            <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden">
+            <div className="h-56 bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden">
               {imgUrl ? (
                 <img
                   src={imgUrl}
@@ -202,7 +256,7 @@ export default function SellerProductDetailPage() {
               </div>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-6 space-y-6">
               <div>
                 <p className="text-xs font-medium text-gray-400 mb-1">Course Name</p>
                 <p className="text-base font-semibold text-gray-900">{product.product_name}</p>
@@ -213,8 +267,9 @@ export default function SellerProductDetailPage() {
                   {product.description || 'No description available.'}
                 </p>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-400 mb-2">Features</p>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs font-medium text-gray-500 mb-2">Features</p>
                 {features.length > 0 ? (
                   <ul className="space-y-1.5">
                     {features.map((feature, index) => (
@@ -228,10 +283,94 @@ export default function SellerProductDetailPage() {
                   <p className="text-sm text-gray-500">No features added for this course yet.</p>
                 )}
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                    <Clock3 className="w-3.5 h-3.5" />
+                    Course Duration
+                  </p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {product.course_duration?.trim() || 'Self-paced'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Curriculum Modules
+                  </p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {curriculum.length > 0 ? `${curriculum.length} modules • ${totalLessons} lessons` : 'Not added'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1.5">
+                  <ListChecks className="w-3.5 h-3.5" />
+                  Prerequisites
+                </p>
+                {prerequisites.length > 0 ? (
+                  <ul className="space-y-2">
+                    {prerequisites.map((item, index) => (
+                      <li key={`${item}-${index}`} className="text-sm text-gray-700 flex items-start gap-2">
+                        <span className="mt-1 inline-block w-1.5 h-1.5 rounded-full bg-gray-400" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No prerequisites listed.</p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1.5">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  What You&apos;ll Learn
+                </p>
+                {learningOutcomes.length > 0 ? (
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {learningOutcomes.map((item, index) => (
+                      <li key={`${item}-${index}`} className="text-sm text-gray-700 flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No learning outcomes added yet.</p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-gray-200 p-4">
+                <p className="text-xs font-medium text-gray-500 mb-3">Curriculum</p>
+                {curriculum.length > 0 ? (
+                  <div className="space-y-2">
+                    {curriculum.map((module, index) => (
+                      <div
+                        key={`${module.title}-${index}`}
+                        className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5"
+                      >
+                        <p className="text-sm font-medium text-gray-900">
+                          Module {index + 1}: {module.title}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {module.lessons > 0 ? `${module.lessons} lessons` : 'Lessons not specified'}
+                          {module.duration ? ` • ${module.duration}` : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Curriculum modules are not available yet.</p>
+                )}
+              </div>
+
               <div className="flex items-center gap-6 pt-3 border-t border-gray-100 text-sm">
                 <div>
                   <p className="text-xs text-gray-400">Final Price (Customer Pays)</p>
-                  <p className="font-semibold text-gray-900">{formatCurrency(product.final_price || product.base_price)}</p>
+                  <p className="font-semibold text-gray-900">{formatCurrency(effectiveFinalPrice)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Added</p>
@@ -247,9 +386,9 @@ export default function SellerProductDetailPage() {
         </div>
 
         {/* Right: Referral + Pricing */}
-        <div className="space-y-5">
+        <div className="space-y-5 lg:sticky lg:top-6 self-start">
           {/* Referral */}
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <Share2 className="w-3.5 h-3.5 text-gray-400" />
               <h2 className="text-sm font-semibold text-gray-700">Share & Earn</h2>
@@ -290,20 +429,34 @@ export default function SellerProductDetailPage() {
               <p className="text-xs text-gray-400 pt-1">
                 Share this link on social media to earn 10% on every sale.
               </p>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+                <div>
+                  <p className="text-[11px] text-gray-400">Clicks</p>
+                  <p className="text-sm font-semibold text-gray-800">{product.clicks}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">Sales</p>
+                  <p className="text-sm font-semibold text-gray-800">{product.sold_count}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">Conv. Rate</p>
+                  <p className="text-sm font-semibold text-gray-800">{conversionRate ? `${conversionRate}%` : '0%'}</p>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Pricing */}
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">Pricing</h2>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Final price paid by customer</span>
-                <span className="font-medium text-gray-900">{formatCurrency(product.final_price)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(effectiveFinalPrice)}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <span className="text-gray-700 font-medium">Your commission</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(product.final_price * 0.1)}</span>
+                <span className="text-gray-700 font-medium">Your commission (10%)</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(sellerCommission)}</span>
               </div>
               <p className="text-xs text-gray-400 pt-1">
                 Final price is the vendor-set customer price (including taxes, if applicable).

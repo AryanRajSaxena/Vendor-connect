@@ -1,5 +1,4 @@
 const DEFAULT_VENDOR_PAYOUT_PERCENTAGE = 80;
-const DEFAULT_SELLER_COMMISSION_PERCENTAGE = 10;
 
 export interface CommissionBreakdown {
   basePrice: number;
@@ -13,16 +12,16 @@ export interface CommissionBreakdown {
 
 /**
  * Calculate commission breakdown for a product
+ * Vendor receives 80%, Platform gets 20%
  */
 export function calculateCommissions(
   basePrice: number,
-  vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE,
-  sellerCommissionPercentage: number = DEFAULT_SELLER_COMMISSION_PERCENTAGE
+  vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE
 ): CommissionBreakdown {
   const finalPrice = basePrice; // no markup — listed at vendor's price
   const vendorPayout = finalPrice * (vendorPayoutPercentage / 100);
-  const sellerCommission = finalPrice * (sellerCommissionPercentage / 100);
-  const platformCommission = finalPrice - vendorPayout - sellerCommission;
+  const platformCommission = finalPrice * ((100 - vendorPayoutPercentage) / 100);
+  const sellerCommission = 0; // Not used in display anymore
 
   return {
     basePrice,

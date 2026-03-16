@@ -54,6 +54,10 @@ export async function POST(request: NextRequest) {
       images,
       specifications,
       stock,
+      courseDuration,
+      prerequisites,
+      learningOutcomes,
+      curriculum,
     } = body;
 
     if (!vendorId || !name || !category || !basePrice) {
@@ -97,6 +101,10 @@ export async function POST(request: NextRequest) {
           specifications,
           stock,
           is_active: true,
+          course_duration: courseDuration || 'Self-paced',
+          prerequisites: prerequisites || [],
+          learning_outcomes: learningOutcomes || [],
+          curriculum: curriculum || [],
         },
       ])
       .select()

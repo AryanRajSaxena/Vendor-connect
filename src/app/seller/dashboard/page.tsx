@@ -27,6 +27,9 @@ interface SellerProduct {
   clicks: number;
   earnings: number;
   images?: string[];
+  course_duration?: string;
+  learning_outcomes?: string[];
+  curriculum?: Array<{ title?: string; lessons?: number; duration?: string }>;
   created_at: string;
 }
 
@@ -112,6 +115,9 @@ export default function SellerDashboard() {
           clicks: p.clicks || 0,
           earnings: p.earnings || 0,
           images: p.images || [],
+          course_duration: p.course_duration || '',
+          learning_outcomes: p.learning_outcomes || [],
+          curriculum: p.curriculum || [],
           created_at: p.created_at || '',
         }));
       }
@@ -332,6 +338,15 @@ export default function SellerDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{product.product_name}</p>
                     <p className="text-xs text-gray-400">{product.category}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                      {product.course_duration ? <span>{product.course_duration}</span> : null}
+                      {Array.isArray(product.curriculum) && product.curriculum.length > 0 ? (
+                        <span>{product.curriculum.length} modules</span>
+                      ) : null}
+                      {Array.isArray(product.learning_outcomes) && product.learning_outcomes.length > 0 ? (
+                        <span>{product.learning_outcomes.length} outcomes</span>
+                      ) : null}
+                    </div>
                   </div>
 
                   {/* Stats */}

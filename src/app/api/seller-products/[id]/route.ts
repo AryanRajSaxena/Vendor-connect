@@ -1,8 +1,23 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
+function parseArrayField(value: unknown): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -35,7 +50,7 @@ export async function GET(
     // Get product details
     const { data: product, error: prodError } = await supabase
       .from('products')
-      .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications')
+      .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
       .eq('id', sellerProduct.product_id)
       .single();
 
@@ -58,6 +73,10 @@ export async function GET(
         images: [],
         category: '',
         specifications: {},
+        course_duration: '',
+        prerequisites: [],
+        learning_outcomes: [],
+        curriculum: [],
         referral_code: sellerProduct.referral_code,
         vendor_id: '',
         created_at: sellerProduct.added_at,
@@ -65,6 +84,17 @@ export async function GET(
     }
 
     // Return enriched data
+    const specifications = (product.specifications || {}) as Record<string, any>;
+    const normalizedPrerequisites = parseArrayField(
+      product.prerequisites ?? specifications.prerequisites
+    );
+    const normalizedLearningOutcomes = parseArrayField(
+      product.learning_outcomes ?? specifications.learning_outcomes ?? specifications.learningOutcomes
+    );
+    const normalizedCurriculum = parseArrayField(
+      product.curriculum ?? specifications.curriculum
+    );
+
     const enrichedProduct = {
       id: sellerProduct.id,
       productId: sellerProduct.product_id,
@@ -80,7 +110,13 @@ export async function GET(
       earnings: sellerProduct.earnings || 0,
       images: product.images || [],
       category: product.category || '',
-      specifications: product.specifications || {},
+      specifications,
+      course_duration: product.course_duration || specifications.course_duration || specifications.courseDuration || '',
+      courseDuration: product.course_duration || specifications.course_duration || specifications.courseDuration || '',
+      prerequisites: normalizedPrerequisites,
+      learning_outcomes: normalizedLearningOutcomes,
+      learningOutcomes: normalizedLearningOutcomes,
+      curriculum: normalizedCurriculum,
       referral_code: sellerProduct.referral_code,
       vendor_id: product.vendor_id,
       created_at: sellerProduct.added_at,
@@ -98,7 +134,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

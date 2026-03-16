@@ -8,6 +8,8 @@ import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface CartItem {
   id: string;
+  productId?: string;
+  cartItemId?: string;
   name: string;
   price: number;
   quantity: number;
@@ -76,22 +78,24 @@ export default function CartPage() {
     loadCart();
   }, [user?.id]);
 
-  const handleRemoveItem = async (id: string) => {
+  const handleRemoveItem = async (productIdOrId: string, cartItemId?: string) => {
+    const productId = productIdOrId;
+
     if (!user?.id) {
-      const nextItems = cartItems.filter((item) => item.id !== id);
+      const nextItems = cartItems.filter((item) => item.id !== productId && item.productId !== productId);
       setCartItems(nextItems);
       syncLocalCart(nextItems);
       return;
     }
 
     try {
-      const response = await fetch('/api/cart', {
+      const params = new URLSearchParams({ customerId: user.id, productId });
+      if (cartItemId) {
+        params.set('cartItemId', cartItemId);
+      }
+
+      const response = await fetch(`/api/cart?${params.toString()}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: user.id,
-          productId: id,
-        }),
       });
 
       if (!response.ok) {
@@ -101,10 +105,22 @@ export default function CartPage() {
 
       const data = await response.json();
       const items = (data.items || []) as CartItem[];
+
+      if (data.deleted === false) {
+        // As a safe UX fallback, remove the clicked item locally if server could not resolve identifier shape.
+        const fallbackItems = cartItems.filter(
+          (item) => item.id !== productId && item.productId !== productId && item.cartItemId !== cartItemId
+        );
+        setCartItems(fallbackItems);
+        syncLocalCart(fallbackItems);
+        return;
+      }
+
       setCartItems(items);
       syncLocalCart(items);
     } catch (error) {
       console.error('Failed to remove cart item:', error);
+      alert('Could not remove item from cart. Please try again.');
     }
   };
 
@@ -159,7 +175,7 @@ export default function CartPage() {
 
                     {/* Remove Button */}
                     <button
-                      onClick={() => handleRemoveItem(item.id)}
+                      onClick={() => handleRemoveItem(item.productId || item.id, item.cartItemId)}
                       className="p-2 hover:bg-red-50 rounded text-red-600"
                     >
                       <Trash2 className="w-5 h-5" />

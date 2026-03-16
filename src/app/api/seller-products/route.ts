@@ -1,6 +1,21 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
+function parseArrayField(value: unknown): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function buildSellerReferralCode(sellerId: string) {
   const clean = sellerId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   return `SEL${clean.slice(0, 9)}`.slice(0, 20);
@@ -48,7 +63,7 @@ export async function GET(request: NextRequest) {
 
       const { data: products, error: prodError } = await supabase
         .from('products')
-        .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications')
+        .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
         .in('id', productIds);
 
       if (prodError) {
@@ -61,6 +76,13 @@ export async function GET(request: NextRequest) {
       // Merge the data
       const enrichedProducts = sellerProducts.map((sp: any) => {
         const product = products?.find((p: any) => p.id === sp.product_id);
+        const specifications = (product?.specifications || {}) as Record<string, any>;
+        const normalizedLearningOutcomes = parseArrayField(
+          product?.learning_outcomes ?? specifications.learning_outcomes ?? specifications.learningOutcomes
+        );
+        const normalizedCurriculum = parseArrayField(
+          product?.curriculum ?? specifications.curriculum
+        );
         return {
           id: sp.id,
           productId: sp.product_id,
@@ -76,7 +98,12 @@ export async function GET(request: NextRequest) {
           earnings: sp.earnings || 0,
           images: product?.images || [],
           category: product?.category || '',
-          specifications: product?.specifications || {},
+          specifications,
+          course_duration: product?.course_duration || specifications.course_duration || specifications.courseDuration || '',
+          prerequisites: parseArrayField(product?.prerequisites ?? specifications.prerequisites),
+          learning_outcomes: normalizedLearningOutcomes,
+          learningOutcomes: normalizedLearningOutcomes,
+          curriculum: normalizedCurriculum,
           referral_code: sp.referral_code,
           vendor_id: product?.vendor_id,
           created_at: sp.added_at,

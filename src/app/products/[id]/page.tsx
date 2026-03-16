@@ -3,7 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ShoppingCart, Check, ChevronLeft } from 'lucide-react';
+import {
+  ShoppingCart,
+  Check,
+  ChevronLeft,
+  Clock3,
+  GraduationCap,
+  ListChecks,
+  BookOpen,
+  ShieldCheck,
+  BadgeCheck,
+  Sparkles,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
@@ -13,10 +24,20 @@ interface Product {
   category: string;
   description: string;
   final_price: number;
+  base_price?: number;
   sold_count: number;
   is_active: boolean;
   images: string[];
-  specifications: Record<string, string>;
+  specifications: Record<string, any>;
+  course_duration?: string;
+  prerequisites?: string[];
+  learning_outcomes?: string[];
+  curriculum?: Array<{
+    module?: number;
+    title?: string;
+    lessons?: number;
+    duration?: string;
+  }>;
   vendor_id: string;
   created_at: string;
 }
@@ -177,18 +198,18 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500 text-lg">Loading product...</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <p className="text-slate-400 text-lg">Loading product...</p>
       </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 text-lg mb-4">{error || 'Product not found'}</p>
-          <Link href="/products" className="btn btn-primary">
+          <p className="text-red-400 text-lg mb-4">{error || 'Product not found'}</p>
+          <Link href="/products" className="inline-flex items-center rounded-lg bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-semibold transition-colors">
             Back to Products
           </Link>
         </div>
@@ -196,210 +217,276 @@ export default function ProductDetailPage() {
     );
   }
 
+  const specs = product.specifications || {};
+  const highlightText = String(specs.highlights || '');
+  const highlights = highlightText
+    .split('|||')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  const prerequisites = (Array.isArray(product.prerequisites) ? product.prerequisites : [])
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, 10);
+
+  const learningOutcomes = (Array.isArray(product.learning_outcomes) ? product.learning_outcomes : [])
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, 12);
+
+  const curriculum = (Array.isArray(product.curriculum) ? product.curriculum : [])
+    .map((module) => ({
+      module: Number(module?.module || 0),
+      title: String(module?.title || '').trim(),
+      lessons: Number(module?.lessons || 0),
+      duration: String(module?.duration || '').trim(),
+    }))
+    .filter((module) => module.title);
+
+  const courseDuration =
+    (product.course_duration && String(product.course_duration).trim()) ||
+    (specs.courseDuration && String(specs.courseDuration).trim()) ||
+    (specs.course_duration && String(specs.course_duration).trim()) ||
+    'Self-paced';
+
+  const totalLessons = curriculum.reduce((sum, module) => sum + (module.lessons > 0 ? module.lessons : 0), 0);
+  const publishedOn = product.created_at
+    ? new Date(product.created_at).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    : 'Recently added';
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Breadcrumb */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+    <div className="min-h-screen bg-slate-950">
+      <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3">
         <div className="max-w-7xl mx-auto">
-          <Link href="/products" className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm">
+          <Link href="/products" className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-100 text-sm font-medium transition-colors">
             <ChevronLeft className="w-4 h-4" />
             Back to Products
           </Link>
         </div>
       </div>
 
-      {/* Main Product Section */}
-      <div className="max-w-7xl mx-auto px-4 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          
-          {/* Left: Image Gallery - Amazon Style */}
-          <div className="flex flex-col gap-4">
-            {/* Main Image */}
-            <div className="bg-white border border-gray-300 rounded-lg p-8 flex items-center justify-center h-[500px] sticky top-20 hover:shadow-lg transition-shadow">
-              {getImageUrl(product.images?.[activeImageIndex]) ? (
-                <img
-                  src={getImageUrl(product.images?.[activeImageIndex])!}
-                  alt={product.name}
-                  className="max-h-full max-w-full object-contain"
-                />
-              ) : (
-                <span className="text-8xl">📦</span>
+      <div className="max-w-7xl mx-auto px-4 py-8 md:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-lg shadow-black/20">
+              <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-3">Course Preview</p>
+              <div className="bg-slate-950 rounded-xl border border-slate-800 p-3 h-64 md:h-72 flex items-center justify-center">
+                {getImageUrl(product.images?.[activeImageIndex]) ? (
+                  <img
+                    src={getImageUrl(product.images?.[activeImageIndex])!}
+                    alt={product.name}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-7xl">📦</span>
+                )}
+              </div>
+
+              {product.images && product.images.length > 1 && (
+                <div className="flex gap-2.5 overflow-x-auto mt-4 pb-1">
+                  {product.images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`w-12 h-12 rounded-md flex-shrink-0 border-2 transition-all overflow-hidden flex items-center justify-center bg-slate-900 ${
+                        activeImageIndex === idx
+                          ? 'border-sky-500 shadow-sm shadow-sky-500/20'
+                          : 'border-slate-700 hover:border-slate-500'
+                      }`}
+                    >
+                      {getImageUrl(img) ? (
+                        <img
+                          src={getImageUrl(img)!}
+                          alt={`${product.name} ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-sm">📦</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-            
-            {/* Thumbnail Gallery */}
-            {product.images && product.images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {product.images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
-                    className={`w-20 h-20 rounded flex-shrink-0 border-2 transition-all overflow-hidden flex items-center justify-center bg-white ${ 
-                      activeImageIndex === idx ? 'border-orange-500 shadow-md' : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    {getImageUrl(img) ? (
-                      <img src={getImageUrl(img)!} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-lg">📦</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Right: Product Details - Amazon Style */}
-          <div className="flex flex-col gap-6">
-            
-            {/* Title */}
-            <div>
-              <p className="text-sm text-gray-500 mb-2">{product.category}</p>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-            </div>
-
-            {/* Rating & Reviews */}
-            <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <span key={i} className="text-yellow-400 text-lg">★</span>
-                  ))}
-                </div>
-                <span className="text-blue-600 font-semibold text-sm">{product.sold_count} Reviews</span>
+          <div className="lg:col-span-8 space-y-6">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                {product.category}
+              </p>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-100 leading-tight">
+                {product.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-3 mt-4 text-sm">
+                <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
+                  {'★★★★★'}
+                </span>
+                <span className="text-slate-400">{product.sold_count}+ enrolled learners</span>
+                <span className="text-slate-700">•</span>
+                <span className="inline-flex items-center gap-1 text-slate-300">
+                  <Clock3 className="w-4 h-4 text-slate-500" />
+                  {courseDuration}
+                </span>
+                <span className="text-slate-700">•</span>
+                <span className="inline-flex items-center gap-1 text-slate-300">
+                  <BookOpen className="w-4 h-4 text-slate-500" />
+                  {curriculum.length} modules
+                </span>
               </div>
-              <span className="text-gray-600 text-sm">|</span>
-              <span className="text-gray-700 font-semibold text-sm">{product.sold_count}+ bought</span>
-            </div>
 
-            {/* Pricing - Large & Prominent */}
-            <div className="pb-6 border-b border-gray-200">
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Price</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-gray-900">{formatCurrency(product.final_price)}</span>
-                  <span className="text-green-700 font-semibold text-sm">Inclusive of all taxes</span>
-                </div>
-                <p className="text-xs text-gray-500">Free Digital Delivery</p>
-              </div>
-            </div>
-
-            {/* Key Features / Highlights */}
-            {product.specifications && Object.keys(product.specifications).length > 0 && (
-              <div className="pb-6 border-b border-gray-200">
-                <h3 className="font-bold text-gray-900 mb-4">About this item</h3>
-                <ul className="space-y-3">
-                  {Object.entries(product.specifications).slice(0, 5).map(([key, value]) => (
-                    <li key={key} className="flex gap-3">
-                      <span className="text-blue-600 font-bold text-lg">•</span>
-                      <span className="text-gray-700 text-sm">
-                        <span className="font-semibold">{key}:</span> {value}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Main CTA Buttons */}
-            <div className="space-y-3 pb-6 border-b border-gray-200">
-              <button
-                onClick={handleBuyNow}
-                disabled={isBuying}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-full text-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-              >
-                Buy Now
-              </button>
-              <button
-                onClick={handleAddToCart}
-                disabled={isBuying}
-                className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-3 px-4 rounded-full text-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-              >
-                <ShoppingCart className="w-5 h-5 inline mr-2" />
-                Add to Cart
-              </button>
-            </div>
-
-            {/* Additional Info */}
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Secure Transaction</p>
-                  <p className="text-gray-600 text-xs">Your transaction is secure. We work hard to protect your security and privacy.</p>
+              <div className="mt-5 pt-5 border-t border-slate-800">
+                <p className="text-sm text-slate-400">Final Price (including taxes)</p>
+                <div className="flex items-end gap-2 mt-1">
+                  <span className="text-4xl font-bold text-slate-100">{formatCurrency(product.final_price)}</span>
+                  <span className="text-xs text-emerald-400 font-semibold mb-1">Instant digital access</span>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Digital Access</p>
-                  <p className="text-gray-600 text-xs">Get instant access to your digital product after purchase.</p>
-                </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                <button
+                  onClick={handleBuyNow}
+                  disabled={isBuying}
+                  className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50"
+                >
+                  Buy Now
+                </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isBuying}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 border border-slate-700"
+                >
+                  <ShoppingCart className="w-5 h-5 inline mr-2" />
+                  Add to Cart
+                </button>
               </div>
-              <div className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">7-Day Guarantee</p>
-                  <p className="text-gray-600 text-xs">Not satisfied? Get a full refund within 7 days.</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+                <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+                  <p className="text-xs text-slate-400">Published</p>
+                  <p className="text-sm font-semibold text-slate-100 mt-1">{publishedOn}</p>
+                </div>
+                <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+                  <p className="text-xs text-slate-400">Modules</p>
+                  <p className="text-sm font-semibold text-slate-100 mt-1">{curriculum.length}</p>
+                </div>
+                <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+                  <p className="text-xs text-slate-400">Lessons</p>
+                  <p className="text-sm font-semibold text-slate-100 mt-1">{totalLessons}</p>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Product Description & Details - Below the fold */}
-        <div className="mt-16 pt-10 border-t border-gray-200">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Main Description */}
-            <div className="lg:col-span-2">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Product Details</h2>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 leading-relaxed mb-6">{product.description}</p>
-              </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+              <h2 className="text-lg font-bold text-slate-100 mb-3">About This Course</h2>
+              <p className="text-slate-300 leading-relaxed text-sm md:text-base">{product.description}</p>
 
-              {/* Detailed Specifications */}
-              {product.specifications && Object.keys(product.specifications).length > 0 && (
-                <div className="mt-10">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">Technical Specifications</h3>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    {Object.entries(product.specifications).map(([key, value], idx) => (
-                      <div
-                        key={key}
-                        className={`flex py-4 px-6 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                      >
-                        <div className="w-1/3">
-                          <p className="font-semibold text-gray-900">{key}</p>
-                        </div>
-                        <div className="w-2/3">
-                          <p className="text-gray-700">{value}</p>
-                        </div>
-                      </div>
+              {highlights.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-bold text-slate-100 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-sky-500" />
+                    Key Highlights
+                  </h3>
+                  <ul className="space-y-2">
+                    {highlights.map((item, idx) => (
+                      <li key={`${item}-${idx}`} className="text-sm text-slate-300 flex items-start gap-2">
+                        <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               )}
             </div>
 
-            {/* Sidebar - Quick Info */}
-            <div>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 sticky top-20">
-                <h3 className="font-bold text-gray-900 mb-4">Have a Question?</h3>
-                <p className="text-sm text-gray-700 mb-4">Help other customers find helpful answers.</p>
-                
-                <div className="space-y-4 pt-4 border-t border-gray-200">
-                  <div>
-                    <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Category</p>
-                    <p className="text-gray-900 font-semibold mt-1">{product.category}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Item Type</p>
-                    <p className="text-gray-900 font-semibold mt-1">Digital Product</p>
-                  </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+                <h3 className="text-base font-bold text-slate-100 mb-3 flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-sky-500" />
+                  Prerequisites
+                </h3>
+                {prerequisites.length > 0 ? (
+                  <ul className="space-y-2">
+                    {prerequisites.map((item, idx) => (
+                      <li key={`${item}-${idx}`} className="text-sm text-slate-300 flex items-start gap-2">
+                        <span className="mt-2 inline-block w-1.5 h-1.5 rounded-full bg-slate-500" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-400">No prerequisites. This is beginner friendly.</p>
+                )}
+              </div>
 
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+                <h3 className="text-base font-bold text-slate-100 mb-3 flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-sky-500" />
+                  What You&apos;ll Learn
+                </h3>
+                {learningOutcomes.length > 0 ? (
+                  <ul className="space-y-2">
+                    {learningOutcomes.map((item, idx) => (
+                      <li key={`${item}-${idx}`} className="text-sm text-slate-300 flex items-start gap-2">
+                        <BadgeCheck className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-400">Learning outcomes will be updated soon.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+              <h3 className="text-base font-bold text-slate-100 mb-4">Course Curriculum</h3>
+              {curriculum.length > 0 ? (
+                <div className="space-y-3">
+                  {curriculum.map((module, idx) => (
+                    <div key={`${module.title}-${idx}`} className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-100">
+                        Module {idx + 1}: {module.title}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {module.lessons > 0 ? `${module.lessons} lessons` : 'Lessons not specified'}
+                        {module.duration ? ` • ${module.duration}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400">Curriculum details are not available yet.</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+              <h3 className="text-base font-bold text-slate-100 mb-4">Why Buy With Confidence</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex gap-2.5">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Total Reviews</p>
-                    <p className="text-gray-900 font-semibold mt-1">{product.sold_count}+</p>
+                    <p className="text-sm font-semibold text-slate-100">Secure Payments</p>
+                    <p className="text-xs text-slate-400">Protected checkout and verified transactions.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2.5">
+                  <Check className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">Instant Access</p>
+                    <p className="text-xs text-slate-400">Start learning right after successful payment.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2.5">
+                  <BadgeCheck className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">7-Day Guarantee</p>
+                    <p className="text-xs text-slate-400">Refund support if the course is not a fit.</p>
                   </div>
                 </div>
               </div>

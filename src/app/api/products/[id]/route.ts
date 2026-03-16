@@ -74,6 +74,12 @@ export async function PUT(
     if (body.specifications !== undefined) updateData.specifications = body.specifications;
     if (body.stock !== undefined) updateData.stock = body.stock;
     if (body.isActive !== undefined) updateData.is_active = body.isActive;
+    
+    // Course-specific fields
+    if (body.courseDuration !== undefined) updateData.course_duration = body.courseDuration;
+    if (body.prerequisites !== undefined) updateData.prerequisites = body.prerequisites;
+    if (body.learningOutcomes !== undefined) updateData.learning_outcomes = body.learningOutcomes;
+    if (body.curriculum !== undefined) updateData.curriculum = body.curriculum;
 
     if (
       body.basePrice !== undefined ||

@@ -10,30 +10,55 @@ function toPositiveInt(value: unknown) {
 }
 
 async function fetchCartItems(customerId: string) {
-  const { data, error } = await supabase
+  const { data: cartRows, error: cartError } = await supabase
     .from('cart_items')
-    .select('id, customer_id, product_id, quantity, created_at, updated_at, product:products!product_id(id, name, final_price, images, vendor_id, stock, is_active)')
+    .select('id, customer_id, product_id, quantity, created_at, updated_at')
     .eq('customer_id', customerId)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
+  if (cartError) {
+    throw new Error(cartError.message);
   }
 
-  const items = (data || [])
-    .filter((row: any) => row.product)
-    .map((row: any) => ({
-      id: row.product.id,
-      name: row.product.name,
-      price: Number(row.product.final_price || 0),
-      quantity: Number(row.quantity || 0),
-      image: row.product.images?.[0] || '📦',
-      vendorId: row.product.vendor_id,
-      stock: Number(row.product.stock || 0),
-      isActive: Boolean(row.product.is_active),
-      cartItemId: row.id,
-    }))
-    .filter((item: any) => item.quantity > 0);
+  const rows = cartRows || [];
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const productIds = rows
+    .map((row: any) => row.product_id)
+    .filter((id: any) => Boolean(id));
+
+  const { data: products, error: productsError } = await supabase
+    .from('products')
+    .select('id, name, final_price, images, vendor_id, stock, is_active')
+    .in('id', productIds);
+
+  if (productsError) {
+    throw new Error(productsError.message);
+  }
+
+  const productMap = new Map((products || []).map((product: any) => [product.id, product]));
+
+  const items = rows
+    .map((row: any) => {
+      const product = productMap.get(row.product_id);
+      if (!product) return null;
+
+      return {
+        id: product.id,
+        productId: product.id,
+        name: product.name,
+        price: Number(product.final_price || 0),
+        quantity: Number(row.quantity || 0),
+        image: product.images?.[0] || '📦',
+        vendorId: product.vendor_id,
+        stock: Number(product.stock || 0),
+        isActive: Boolean(product.is_active),
+        cartItemId: row.id,
+      };
+    })
+    .filter((item: any) => item && item.quantity > 0);
 
   return items;
 }
@@ -191,33 +216,75 @@ export async function DELETE(request: NextRequest) {
   try {
     const customerIdFromQuery = request.nextUrl.searchParams.get('customerId');
     const productIdFromQuery = request.nextUrl.searchParams.get('productId');
+    const cartItemIdFromQuery = request.nextUrl.searchParams.get('cartItemId');
 
     let customerId = customerIdFromQuery;
     let productId = productIdFromQuery;
+    let cartItemId = cartItemIdFromQuery;
 
     if (!customerId) {
       const body = await request.json().catch(() => ({}));
       customerId = body?.customerId || customerId;
       productId = body?.productId || productId;
+      cartItemId = body?.cartItemId || cartItemId;
     }
 
     if (!customerId) {
       return NextResponse.json({ error: 'customerId is required' }, { status: 400 });
     }
 
-    let deleteQuery = supabase.from('cart_items').delete().eq('customer_id', customerId);
-    if (productId) {
-      deleteQuery = deleteQuery.eq('product_id', productId);
+    let deleted = false;
+
+    // 1) Prefer precise delete using cart row id
+    if (cartItemId) {
+      const { data, error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('customer_id', customerId)
+        .eq('id', cartItemId)
+        .select('id');
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      deleted = Boolean(data && data.length > 0);
     }
 
-    const { error: deleteError } = await deleteQuery;
+    // 2) Fallback delete by product id
+    if (!deleted && productId) {
+      const { data, error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('customer_id', customerId)
+        .eq('product_id', productId)
+        .select('id');
 
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      deleted = Boolean(data && data.length > 0);
+    }
+
+    // 3) Final fallback: if productId actually contains cart row id
+    if (!deleted && productId) {
+      const { data, error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('customer_id', customerId)
+        .eq('id', productId)
+        .select('id');
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      deleted = Boolean(data && data.length > 0);
     }
 
     const items = await fetchCartItems(customerId);
-    return NextResponse.json({ items }, { status: 200 });
+    return NextResponse.json({ items, deleted }, { status: 200 });
   } catch (error) {
     console.error('Delete cart item error:', error);
     return NextResponse.json({ error: 'Failed to delete cart item' }, { status: 500 });
