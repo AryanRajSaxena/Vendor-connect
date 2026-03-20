@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Store, TrendingUp } from 'lucide-react';
+import { Store, TrendingUp } from 'lucide-react';
 
 export type UserRole = 'customer' | 'vendor' | 'seller';
 
@@ -39,22 +39,11 @@ export function RoleSelectorModal({ onRoleSelect }: RoleSelectorModalProps) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl max-w-2xl w-full animate-scale-in">
         {/* Header */}
-        <div className="border-b border-slate-800 p-4 md:p-8 flex items-center justify-between">
+        <div className="border-b border-slate-800 p-4 md:p-8">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Welcome to Agent Croww</h2>
             <p className="text-slate-400 text-sm md:text-base">Choose your role to see the platform tailored just for you</p>
           </div>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              localStorage.setItem('landingPage_selectedRole', 'customer');
-              onRoleSelect('customer');
-              router.push('/products');
-            }}
-            className="text-slate-400 hover:text-white p-2 hover:bg-slate-800 rounded-lg transition-all"
-          >
-            <X className="w-6 h-6" />
-          </button>
         </div>
 
         {/* Role Options */}
