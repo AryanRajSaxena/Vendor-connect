@@ -120,7 +120,7 @@ export default function Header() {
               <p className="text-[11px] uppercase tracking-[0.08em] text-gray-500">{getDashboardLabel()}</p>
             )}
           </div>
-          <span className="sm:hidden font-bold text-xl text-primary-600">VC</span>
+          <span className="sm:hidden font-bold text-xl text-primary-600">AgentCroww</span>
         </Link>
 
         {/* Desktop Navigation */}

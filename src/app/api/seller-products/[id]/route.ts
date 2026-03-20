@@ -23,8 +23,6 @@ export async function GET(
   try {
     const { id } = await params;
 
-    console.log(`[API] Fetching seller product: ${id}`);
-
     // Get seller product
     const { data: sellerProduct, error: sellError } = await supabase
       .from('seller_products')
@@ -122,7 +120,6 @@ export async function GET(
       created_at: sellerProduct.added_at,
     };
 
-    console.log(`[API] Returning enriched seller product`);
     return NextResponse.json(enrichedProduct, { status: 200 });
   } catch (error) {
     console.error('[API] Get seller product error:', error);

@@ -48,9 +48,6 @@ export async function PUT(
       );
     }
 
-    console.log('Update request for product:', id);
-    console.log('Update data:', body);
-
     const { data: existingProduct, error: existingError } = await supabase
       .from('products')
       .select('id, base_price')
@@ -108,17 +105,12 @@ export async function PUT(
     }
     updateData.updated_at = new Date().toISOString();
 
-    console.log('Converted update data:', updateData);
-
-    console.log('Before Supabase update call');
     const { data: product, error } = await supabase
       .from('products')
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
-
-    console.log('After Supabase update call, error:', error, 'product:', product);
 
     if (error) {
       console.error('Supabase update error details:', {
@@ -146,7 +138,6 @@ export async function PUT(
       );
     }
 
-    console.log('Product updated successfully:', product.id);
     return NextResponse.json(product, { status: 200 });
   } catch (error) {
     console.error('Update product error caught:', error);

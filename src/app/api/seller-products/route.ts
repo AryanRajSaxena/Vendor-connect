@@ -33,8 +33,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Fetching seller products for seller: ${sellerId}`);
-
     // Get seller products - use correct column names from schema
     const { data: sellerProducts, error: sellError } = await supabase
       .from('seller_products')
@@ -50,8 +48,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Found ${sellerProducts?.length || 0} seller products`);
-
     if (!sellerProducts || sellerProducts.length === 0) {
       return NextResponse.json([], { status: 200 });
     }
@@ -59,7 +55,6 @@ export async function GET(request: NextRequest) {
     // Try to get product details for enrichment
     try {
       const productIds = sellerProducts.map((sp: any) => sp.product_id);
-      console.log(`[API] Fetching details for products: ${productIds.join(', ')}`);
 
       const { data: products, error: prodError } = await supabase
         .from('products')
@@ -70,8 +65,6 @@ export async function GET(request: NextRequest) {
         console.warn('[API] Product details fetch failed, returning basic data:', prodError);
         return NextResponse.json(sellerProducts, { status: 200 });
       }
-
-      console.log(`[API] Got details for ${products?.length || 0} products`);
 
       // Merge the data
       const enrichedProducts = sellerProducts.map((sp: any) => {
@@ -110,7 +103,6 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      console.log(`[API] Returning ${enrichedProducts.length} enriched products`);
       return NextResponse.json(enrichedProducts, { status: 200 });
     } catch (enrichError) {
       console.warn('[API] Enrichment failed, returning seller products only:', enrichError);

@@ -43,7 +43,6 @@ export async function initializeDatabase() {
   try {
     // Check if tables exist and create them if needed
     await createTables();
-    console.log('Database initialized successfully');
   } catch (error) {
     console.error('Database initialization error:', error);
   }

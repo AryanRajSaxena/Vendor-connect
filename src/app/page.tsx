@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Store, BarChart3, Percent, Lightbulb, CreditCard, Smartphone, Users, TrendingUp, Package, Star } from 'lucide-react';
+import { CheckCircle, Store, BarChart3, Percent, Lightbulb, CreditCard, Users, TrendingUp, Package, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { RoleSelectorModal, UserRole } from '@/components/shared/RoleSelectorModal';
@@ -93,7 +93,6 @@ export default function HomePage() {
     benefits: [
       { icon: Percent, title: '10% Commission', desc: 'Earn commission on every product you sell' },
       { icon: Lightbulb, title: 'Zero Risk Model', desc: 'No inventory hassles, no stock management' },
-      { icon: Smartphone, title: 'Mobile App Ready', desc: 'Manage sales on the go with mobile app' },
     ],
     features: [
       { step: '01', title: 'Sign up on Platform', desc: 'Register as a seller in just 2 minutes' },
@@ -281,7 +280,7 @@ export default function HomePage() {
         <section className="section-sm">
           <div className="container-custom">
             <div className="text-center mb-8 md:mb-10">
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Why Choose Agent Croww as Seller</h2>
+              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Why Choose Agent Croww</h2>
               <p className="text-slate-400 text-base md:text-lg">Start earning with zero risk and investment</p>
             </div>
 
