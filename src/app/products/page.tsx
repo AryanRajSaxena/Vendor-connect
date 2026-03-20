@@ -26,6 +26,7 @@ interface Product {
 function ProductsContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const isUnauthenticated = !user?.id;
   const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
   const isGuestVendorOrSeller =
     !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
@@ -318,22 +319,31 @@ function ProductsContent() {
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-2 gap-2 mt-auto">
-                          <Link
-                            href={`/products/${product.id}${(() => {
-                              const detailParams = new URLSearchParams();
-                              if (activeReferralCode) {
-                                detailParams.set('ref', activeReferralCode);
-                              }
-                              if (isGuestVendorOrSeller) {
-                                detailParams.set('guestRole', guestRoleParam);
-                              }
-                              const query = detailParams.toString();
-                              return query ? `?${query}` : '';
-                            })()}`}
-                            className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
-                          >
-                            View Details
-                          </Link>
+                          {isUnauthenticated ? (
+                            <span
+                              aria-disabled="true"
+                              className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800/40 text-slate-500 cursor-not-allowed py-2.5 text-sm font-medium"
+                            >
+                              View Details
+                            </span>
+                          ) : (
+                            <Link
+                              href={`/products/${product.id}${(() => {
+                                const detailParams = new URLSearchParams();
+                                if (activeReferralCode) {
+                                  detailParams.set('ref', activeReferralCode);
+                                }
+                                if (isGuestVendorOrSeller) {
+                                  detailParams.set('guestRole', guestRoleParam);
+                                }
+                                const query = detailParams.toString();
+                                return query ? `?${query}` : '';
+                              })()}`}
+                              className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
+                            >
+                              View Details
+                            </Link>
+                          )}
                           <button
                             onClick={() => handleAddToCart(product)}
                             disabled={isGuestVendorOrSeller}

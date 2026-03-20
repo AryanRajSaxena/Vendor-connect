@@ -365,12 +365,21 @@ function SellerMarketplaceContent() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <Link
-                      href={detailHref}
-                      className="flex items-center justify-center w-full py-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 text-sm font-semibold rounded-md transition-colors"
-                    >
-                      View Details
-                    </Link>
+                    {!user?.id ? (
+                      <span
+                        aria-disabled="true"
+                        className="flex items-center justify-center w-full py-2 bg-slate-900/50 border border-slate-800 text-slate-500 text-sm font-semibold rounded-md cursor-not-allowed"
+                      >
+                        View Details
+                      </span>
+                    ) : (
+                      <Link
+                        href={detailHref}
+                        className="flex items-center justify-center w-full py-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 text-sm font-semibold rounded-md transition-colors"
+                      >
+                        View Details
+                      </Link>
+                    )}
 
                     {product.isSellerProduct ? (
                       <div className="flex items-center justify-center gap-1.5 w-full py-2 bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-md">

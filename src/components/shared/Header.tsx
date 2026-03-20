@@ -192,12 +192,9 @@ export default function Header() {
               </div>
             </>
           ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="btn-primary !bg-violet-600 hover:!bg-violet-500"
-            >
-              Login / Sign Up
-            </button>
+            <span className="inline-flex items-center px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 font-semibold">
+              Coming Soon
+            </span>
           )}
         </div>
 
@@ -279,15 +276,9 @@ export default function Header() {
               </button>
             </>
           ) : (
-            <button
-              onClick={() => {
-                setIsAuthModalOpen(true);
-                setIsMenuOpen(false);
-              }}
-              className="w-full btn-primary !bg-violet-600 hover:!bg-violet-500"
-            >
-              Login / Sign Up
-            </button>
+            <div className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 font-semibold">
+              Coming Soon
+            </div>
           )}
         </div>
       )}
