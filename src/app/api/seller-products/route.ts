@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { generateReferralCode } from '@/utils/calculations';
 
 function parseArrayField(value: unknown): any[] {
   if (Array.isArray(value)) return value;
@@ -17,8 +18,7 @@ function parseArrayField(value: unknown): any[] {
 }
 
 function buildSellerReferralCode(sellerId: string) {
-  const clean = sellerId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return `SEL${clean.slice(0, 9)}`.slice(0, 20);
+  return generateReferralCode(sellerId);
 }
 
 export async function GET(request: NextRequest) {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
       const { data: products, error: prodError } = await supabase
         .from('products')
-        .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
+        .select('id, name, description, base_price, stock, images, category, vendor_id, is_active, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
         .in('id', productIds);
 
       if (prodError) {
@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
           product_name: product?.name || 'Unknown',
           description: product?.description || '',
           base_price: product?.base_price || 0,
-          final_price: product?.final_price || 0,
           stock: product?.stock || 0,
+          is_active: product?.is_active !== false,
           seller_markup_percentage: 0,
           sold_count: sp.sales || 0,
           clicks: sp.clicks || 0,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sellerId, productId, referralCode } = body;
+    const { sellerId, productId } = body;
 
     if (!sellerId || !productId) {
       return NextResponse.json(
@@ -157,37 +157,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // One referral code per seller across all courses/products.
-    // Reuse an existing code if seller already has one.
-    let finalReferralCode = '';
+    // Generate referral code using the superhero system (one code per seller).
+    let finalReferralCode = buildSellerReferralCode(sellerId);
 
-    const { data: existingSellerCode } = await supabase
+    // In case referral_code has global unique constraint in DB, avoid collisions.
+    const { data: collision } = await supabase
       .from('seller_products')
-      .select('referral_code')
-      .eq('seller_id', sellerId)
-      .not('referral_code', 'is', null)
-      .order('added_at', { ascending: true })
+      .select('id, seller_id')
+      .eq('referral_code', finalReferralCode)
+      .neq('seller_id', sellerId)
       .limit(1)
       .maybeSingle();
 
-    if (existingSellerCode?.referral_code) {
-      finalReferralCode = String(existingSellerCode.referral_code).trim();
-    } else {
-      finalReferralCode = (referralCode ? String(referralCode).trim().toUpperCase() : '') || buildSellerReferralCode(sellerId);
-
-      // In case referral_code has global unique constraint in DB, avoid collisions.
-      const { data: collision } = await supabase
-        .from('seller_products')
-        .select('id, seller_id')
-        .eq('referral_code', finalReferralCode)
-        .neq('seller_id', sellerId)
-        .limit(1)
-        .maybeSingle();
-
-      if (collision?.id) {
-        const suffix = Math.random().toString(36).substring(2, 5).toUpperCase();
-        finalReferralCode = `${buildSellerReferralCode(sellerId).slice(0, 16)}${suffix}`.slice(0, 20);
-      }
+    if (collision?.id) {
+      const suffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+      finalReferralCode = `${buildSellerReferralCode(sellerId).slice(0, 16)}${suffix}`.slice(0, 20);
     }
 
     const insertData: any = {

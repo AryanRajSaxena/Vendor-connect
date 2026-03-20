@@ -152,7 +152,7 @@ export default function CustomerSettings() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                placeholder="+91 9876543210"
+                placeholder="Phone number"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <p className="text-xs text-gray-500 mt-1">Optional - for order notifications</p>

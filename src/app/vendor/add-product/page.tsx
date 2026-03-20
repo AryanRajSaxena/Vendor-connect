@@ -184,7 +184,6 @@ export default function AddProductPage() {
 
       if (!user?.id) throw new Error('Not authenticated');
 
-      const commissions = calculateCommissions(basePrice);
       const filledHighlights = highlights.filter((h) => h.trim());
       const filledPrerequisites = prerequisites.filter((p) => p.trim());
       const filledLearningOutcomes = learningOutcomes.filter((l) => l.trim());
@@ -199,7 +198,6 @@ export default function AddProductPage() {
           category: formData.category,
           description: formData.description.trim(),
           basePrice,
-          finalPrice: commissions.finalPrice,
           markup: 0,
           markupPercentage: 0,
           images: formData.coverImage ? [formData.coverImage] : [],

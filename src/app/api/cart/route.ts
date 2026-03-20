@@ -31,7 +31,7 @@ async function fetchCartItems(customerId: string) {
 
   const { data: products, error: productsError } = await supabase
     .from('products')
-    .select('id, name, final_price, images, vendor_id, stock, is_active')
+    .select('id, name, base_price, images, vendor_id, stock, is_active')
     .in('id', productIds);
 
   if (productsError) {
@@ -49,7 +49,7 @@ async function fetchCartItems(customerId: string) {
         id: product.id,
         productId: product.id,
         name: product.name,
-        price: Number(product.final_price || 0),
+        price: Number(product.base_price || 0),
         quantity: Number(row.quantity || 0),
         image: product.images?.[0] || '📦',
         vendorId: product.vendor_id,
@@ -181,12 +181,16 @@ export async function PATCH(request: NextRequest) {
 
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('stock')
+      .select('stock, is_active')
       .eq('id', productId)
       .single();
 
     if (productError || !product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    if (!product.is_active) {
+      return NextResponse.json({ error: 'Product is not active' }, { status: 400 });
     }
 
     const nextQty = Math.min(Number(product.stock || 0), quantity);

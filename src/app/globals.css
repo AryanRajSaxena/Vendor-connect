@@ -359,6 +359,48 @@ select:focus {
   @apply hover:bg-gray-50 transition-colors duration-150;
 }
 
+/* Mobile-first app optimization layer */
+@media (max-width: 767px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .container-custom {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .section {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .section-sm {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .card,
+  .stat-card {
+    border-radius: 0.5rem;
+  }
+
+  .btn,
+  button,
+  [role='button'],
+  a.btn,
+  .input,
+  .select,
+  .textarea {
+    min-height: 44px;
+  }
+
+  main {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 /* Alert Styles */
 .alert {
   @apply rounded-lg p-4 flex items-start gap-3 border;

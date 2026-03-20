@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Search,
   AlertCircle,
@@ -18,10 +19,10 @@ interface Product {
   category: string;
   description: string;
   basePrice: number;
-  finalPrice: number;
   images?: string[];
   sellerCount: number;
   isSellerProduct: boolean;
+  isActive: boolean;
 }
 
 const categoryGradient = (category: string) => {
@@ -37,9 +38,13 @@ const categoryGradient = (category: string) => {
   return map[category] || 'from-gray-100 to-gray-50';
 };
 
-export default function SellerMarketplacePage() {
+function SellerMarketplaceContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading } = useAuth();
+  const guestRole = (searchParams.get('guestRole') || '').toLowerCase();
+  const isGuestMarketplace =
+    !user && (guestRole === 'seller' || guestRole === 'vendor');
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,24 +56,37 @@ export default function SellerMarketplacePage() {
   const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && user?.role !== 'seller') {
+    if (isLoading) return;
+
+    if (user && user.role !== 'seller') {
+      router.push('/');
+      return;
+    }
+
+    if (!user && !isGuestMarketplace) {
       router.push('/');
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, isGuestMarketplace]);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id || isGuestMarketplace) {
       fetchProducts();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, isGuestMarketplace]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`/api/products/with-seller-count?isActive=true&sellerId=${user!.id}`);
+      const params = new URLSearchParams();
+      params.set('isActive', 'false');
+      if (user?.id) {
+        params.set('sellerId', user.id);
+      }
+
+      const res = await fetch(`/api/products/with-seller-count?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch products');
 
       const raw = await res.json();
@@ -78,10 +96,10 @@ export default function SellerMarketplacePage() {
         category: p.category || '',
         description: p.description || '',
         basePrice: p.base_price || 0,
-        finalPrice: p.final_price || 0,
         images: p.images || [],
         sellerCount: p.sellerCount || 0,
         isSellerProduct: p.isSellerProduct || false,
+        isActive: p.is_active !== false,
       }));
 
       setProducts(data);
@@ -93,6 +111,10 @@ export default function SellerMarketplacePage() {
   };
 
   const handleAddProduct = async (productId: string) => {
+    if (isGuestMarketplace || !user?.id) {
+      return;
+    }
+
     try {
       setAddingProducts((prev) => new Set([...prev, productId]));
       setAddError(null);
@@ -141,8 +163,8 @@ export default function SellerMarketplacePage() {
   });
 
   const sortedProducts = [...filtered].sort((a, b) => {
-    const aPrice = a.finalPrice || a.basePrice;
-    const bPrice = b.finalPrice || b.basePrice;
+    const aPrice = a.basePrice;
+    const bPrice = b.basePrice;
     const aCommission = aPrice * 0.1;
     const bCommission = bPrice * 0.1;
 
@@ -158,7 +180,7 @@ export default function SellerMarketplacePage() {
   });
 
   const estimatedTotalCommission = sortedProducts.reduce(
-    (sum, p) => sum + ((p.finalPrice || p.basePrice) * 0.1),
+    (sum, p) => sum + (p.basePrice * 0.1),
     0
   );
 
@@ -170,7 +192,8 @@ export default function SellerMarketplacePage() {
     );
   }
 
-  if (!user || user.role !== 'seller') return null;
+  if (!user && !isGuestMarketplace) return null;
+  if (user && user.role !== 'seller') return null;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -180,14 +203,8 @@ export default function SellerMarketplacePage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Seller Growth Hub</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900">Turn product picks into steady income</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Choose high-performing products, add them in seconds, and grow your commission with every sale.
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700">
-              <span className="font-semibold text-gray-900">{sortedProducts.length}</span> visible products
-            </div>
             <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800">
               potential: <span className="font-bold">{formatCurrency(estimatedTotalCommission)}</span>
             </div>
@@ -268,9 +285,13 @@ export default function SellerMarketplacePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedProducts.map((product) => {
             const imgUrl = getImageUrl(product.images?.[0]);
-            const price = product.finalPrice || product.basePrice;
+            const price = product.basePrice;
             const commission = price * 0.1;
             const projectedFiveSales = commission * 5;
+            const isPaused = !product.isActive;
+            const detailHref = `/products/${product.id}${
+              isGuestMarketplace ? `?guestRole=${encodeURIComponent(guestRole)}` : ''
+            }`;
 
             return (
               <div
@@ -295,6 +316,11 @@ export default function SellerMarketplacePage() {
                     <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-200/95 text-emerald-900 text-xs font-semibold px-2 py-0.5 rounded-full border border-emerald-300">
                       <CheckCircle2 className="w-3 h-3" />
                       In Store
+                    </div>
+                  )}
+                  {isPaused && (
+                    <div className="absolute top-2 left-2 bg-amber-200/95 text-amber-900 text-xs font-semibold px-2 py-0.5 rounded-full border border-amber-300">
+                      Paused by vendor
                     </div>
                   )}
                 </div>
@@ -338,30 +364,43 @@ export default function SellerMarketplacePage() {
                     </div>
                   </div>
 
-                  {product.isSellerProduct ? (
-                    <div className="flex items-center justify-center gap-1.5 w-full py-2 bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-md">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      Added to your store
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleAddProduct(product.id)}
-                      disabled={addingProducts.has(product.id)}
-                      className="flex items-center justify-center gap-1.5 w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold rounded-md transition-colors"
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href={detailHref}
+                      className="flex items-center justify-center w-full py-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 text-sm font-semibold rounded-md transition-colors"
                     >
-                      {addingProducts.has(product.id) ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
-                          Adding...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-3.5 h-3.5" />
-                          Add & Start Earning
-                        </>
-                      )}
-                    </button>
-                  )}
+                      View Details
+                    </Link>
+
+                    {product.isSellerProduct ? (
+                      <div className="flex items-center justify-center gap-1.5 w-full py-2 bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-md">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        Added
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleAddProduct(product.id)}
+                        disabled={isGuestMarketplace || isPaused || addingProducts.has(product.id)}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-md transition-colors"
+                      >
+                        {isGuestMarketplace ? (
+                          'Add to your store'
+                        ) : isPaused ? (
+                          'Course paused'
+                        ) : addingProducts.has(product.id) ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3.5 h-3.5" />
+                            Add
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -369,5 +408,19 @@ export default function SellerMarketplacePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SellerMarketplacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <SellerMarketplaceContent />
+    </Suspense>
   );
 }

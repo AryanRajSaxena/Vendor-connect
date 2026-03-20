@@ -1,4 +1,4 @@
-# Vendor Connect - Complete Platform Overview
+# Agent Croww - Complete Platform Overview
 
 ## 🎯 Platform Status
 
@@ -587,7 +587,7 @@ npm run dev
 
 ## 🎊 Summary
 
-**Vendor Connect** is a **complete three-tier marketplace** with:
+**Agent Croww** is a **complete three-tier marketplace** with:
 - ✅ Full vendor product creation and management
 - ✅ Complete seller resale ecosystem
 - ✅ Robust customer purchasing experience

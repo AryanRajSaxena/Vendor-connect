@@ -19,7 +19,7 @@ interface SalesOrder {
   orderNumber: string;
   productName: string;
   quantity: number;
-  finalPrice: number;
+  basePrice: number;
   sellerCommission: number;
   status: string;
   commissionStatus: string;
@@ -69,7 +69,7 @@ export default function SellerSalesPage() {
           orderNumber: o.order_number || o.orderNumber || o.id,
           productName: o.product?.name || o.product_name || '—',
           quantity: o.quantity || 1,
-          finalPrice: o.final_price || o.finalPrice || 0,
+          basePrice: o.base_price || o.basePrice || 0,
           sellerCommission: o.seller_commission || o.sellerCommission || 0,
           status: o.order_status || o.status || 'pending',
           commissionStatus: o.commission_status || o.commissionStatus || 'pending',
@@ -111,22 +111,13 @@ export default function SellerSalesPage() {
     pending: orders.filter((o) => o.commissionStatus.toLowerCase() === 'pending').length,
   };
 
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      available: 'bg-blue-100 text-blue-700',
-      paid: 'bg-green-100 text-green-700',
-      pending: 'bg-orange-100 text-orange-700',
-    };
-    return map[status.toLowerCase()] || 'bg-gray-100 text-gray-700';
-  };
-
   const exportCSV = () => {
     const rows = [
       ['Product', 'Qty', 'Price', 'Commission', 'Status', 'Date'],
       ...filteredOrders.map((o) => [
         o.productName,
         o.quantity,
-        o.finalPrice,
+        o.basePrice,
         o.sellerCommission,
         o.commissionStatus,
         new Date(o.createdAt).toLocaleDateString(),
@@ -284,7 +275,7 @@ export default function SellerSalesPage() {
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-gray-900 max-w-[200px] truncate">{order.productName}</td>
                     <td className="px-4 py-3 text-right text-gray-900 tabular-nums">
-                      {formatCurrency(order.finalPrice)}
+                      {formatCurrency(order.basePrice)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums text-gray-900">
                       {formatCurrency(order.sellerCommission)}

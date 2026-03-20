@@ -150,7 +150,7 @@ export default function VendorSettings() {
             {[
               { label: 'Business Name', name: 'businessName', placeholder: 'Your business name', hint: 'Used for invoicing and marketplace display' },
               { label: 'Owner / Manager Name', name: 'name', placeholder: 'Your full name' },
-              { label: 'Phone', name: 'phone', placeholder: '+91 9876543210', hint: 'For order notifications and support', type: 'tel' },
+              { label: 'Phone', name: 'phone', placeholder: 'Phone number', hint: 'For order notifications and support', type: 'tel' },
               { label: 'GST Number', name: 'gstNumber', placeholder: '27AABCT1234H1Z0', hint: 'GST registration number (optional)' },
               { label: 'PAN Number', name: 'panNumber', placeholder: 'AAAPA1234P', hint: 'For tax reporting (optional)' },
             ].map(({ label, name, placeholder, hint, type }) => (

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ShoppingCart, ChevronDown, Star, Filter, Package } from 'lucide-react';
+import { ShoppingCart, ChevronDown, Search, Package } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
@@ -13,7 +13,6 @@ interface Product {
   category: string;
   description: string;
   base_price: number;
-  final_price: number;
   markup: number;
   markup_percentage: number;
   stock: number;
@@ -24,16 +23,19 @@ interface Product {
   created_at: string;
 }
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
+  const isGuestVendorOrSeller =
+    !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || '');
+  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('relevance');
-  const [showFilters, setShowFilters] = useState(false);
   const [activeReferralCode, setActiveReferralCode] = useState<string>('');
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
   const getSafeCart = () => {
     try {
@@ -53,17 +55,6 @@ export default function ProductsPage() {
     localStorage.setItem('cart', JSON.stringify(cart));
     window.dispatchEvent(new Event('cart-updated'));
   };
-
-  const categories = [
-    'Electronics',
-    'Fashion',
-    'Home Appliances',
-    'Services',
-    'Education',
-    'Healthcare',
-    'Books',
-    'Other',
-  ];
 
   const sortOptions = [
     { value: 'relevance', label: 'Relevance' },
@@ -101,9 +92,6 @@ export default function ProductsPage() {
         setError(null);
 
         const params = new URLSearchParams();
-        if (selectedCategory) {
-          params.append('category', selectedCategory);
-        }
         params.append('isActive', 'true');
 
         const response = await fetch(`/api/products?${params}`, {
@@ -120,9 +108,9 @@ export default function ProductsPage() {
 
         // Sort products
         if (sortBy === 'price-low') {
-          filtered.sort((a: Product, b: Product) => a.final_price - b.final_price);
+          filtered.sort((a: Product, b: Product) => a.base_price - b.base_price);
         } else if (sortBy === 'price-high') {
-          filtered.sort((a: Product, b: Product) => b.final_price - a.final_price);
+          filtered.sort((a: Product, b: Product) => b.base_price - a.base_price);
         } else if (sortBy === 'newest') {
           filtered.sort(
             (a: Product, b: Product) =>
@@ -142,9 +130,18 @@ export default function ProductsPage() {
     };
 
     fetchProducts();
-  }, [selectedCategory, sortBy]);
+  }, [sortBy]);
+
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
 
   const handleAddToCart = (product: Product) => {
+    if (isGuestVendorOrSeller) {
+      alert('Cart actions are disabled in guest seller/vendor browsing mode.');
+      return;
+    }
+
     const addToLocalCart = () => {
       const cart = getSafeCart();
       const existingItem = cart.find((item: any) => item.id === product.id);
@@ -155,7 +152,7 @@ export default function ProductsPage() {
         cart.push({
           id: product.id,
           name: product.name,
-          price: product.final_price,
+          price: product.base_price,
           quantity: 1,
           image: product.images?.[0] || '📦',
           vendorId: product.vendor_id,
@@ -216,60 +213,28 @@ export default function ProductsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Discover Products</h1>
             <p className="text-gray-600 mt-1">Browse our curated collection of quality products</p>
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="md:hidden btn-outline flex items-center gap-2"
-          >
-            <Filter className="w-5 h-5" />
-            Filters
-          </button>
         </div>
       </div>
 
       <div className="container-custom py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Sidebar Filters */}
-          <div className={`${showFilters ? 'block' : 'hidden'} md:block md:col-span-1`}>
-            <div className="card p-6 space-y-6 sticky top-32">
-              {/* Category Filter */}
-              <div>
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-primary-500" />
-                  Category
-                </h3>
-                <div className="space-y-2.5">
-                  <label className="flex items-center group cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategory === ''}
-                      onChange={() => setSelectedCategory('')}
-                      className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <span className="ml-3 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">All Categories</span>
-                  </label>
-                  {categories.map((cat) => (
-                    <label key={cat} className="flex items-center group cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategory === cat}
-                        onChange={() => setSelectedCategory(cat)}
-                        className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                      />
-                      <span className="ml-3 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">{cat}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="md:col-span-3">
+        <div>
             {/* Sort Options */}
-            <div className="flex items-center justify-between mb-6 bg-white rounded-xl p-4 shadow-soft border border-gray-100">
-              <p className="text-gray-600 font-medium">
-                <span className="text-gray-900 font-bold">{products.length}</span> products found
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 bg-white rounded-xl p-4 shadow-soft border border-gray-100">
+              <div className="relative w-full md:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search courses by name..."
+                  className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+                />
+              </div>
+
+              <p className="text-gray-600 font-medium md:order-3">
+                <span className="text-gray-900 font-bold">{filteredProducts.length}</span> products found
               </p>
+
               <div className="relative">
                 <select
                   value={sortBy}
@@ -304,83 +269,114 @@ export default function ProductsPage() {
             {/* Products Grid */}
             {!loading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.length > 0 ? (
-                  products.map((product) => (
-                    <div key={product.id} className="card-interactive group">
-                      {/* Image */}
-                      <div className="relative">
-                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-xl h-52 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
-                          {getImageUrl(product.images?.[0]) ? (
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => {
+                    return (
+                    <div key={product.id} className="group rounded-xl border border-slate-700/80 bg-slate-900/80 overflow-hidden hover:border-emerald-400/50 hover:shadow-[0_10px_30px_rgba(16,185,129,0.08)] transition-all duration-200 flex flex-col">
+                      {/* Media */}
+                      <div className="relative h-44 bg-gradient-to-br from-slate-200 to-slate-100 overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent z-10" />
+
+                        <div className="h-full w-full flex items-center justify-center">
+                          {getImageUrl(product.images?.[0]) && !imageLoadErrors[product.id] ? (
                             <img
                               src={getImageUrl(product.images?.[0])!}
                               alt={product.name}
                               className="w-full h-full object-cover"
+                              onError={() => {
+                                setImageLoadErrors((prev) => ({ ...prev, [product.id]: true }));
+                              }}
                             />
                           ) : (
-                            <span className="text-5xl">📦</span>
+                            <div className="w-14 h-14 rounded-xl bg-slate-900 text-slate-200 flex items-center justify-center text-3xl shadow-sm">
+                              📦
+                            </div>
                           )}
                         </div>
                       </div>
 
                       {/* Details */}
-                      <div className="p-5 space-y-3">
-                        <div>
-                          <h3 className="font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors">
+                      <div className="p-4 flex flex-col flex-1">
+                        <div className="mb-3 min-h-[66px]">
+                          <h3 className="text-lg leading-snug font-semibold text-slate-100 line-clamp-2">
                             {product.name}
                           </h3>
-                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{product.category}</p>
+                          <p className="mt-1 text-sm text-slate-300 line-clamp-2">
+                            {product.description || 'Premium course with practical learning outcomes.'}
+                          </p>
                         </div>
 
-                        {/* Pricing */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl font-bold text-gray-900">
-                            {formatCurrency(product.final_price)}
+                        <div className="mb-3 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/10 to-emerald-600/5 p-3">
+                          <p className="text-[11px] text-slate-400 font-medium">Course Price</p>
+                          <span className="text-2xl font-black tracking-tight text-slate-100 tabular-nums">
+                            {formatCurrency(product.base_price)}
+                          </span>
+                          <span className="ml-2 text-xs font-medium text-slate-300 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+                            Lifetime access
                           </span>
                         </div>
 
-                        {/* Rating */}
-                        <div className="flex items-center gap-1.5 text-sm pt-2 border-t border-gray-100">
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-gray-700 font-semibold">{product.sold_count} sold</span>
-                        </div>
-
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 pt-2">
+                        <div className="grid grid-cols-2 gap-2 mt-auto">
                           <Link
-                            href={
-                              activeReferralCode
-                                ? `/products/${product.id}?ref=${encodeURIComponent(activeReferralCode)}`
-                                : `/products/${product.id}`
-                            }
-                            className="btn-outline text-center py-2.5 text-sm"
+                            href={`/products/${product.id}${(() => {
+                              const detailParams = new URLSearchParams();
+                              if (activeReferralCode) {
+                                detailParams.set('ref', activeReferralCode);
+                              }
+                              if (isGuestVendorOrSeller) {
+                                detailParams.set('guestRole', guestRoleParam);
+                              }
+                              const query = detailParams.toString();
+                              return query ? `?${query}` : '';
+                            })()}`}
+                            className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
                           >
                             View Details
                           </Link>
                           <button
                             onClick={() => handleAddToCart(product)}
-                            className="btn-primary flex items-center justify-center gap-2 py-2.5 text-sm"
+                            disabled={isGuestVendorOrSeller}
+                            className={`inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+                              isGuestVendorOrSeller
+                                ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                                : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                            }`}
                           >
                             <ShoppingCart className="w-4 h-4" />
-                            Add
+                            {isGuestVendorOrSeller ? 'Add to Cart' : 'Add'}
                           </button>
                         </div>
                       </div>
                     </div>
-                  ))
+                  )})
                 ) : (
                   <div className="col-span-full text-center py-20">
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gray-100 text-gray-400 mb-4">
                       <Package className="w-10 h-10" />
                     </div>
                     <p className="text-gray-500 text-lg font-medium">No products found</p>
-                    <p className="text-gray-400 text-sm mt-2">Try adjusting your filters</p>
+                    <p className="text-gray-400 text-sm mt-2">Try a different course name</p>
                   </div>
                 )}
               </div>
             )}
-          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">Loading products...</p>
+        </div>
+      }
+    >
+      <ProductsContent />
+    </Suspense>
   );
 }

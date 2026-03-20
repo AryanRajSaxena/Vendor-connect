@@ -99,7 +99,7 @@ export default function SellerSettings() {
           {[
             { label: 'Store Name', name: 'businessName', placeholder: 'Your store name', hint: 'Display name for your reselling store', required: true },
             { label: 'Your Name', name: 'name', placeholder: 'Full name', hint: 'Store owner or manager name', required: true },
-            { label: 'Phone', name: 'phone', placeholder: '+91 9876543210', hint: 'Contact number', type: 'tel' },
+            { label: 'Phone', name: 'phone', placeholder: 'Phone number', hint: 'Contact number', type: 'tel' },
           ].map(({ label, name, placeholder, hint, required, type }) => (
             <div key={name}>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">

@@ -10,7 +10,7 @@ interface VendorOrder {
   id: string;
   productName: string;
   quantity: number;
-  finalPrice: number;
+  basePrice: number;
   vendorPayout: number;
   sellerCommission: number;
   platformCommission: number;
@@ -49,7 +49,7 @@ export default function VendorSalesPage() {
           id: o.id,
           productName: o.product_name ?? o.productName ?? 'Product',
           quantity: o.quantity ?? 1,
-          finalPrice: o.final_price ?? o.finalPrice ?? 0,
+          basePrice: o.base_price ?? o.basePrice ?? 0,
           vendorPayout: o.vendor_payout ?? o.vendorPayout ?? 0,
           sellerCommission: o.seller_commission ?? o.sellerCommission ?? 0,
           platformCommission: o.platform_commission ?? o.platformCommission ?? 0,
@@ -126,7 +126,7 @@ export default function VendorSalesPage() {
         [
           `"${o.productName}"`,
           o.quantity,
-          o.finalPrice,
+          o.basePrice,
           o.vendorPayout,
           o.order_status,
           new Date(o.createdAt).toLocaleDateString(),
@@ -295,7 +295,7 @@ export default function VendorSalesPage() {
                     <td className="px-5 py-3.5 font-medium text-gray-900">{order.productName}</td>
                     <td className="px-5 py-3.5 text-right text-gray-600">{order.quantity}</td>
                     <td className="px-5 py-3.5 text-right text-gray-600">
-                      {formatCurrency(order.finalPrice)}
+                      {formatCurrency(order.basePrice)}
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <span

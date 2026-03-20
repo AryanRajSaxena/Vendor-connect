@@ -138,7 +138,6 @@ export default function EditProductPage() {
           category: formData.category,
           description: formData.description.trim(),
           basePrice,
-          finalPrice: basePrice,
           markup: 0,
           markupPercentage: 0,
           images: formData.coverImage ? [formData.coverImage] : [],
@@ -365,7 +364,7 @@ export default function EditProductPage() {
                 </div>
                 <div className="flex justify-between pb-3 border-b border-gray-100">
                   <span className="text-gray-500">Customer Pays</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(commission.finalPrice)}</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(commission.customerPrice)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Seller Commission (10%)</span>

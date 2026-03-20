@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
-import { getStoredAuth, saveAuth, clearAuth, generateId, isValidEmail, isValidPassword } from '@/utils/auth';
+import { getStoredAuth, saveAuth, clearAuth, isValidEmail, isValidPassword } from '@/utils/auth';
 
 interface AuthContextType {
   user: User | null;

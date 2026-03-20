@@ -11,6 +11,9 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   avatar?: string;
+  businessName?: string;
+  gstNumber?: string;
+  panNumber?: string;
 }
 
 export interface VendorProfile extends User {
@@ -45,7 +48,6 @@ export interface Product {
   category: ProductCategory;
   description: string;
   basePrice: number;
-  finalPrice: number;
   markup: number;
   markupPercentage: number;
   images: string[];
@@ -75,7 +77,7 @@ export interface Order {
   vendorId: string;
   productId: string;
   quantity: number;
-  finalPrice: number;
+  basePrice: number;
   sellerCommission: number;
   platformCommission: number;
   vendorPayout: number;

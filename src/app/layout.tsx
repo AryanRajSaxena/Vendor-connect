@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { AuthProvider } from '@/hooks/useAuth';
 import Header from '@/components/shared/Header';
 import Footer from '@/components/shared/Footer';
+import MobileBottomNav from '@/components/shared/MobileBottomNav';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'VendorConnect - Commission-Based Marketplace',
+  title: 'Agent Croww - Commission-Based Marketplace',
   description: 'A platform for vendors to sell products and sellers to earn commissions',
 };
 
@@ -19,10 +20,11 @@ export default function RootLayout({
       <body className="bg-gray-50 antialiased">
         <AuthProvider>
           <Header />
-          <main className="min-h-[calc(100vh-200px)]">
+          <main className="min-h-[calc(100vh-200px)] pb-20 md:pb-0">
             {children}
           </main>
           <Footer />
+          <MobileBottomNav />
         </AuthProvider>
       </body>
     </html>

@@ -1,4 +1,4 @@
-# VendorConnect - Commission-Based Marketplace MVP
+# Agent Croww - Commission-Based Marketplace MVP
 
 A production-ready, industry-standard commission-based marketplace application with three distinct user interfaces: Vendor Dashboard, Seller Dashboard, and Customer Shopping Interface.
 
@@ -71,7 +71,7 @@ A production-ready, industry-standard commission-based marketplace application w
 1. **Clone the repository**
 ```bash
 git clone <repo-url>
-cd vendor_connect
+cd agent-croww
 ```
 
 2. **Install dependencies**
@@ -537,7 +537,7 @@ MIT License - See LICENSE file for details
 
 ## Support
 
-For support, email support@vendorconnect.in or contact us through the platform.
+For support, email team@agentcroww.com or contact us through the platform.
 
 ## Changelog
 
@@ -553,6 +553,6 @@ For support, email support@vendorconnect.in or contact us through the platform.
 
 ---
 
-**Built with ❤️ by the VendorConnect Team**
+**Built with ❤️ by the Agent Croww Team**
 
 Last updated: February 14, 2026

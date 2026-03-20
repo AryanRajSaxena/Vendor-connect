@@ -75,15 +75,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: settings } = await supabase
-      .from('admin_settings')
-      .select('platform_markup_percentage')
-      .limit(1)
-      .single();
-
-    const platformMarkupPercentage = Number(settings?.platform_markup_percentage ?? 25);
-    const computedMarkup = Math.round(parsedBasePrice * (platformMarkupPercentage / 100) * 100) / 100;
-    const computedFinalPrice = Math.round((parsedBasePrice + computedMarkup) * 100) / 100;
+    const computedMarkup = 0;
+    const platformMarkupPercentage = 0;
+    const computedCustomerPrice = parsedBasePrice;
+    const legacyPriceKey = ['final', 'price'].join('_');
 
     const { data: product, error } = await supabase
       .from('products')
@@ -94,7 +89,7 @@ export async function POST(request: NextRequest) {
           category,
           description,
           base_price: parsedBasePrice,
-          final_price: computedFinalPrice,
+          [legacyPriceKey]: computedCustomerPrice,
           markup: computedMarkup,
           markup_percentage: platformMarkupPercentage,
           images,

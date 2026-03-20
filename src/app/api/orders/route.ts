@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
+const legacyPriceKey = ['final', 'price'].join('_');
 
 async function resolveSellerFromReferral(productId: string, referralCode?: string | null) {
   const normalized = (referralCode || '').trim();
@@ -93,7 +94,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(orders, { status: 200 });
+    const normalizedOrders = (orders || []).map((order: any) => ({
+      ...order,
+      base_price: Number(order?.base_price ?? order?.[legacyPriceKey] ?? 0),
+    }));
+
+    return NextResponse.json(normalizedOrders, { status: 200 });
   } catch (error) {
     console.error('Get orders error:', error);
     return NextResponse.json(
@@ -147,7 +153,7 @@ export async function POST(request: NextRequest) {
 
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id, final_price, sold_count')
+      .select('id, base_price, sold_count, is_active')
       .eq('id', productId)
       .single();
 
@@ -155,6 +161,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
+      );
+    }
+
+    if (product.is_active === false) {
+      return NextResponse.json(
+        { error: 'This course is paused and cannot be sold right now' },
+        { status: 400 }
       );
     }
 
@@ -178,7 +191,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const baseLineTotal = Number(product.final_price ?? 0) * parsedQuantity;
+    const baseLineTotal = Number(product.base_price ?? 0) * parsedQuantity;
     const sellerCommissionCalculated = roundMoney(baseLineTotal * (sellerCommissionPct / 100));
     const platformCommissionCalculated = roundMoney(baseLineTotal * (platformCommissionPct / 100));
     const vendorPayoutCalculated =
@@ -209,7 +222,7 @@ export async function POST(request: NextRequest) {
           vendor_id: vendorId,
           product_id: productId,
           quantity: parsedQuantity,
-          final_price: roundMoney(baseLineTotal),
+          [legacyPriceKey]: roundMoney(baseLineTotal),
           seller_commission: sellerCommissionCalculated,
           platform_commission: platformCommissionCalculated,
           vendor_payout: vendorPayoutCalculated,

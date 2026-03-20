@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -16,15 +16,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency, getImageUrl } from '@/utils/calculations';
+import { formatCurrency } from '@/utils/calculations';
 
 interface Product {
   id: string;
   name: string;
   category: string;
   description: string;
-  final_price: number;
-  base_price?: number;
+  base_price: number;
   sold_count: number;
   is_active: boolean;
   images: string[];
@@ -42,16 +41,28 @@ interface Product {
   created_at: string;
 }
 
-export default function ProductDetailPage() {
+function ProductDetailContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
+  const isGuestVendorOrSeller =
+    !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isBuying, setIsBuying] = useState(false);
+
+  const backHref = (() => {
+    if (user?.role === 'seller') {
+      return '/seller/marketplace';
+    }
+    if (guestRoleParam === 'seller' || guestRoleParam === 'vendor') {
+      return `/seller/marketplace?guestRole=${encodeURIComponent(guestRoleParam)}`;
+    }
+    return '/products';
+  })();
 
   const getSafeCart = () => {
     try {
@@ -119,6 +130,11 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return;
 
+    if (isGuestVendorOrSeller) {
+      alert('Cart actions are disabled in guest seller/vendor browsing mode.');
+      return;
+    }
+
     const addToLocalCart = () => {
       const cart = getSafeCart();
       const existingItem = cart.find((item: any) => item.id === product.id);
@@ -129,7 +145,7 @@ export default function ProductDetailPage() {
         cart.push({
           id: product.id,
           name: product.name,
-          price: product.final_price,
+          price: product.base_price,
           quantity: 1,
           image: product.images?.[0] || '📦',
           vendorId: product.vendor_id,
@@ -185,6 +201,11 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = () => {
+    if (isGuestVendorOrSeller) {
+      alert('Checkout is disabled in guest seller/vendor browsing mode.');
+      return;
+    }
+
     if (!user?.id) {
       alert('Please login to continue');
       return;
@@ -209,7 +230,7 @@ export default function ProductDetailPage() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 text-lg mb-4">{error || 'Product not found'}</p>
-          <Link href="/products" className="inline-flex items-center rounded-lg bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-semibold transition-colors">
+          <Link href={backHref} className="inline-flex items-center rounded-lg bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-semibold transition-colors">
             Back to Products
           </Link>
         </div>
@@ -251,6 +272,8 @@ export default function ProductDetailPage() {
     'Self-paced';
 
   const totalLessons = curriculum.reduce((sum, module) => sum + (module.lessons > 0 ? module.lessons : 0), 0);
+  const isAuthenticatedSeller = user?.role === 'seller';
+  const isPausedCourse = product.is_active === false;
   const publishedOn = product.created_at
     ? new Date(product.created_at).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -263,7 +286,7 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-slate-950">
       <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3">
         <div className="max-w-7xl mx-auto">
-          <Link href="/products" className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-100 text-sm font-medium transition-colors">
+          <Link href={backHref} className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-100 text-sm font-medium transition-colors">
             <ChevronLeft className="w-4 h-4" />
             Back to Products
           </Link>
@@ -272,50 +295,25 @@ export default function ProductDetailPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-4">
+          <div className="order-2 lg:order-2 lg:col-span-4 space-y-4 lg:sticky lg:top-24 self-start">
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-lg shadow-black/20">
-              <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-3">Course Preview</p>
-              <div className="bg-slate-950 rounded-xl border border-slate-800 p-3 h-64 md:h-72 flex items-center justify-center">
-                {getImageUrl(product.images?.[activeImageIndex]) ? (
-                  <img
-                    src={getImageUrl(product.images?.[activeImageIndex])!}
-                    alt={product.name}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                ) : (
-                  <span className="text-7xl">📦</span>
-                )}
-              </div>
-
-              {product.images && product.images.length > 1 && (
-                <div className="flex gap-2.5 overflow-x-auto mt-4 pb-1">
-                  {product.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveImageIndex(idx)}
-                      className={`w-12 h-12 rounded-md flex-shrink-0 border-2 transition-all overflow-hidden flex items-center justify-center bg-slate-900 ${
-                        activeImageIndex === idx
-                          ? 'border-sky-500 shadow-sm shadow-sky-500/20'
-                          : 'border-slate-700 hover:border-slate-500'
-                      }`}
-                    >
-                      {getImageUrl(img) ? (
-                        <img
-                          src={getImageUrl(img)!}
-                          alt={`${product.name} ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-sm">📦</span>
-                      )}
-                    </button>
+              <h3 className="text-sm font-bold text-slate-100 mb-3">What You&apos;ll Get</h3>
+              {learningOutcomes.length > 0 ? (
+                <ul className="space-y-2">
+                  {learningOutcomes.slice(0, 4).map((item, idx) => (
+                    <li key={`${item}-${idx}`} className="text-sm text-slate-300 flex items-start gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{item}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-400">Clear outcomes and practical modules included.</p>
               )}
             </div>
           </div>
 
-          <div className="lg:col-span-8 space-y-6">
+          <div className="order-1 lg:order-1 lg:col-span-8 space-y-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 {product.category}
@@ -341,30 +339,46 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="mt-5 pt-5 border-t border-slate-800">
-                <p className="text-sm text-slate-400">Final Price (including taxes)</p>
+                <p className="text-sm text-slate-400">Course Price</p>
                 <div className="flex items-end gap-2 mt-1">
-                  <span className="text-4xl font-bold text-slate-100">{formatCurrency(product.final_price)}</span>
+                  <span className="text-4xl font-bold text-slate-100">{formatCurrency(product.base_price)}</span>
                   <span className="text-xs text-emerald-400 font-semibold mb-1">Instant digital access</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-                <button
-                  onClick={handleBuyNow}
-                  disabled={isBuying}
-                  className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50"
-                >
-                  Buy Now
-                </button>
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isBuying}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 border border-slate-700"
-                >
-                  <ShoppingCart className="w-5 h-5 inline mr-2" />
-                  Add to Cart
-                </button>
-              </div>
+              {isPausedCourse && (
+                <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                  <p className="text-sm text-amber-200">
+                    This course is currently paused by the vendor. New purchases are disabled.
+                  </p>
+                </div>
+              )}
+
+              {isAuthenticatedSeller ? (
+                <div className="mt-6 rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-3">
+                  <p className="text-sm text-slate-300">
+                    Purchase actions are available for customers only.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
+                    className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGuestVendorOrSeller ? 'Buy Now' : 'Buy Now'}
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
+                  >
+                    <ShoppingCart className="w-5 h-5 inline mr-2" />
+                    {isGuestVendorOrSeller ? 'Add to Cart' : 'Add to Cart'}
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                 <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
@@ -495,5 +509,19 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <p className="text-slate-400 text-lg">Loading product...</p>
+        </div>
+      }
+    >
+      <ProductDetailContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -27,11 +27,33 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isGuestMarketplace, setIsGuestMarketplace] = useState(false);
+
+  useEffect(() => {
+    if (user || !pathname.startsWith('/seller/marketplace')) {
+      setIsGuestMarketplace(false);
+      return;
+    }
+
+    const guestRole = new URLSearchParams(window.location.search)
+      .get('guestRole')
+      ?.toLowerCase();
+
+    setIsGuestMarketplace(guestRole === 'seller' || guestRole === 'vendor');
+  }, [pathname, user]);
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
+
+  if (isGuestMarketplace) {
+    return (
+      <main className="min-h-[calc(100vh-64px)] bg-gray-50 overflow-auto">
+        {children}
+      </main>
+    );
+  }
 
   return (
     <div className="flex min-h-[calc(100vh-64px)]">

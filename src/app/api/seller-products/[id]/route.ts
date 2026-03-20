@@ -50,7 +50,7 @@ export async function GET(
     // Get product details
     const { data: product, error: prodError } = await supabase
       .from('products')
-      .select('id, name, description, base_price, final_price, stock, images, category, vendor_id, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
+      .select('id, name, description, base_price, stock, images, category, vendor_id, is_active, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
       .eq('id', sellerProduct.product_id)
       .single();
 
@@ -64,8 +64,8 @@ export async function GET(
         product_name: 'Unknown Product',
         description: '',
         base_price: 0,
-        final_price: 0,
         stock: 0,
+        is_active: false,
         seller_markup_percentage: 0,
         sold_count: sellerProduct.sales || 0,
         clicks: sellerProduct.clicks || 0,
@@ -102,8 +102,8 @@ export async function GET(
       product_name: product.name || 'Unknown Product',
       description: product.description || '',
       base_price: product.base_price || 0,
-      final_price: product.final_price || 0,
       stock: product.stock || 0,
+      is_active: product.is_active !== false,
       seller_markup_percentage: 0,
       sold_count: sellerProduct.sales || 0,
       clicks: sellerProduct.clicks || 0,

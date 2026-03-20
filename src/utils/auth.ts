@@ -1,7 +1,6 @@
 import { User, UserRole } from '@/types';
 
 const AUTH_KEY = 'auth_user';
-const CART_KEY = 'marketplace_cart';
 const REFERRAL_KEY = 'referral_code';
 
 export interface AuthContextType {

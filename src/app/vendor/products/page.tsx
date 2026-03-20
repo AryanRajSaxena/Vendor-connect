@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Edit2, Trash2, Plus, Search, AlertCircle, BookOpen, Users, Clock, Zap } from 'lucide-react';
+import { Edit2, PauseCircle, Plus, Search, AlertCircle, BookOpen, Users, Clock, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
@@ -13,7 +13,6 @@ interface CourseData {
   category: string;
   description: string;
   basePrice: number;
-  finalPrice: number;
   soldCount: number;
   isActive: boolean;
   coverImage?: string;
@@ -31,8 +30,8 @@ export default function VendorCoursesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [pauseTarget, setPauseTarget] = useState<string | null>(null);
+  const [pausing, setPausing] = useState(false);
   const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -57,7 +56,6 @@ export default function VendorCoursesPage() {
           category: p.category,
           description: p.description || '',
           basePrice: p.base_price ?? 0,
-          finalPrice: p.final_price ?? 0,
           soldCount: p.sold_count ?? 0,
           isActive: p.is_active !== false,
           coverImage: p.images?.[0] ?? undefined,
@@ -75,17 +73,25 @@ export default function VendorCoursesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handlePause = async (id: string) => {
     try {
-      setDeleting(true);
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete course');
-      setCourses((prev) => prev.filter((c) => c.id !== id));
-      setDeleteTarget(null);
+      setPausing(true);
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false }),
+      });
+      if (!res.ok) throw new Error('Failed to pause course');
+      setCourses((prev) =>
+        prev.map((course) =>
+          course.id === id ? { ...course, isActive: false } : course
+        )
+      );
+      setPauseTarget(null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setDeleting(false);
+      setPausing(false);
     }
   };
 
@@ -221,7 +227,7 @@ export default function VendorCoursesPage() {
                           : 'bg-gray-200 text-gray-700'
                       }`}
                     >
-                      {course.isActive ? '✓ Live' : 'Draft'}
+                      {course.isActive ? '✓ Live' : 'Paused'}
                     </span>
                   </div>
                 </div>
@@ -270,9 +276,9 @@ export default function VendorCoursesPage() {
                   {/* Pricing */}
                   <div className="flex items-baseline gap-2">
                     <span className="text-lg font-bold text-gray-900">
-                      {formatCurrency(course.finalPrice)}
+                      {formatCurrency(course.basePrice)}
                     </span>
-                    <span className="text-xs text-gray-500">Final Price</span>
+                    <span className="text-xs text-gray-500">Course Price</span>
                   </div>
 
                   {/* Actions */}
@@ -285,11 +291,12 @@ export default function VendorCoursesPage() {
                       Edit
                     </Link>
                     <button
-                      onClick={() => setDeleteTarget(course.id)}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium text-sm rounded-lg transition-colors"
+                      onClick={() => setPauseTarget(course.id)}
+                      disabled={!course.isActive}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 disabled:opacity-60 disabled:cursor-not-allowed font-medium text-sm rounded-lg transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Delete
+                      <PauseCircle className="w-3.5 h-3.5" />
+                      {course.isActive ? 'Pause' : 'Paused'}
                     </button>
                   </div>
                 </div>
@@ -331,7 +338,7 @@ export default function VendorCoursesPage() {
                           : 'bg-gray-200 text-gray-700'
                       }`}
                     >
-                      {course.isActive ? '✓ Live' : 'Draft'}
+                      {course.isActive ? '✓ Live' : 'Paused'}
                     </span>
                   </div>
                   <p className="text-xs text-gray-400 mb-1">{course.category}</p>
@@ -370,9 +377,9 @@ export default function VendorCoursesPage() {
                 <div className="flex items-center gap-6 flex-shrink-0">
                   <div className="text-right">
                     <p className="text-sm font-bold text-gray-900">
-                      {formatCurrency(course.finalPrice)}
+                      {formatCurrency(course.basePrice)}
                     </p>
-                    <p className="text-xs text-gray-400">Final Price</p>
+                    <p className="text-xs text-gray-400">Course Price</p>
                   </div>
                   <div className="flex gap-1.5">
                     <Link
@@ -383,11 +390,12 @@ export default function VendorCoursesPage() {
                       <Edit2 className="w-4 h-4" />
                     </Link>
                     <button
-                      onClick={() => setDeleteTarget(course.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
-                      title="Delete"
+                      onClick={() => setPauseTarget(course.id)}
+                      disabled={!course.isActive}
+                      className="p-2 hover:bg-amber-50 rounded-lg text-amber-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      title={course.isActive ? 'Pause' : 'Paused'}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <PauseCircle className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -397,27 +405,27 @@ export default function VendorCoursesPage() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteTarget && (
+      {/* Pause Confirmation Modal */}
+      {pauseTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Course?</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Pause Course?</h3>
             <p className="text-gray-600 text-sm mb-6">
-              This action cannot be undone. The course will be permanently deleted.
+              This will pause the course and sellers will no longer be able to sell it.
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteTarget(null)}
+                onClick={() => setPauseTarget(null)}
                 className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium text-sm rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleDelete(deleteTarget)}
-                disabled={deleting}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium text-sm rounded-lg transition-colors"
+                onClick={() => handlePause(pauseTarget)}
+                disabled={pausing}
+                className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-medium text-sm rounded-lg transition-colors"
               >
-                {deleting ? 'Deleting...' : 'Delete'}
+                {pausing ? 'Pausing...' : 'Pause'}
               </button>
             </div>
           </div>

@@ -10,7 +10,7 @@ import { formatCurrency } from '@/utils/calculations';
 interface Order {
   id: string;
   status: string;
-  final_price: number;
+  base_price: number;
   created_at: string;
   product_id?: string;
   product_name?: string;
@@ -124,7 +124,7 @@ export default function CustomerDashboard() {
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-1">Total Spent</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(orders.reduce((sum, o) => sum + o.final_price, 0))}
+                  {formatCurrency(orders.reduce((sum, o) => sum + o.base_price, 0))}
                 </p>
               </div>
               <ShoppingBag className="w-8 h-8 text-green-600 opacity-20" />
@@ -215,7 +215,7 @@ export default function CustomerDashboard() {
                           })}
                         </span>
                         <span className="font-semibold text-lg text-gray-900">
-                          {formatCurrency(order.final_price)}
+                          {formatCurrency(order.base_price)}
                         </span>
                       </div>
                     </div>

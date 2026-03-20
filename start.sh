@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 VendorConnect - Starting Development Server"
+echo "🚀 Agent Croww - Starting Development Server"
 echo "=============================================="
 echo ""
 echo "Installing dependencies..."

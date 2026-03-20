@@ -1,6 +1,6 @@
 # API Routes - Quick Reference
 
-Complete list of all API endpoints created for VendorConnect.
+Complete list of all API endpoints created for Agent Croww.
 
 ---
 
@@ -287,6 +287,6 @@ Your API is fully functional and ready for:
 
 ---
 
-**VendorConnect API - Complete & Production Ready! 🎉**
+**Agent Croww API - Complete & Production Ready! 🎉**
 
 Start integrating your components using the guide in [API_INTEGRATION_GUIDE.md](API_INTEGRATION_GUIDE.md)

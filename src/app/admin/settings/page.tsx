@@ -25,7 +25,6 @@ export default function AdminSettingsPage() {
     taxPercentage: 0,
   });
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,7 +42,6 @@ export default function AdminSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      setLoading(true);
       const response = await fetch('/api/admin/settings');
       if (response.ok) {
         const data = await response.json();
@@ -61,8 +59,6 @@ export default function AdminSettingsPage() {
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
-    } finally {
-      setLoading(false);
     }
   };
 

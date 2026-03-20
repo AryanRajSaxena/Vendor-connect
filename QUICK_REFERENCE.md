@@ -1,4 +1,4 @@
-# Quick Reference Guide - Vendor Connect
+# Quick Reference Guide - Agent Croww
 
 ## 🎯 Platform at a Glance
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Check, Package, Truck } from 'lucide-react';
@@ -10,7 +10,7 @@ interface Order {
   order_status: string;
   payment_method: string;
   payment_status?: string;
-  final_price: number;
+  base_price: number;
   created_at: string;
   delivery_address: {
     address: string;
@@ -20,7 +20,7 @@ interface Order {
   };
 }
 
-export default function OrderConfirmationPage() {
+function OrderConfirmationContent() {
   const searchParams = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -130,7 +130,7 @@ export default function OrderConfirmationPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Order Total</span>
                 <span className="font-semibold text-gray-900">
-                  ₹{order?.final_price || '0'}
+                  ₹{order?.base_price || '0'}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -202,10 +202,7 @@ export default function OrderConfirmationPage() {
           </p>
           <div className="space-y-2 text-sm">
             <p className="text-gray-600">
-              <strong>Email:</strong> support@vendorconnect.com
-            </p>
-            <p className="text-gray-600">
-              <strong>Phone:</strong> 1-800-VENDOR-1
+              <strong>Email:</strong> team@agentcroww.com
             </p>
             <p className="text-gray-600">
               <strong>Hours:</strong> Mon-Fri 9 AM - 6 PM IST
@@ -214,5 +211,19 @@ export default function OrderConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">Loading order details...</p>
+        </div>
+      }
+    >
+      <OrderConfirmationContent />
+    </Suspense>
   );
 }

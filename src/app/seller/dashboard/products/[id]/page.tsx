@@ -25,12 +25,12 @@ interface SellerProduct {
   product_name: string;
   description: string;
   base_price: number;
-  final_price: number;
   category: string;
   referral_code: string;
   sold_count: number;
   clicks: number;
   earnings: number;
+  is_active?: boolean;
   images?: string[];
   specifications?: Record<string, any>;
   course_duration?: string;
@@ -84,12 +84,12 @@ export default function SellerProductDetailPage() {
         product_name: data.product_name || data.name || '',
         description: data.description || '',
         base_price: data.base_price || 0,
-        final_price: data.final_price || 0,
         category: data.category || '',
         referral_code: data.referral_code || '',
         sold_count: data.sold_count || 0,
         clicks: data.clicks || 0,
         earnings: data.earnings || 0,
+        is_active: data.is_active !== false,
         images: data.images || [],
         specifications: data.specifications || {},
         course_duration: data.course_duration || data.courseDuration || '',
@@ -163,9 +163,6 @@ export default function SellerProductDetailPage() {
   const referralLink = typeof window !== 'undefined'
     ? `${window.location.origin}/products?ref=${product.referral_code}`
     : `/products?ref=${product.referral_code}`;
-  const conversionRate = product.clicks > 0
-    ? ((product.sold_count / product.clicks) * 100).toFixed(1)
-    : null;
   const highlightText = String(product.specifications?.highlights || '');
   const features = highlightText
     .split('|||')
@@ -187,8 +184,9 @@ export default function SellerProductDetailPage() {
       duration: String(module?.duration || '').trim(),
     }))
     .filter((module) => module.title);
-  const effectiveFinalPrice = product.final_price || product.base_price;
-  const sellerCommission = effectiveFinalPrice * 0.1;
+  const effectivePrice = product.base_price;
+  const isPausedCourse = product.is_active === false;
+  const sellerCommission = effectivePrice * 0.1;
   const totalLessons = curriculum.reduce((sum, module) => sum + (module.lessons > 0 ? module.lessons : 0), 0);
 
   return (
@@ -202,7 +200,14 @@ export default function SellerProductDetailPage() {
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-400">My Store / Course Details</p>
             <h1 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight">{product.product_name}</h1>
-            <p className="text-xs text-gray-500 mt-0.5">{product.category || 'Online Course'}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <p className="text-xs text-gray-500">{product.category || 'Online Course'}</p>
+              {isPausedCourse && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                  Paused by vendor
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <button
@@ -217,8 +222,8 @@ export default function SellerProductDetailPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="rounded-lg border border-gray-200 bg-white p-3.5">
-          <p className="text-[11px] uppercase tracking-wide text-gray-400">Final Price</p>
-          <p className="text-lg font-semibold text-gray-900 mt-1">{formatCurrency(effectiveFinalPrice)}</p>
+          <p className="text-[11px] uppercase tracking-wide text-gray-400">Course Price</p>
+          <p className="text-lg font-semibold text-gray-900 mt-1">{formatCurrency(effectivePrice)}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-3.5">
           <p className="text-[11px] uppercase tracking-wide text-gray-400">Your Commission</p>
@@ -369,8 +374,8 @@ export default function SellerProductDetailPage() {
 
               <div className="flex items-center gap-6 pt-3 border-t border-gray-100 text-sm">
                 <div>
-                  <p className="text-xs text-gray-400">Final Price (Customer Pays)</p>
-                  <p className="font-semibold text-gray-900">{formatCurrency(effectiveFinalPrice)}</p>
+                  <p className="text-xs text-gray-400">Course Price</p>
+                  <p className="font-semibold text-gray-900">{formatCurrency(effectivePrice)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Added</p>
@@ -394,6 +399,13 @@ export default function SellerProductDetailPage() {
               <h2 className="text-sm font-semibold text-gray-700">Share & Earn</h2>
             </div>
             <div className="space-y-3">
+              {isPausedCourse && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-xs text-amber-800">
+                    This course is paused by the vendor. New sales are currently disabled.
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-gray-500 mb-1.5">Your referral code</p>
                 <div className="flex items-center gap-2">
@@ -402,7 +414,8 @@ export default function SellerProductDetailPage() {
                   </code>
                   <button
                     onClick={copyCode}
-                    className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-700 border border-gray-200 rounded-md transition-colors"
+                    disabled={isPausedCourse}
+                    className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-md transition-colors"
                     title="Copy code"
                   >
                     {copiedCode ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
@@ -419,7 +432,8 @@ export default function SellerProductDetailPage() {
                   />
                   <button
                     onClick={copyLink}
-                    className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-700 border border-gray-200 rounded-md transition-colors"
+                    disabled={isPausedCourse}
+                    className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-md transition-colors"
                     title="Copy link"
                   >
                     {copiedLink ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <ExternalLink className="w-4 h-4" />}
@@ -429,20 +443,6 @@ export default function SellerProductDetailPage() {
               <p className="text-xs text-gray-400 pt-1">
                 Share this link on social media to earn 10% on every sale.
               </p>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
-                <div>
-                  <p className="text-[11px] text-gray-400">Clicks</p>
-                  <p className="text-sm font-semibold text-gray-800">{product.clicks}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-gray-400">Sales</p>
-                  <p className="text-sm font-semibold text-gray-800">{product.sold_count}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-gray-400">Conv. Rate</p>
-                  <p className="text-sm font-semibold text-gray-800">{conversionRate ? `${conversionRate}%` : '0%'}</p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -451,15 +451,15 @@ export default function SellerProductDetailPage() {
             <h2 className="text-sm font-semibold text-gray-700 mb-4">Pricing</h2>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Final price paid by customer</span>
-                <span className="font-medium text-gray-900">{formatCurrency(effectiveFinalPrice)}</span>
+                <span className="text-gray-500">Course price</span>
+                <span className="font-medium text-gray-900">{formatCurrency(effectivePrice)}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <span className="text-gray-700 font-medium">Your commission (10%)</span>
                 <span className="font-semibold text-gray-900">{formatCurrency(sellerCommission)}</span>
               </div>
               <p className="text-xs text-gray-400 pt-1">
-                Final price is the vendor-set customer price (including taxes, if applicable).
+                Course price is set by the vendor.
               </p>
             </div>
           </div>

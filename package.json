@@ -1,5 +1,5 @@
 {
-  "name": "vendor_connect",
+  "name": "agent-croww",
   "version": "1.0.0",
   "description": "Commission-based marketplace MVP web application with three distinct user interfaces",
   "main": "index.js",

@@ -1,8 +1,8 @@
-# VendorConnect - Complete Feature Documentation
+# Agent Croww - Complete Feature Documentation
 
 ## 📋 PROJECT OVERVIEW
 
-VendorConnect is a **production-ready, industry-standard commission-based marketplace MVP** with three fully-integrated user interfaces (Vendor, Seller, Customer).
+Agent Croww is a **production-ready, industry-standard commission-based marketplace MVP** with three fully-integrated user interfaces (Vendor, Seller, Customer).
 
 **Tech Stack:**
 - Frontend: React 19 + Next.js 16 + TypeScript + Tailwind CSS
@@ -343,7 +343,7 @@ Validation: basePrice + sellerCommission + platformCommission = finalPrice
 - ✅ **Product Grid:**
   - All product details
   - **Unique Referral Link:**
-    - Format: `https://vendorconnect.com/p/[id]?ref=[seller-code]`
+    - Format: `https://agentcroww.com/p/[id]?ref=[seller-code]`
     - Copy link button with toast notification
   - QR code generation & download
   - WhatsApp share button with pre-filled message
@@ -486,7 +486,7 @@ Validation: basePrice + sellerCommission + platformCommission = finalPrice
 - ✅ Sticky positioning
 
 #### Footer  
-- ✅ About VendorConnect
+- ✅ About Agent Croww
 - ✅ Links for each role:
   - For Vendors
   - For Sellers
@@ -668,7 +668,7 @@ Validation: basePrice + sellerCommission + platformCommission = finalPrice
 
 ---
 
-**VendorConnect** - Production-Ready Commission Marketplace MVP
+**Agent Croww** - Production-Ready Commission Marketplace MVP
 
 ✨ Built with React, Next.js, TypeScript, and Tailwind CSS
 🇮🇳 Designed for Indian Commerce

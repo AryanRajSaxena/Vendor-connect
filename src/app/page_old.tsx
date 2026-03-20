@@ -69,7 +69,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-primary to-secondary text-white py-16">
         <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-5xl font-bold mb-4">Welcome to VendorConnect</h1>
+          <h1 className="text-5xl font-bold mb-4">Welcome to Agent Croww</h1>
           <p className="text-xl mb-8 opacity-90">
             Discover thousands of products from trusted vendors and sellers
           </p>
@@ -143,7 +143,7 @@ export default function HomePage() {
 
       {/* How It Works */}
       <section className="max-w-7xl mx-auto px-4 py-12">
-        <h2 className="text-3xl font-bold mb-8 text-center">How VendorConnect Works</h2>
+        <h2 className="text-3xl font-bold mb-8 text-center">How Agent Croww Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="text-center">
             <div className="bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>

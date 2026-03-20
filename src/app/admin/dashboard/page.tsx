@@ -63,10 +63,7 @@ export default function AdminDashboardPage() {
 
       // Fetch admin dashboard data
       // In a real app, you'd have a dedicated /api/admin/dashboard endpoint
-      const [ordersRes, usersRes] = await Promise.all([
-        fetch('/api/orders'),
-        fetch('/api/auth/users'), // Mock endpoint
-      ]);
+      const ordersRes = await fetch('/api/orders');
 
       if (ordersRes.ok) {
         const ordersData = await ordersRes.json();

@@ -9,13 +9,14 @@ import { X, Mail, Lock, User, Phone, Building2, FileText } from 'lucide-react';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultRole?: 'vendor' | 'seller' | 'customer';
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }: AuthModalProps) {
   const router = useRouter();
   const { login, signup } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState<'vendor' | 'seller' | 'customer'>('customer');
+  const [role, setRole] = useState<'vendor' | 'seller' | 'customer'>(defaultRole);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -158,7 +159,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {isLogin ? 'Login to continue' : 'Join VendorConnect today'}
+              {isLogin ? 'Login to continue' : 'Join Agent Croww today'}
             </p>
           </div>
           <button

@@ -1,10 +1,12 @@
+import { superheroData, adjectives } from '@/superhero';
+
 const DEFAULT_VENDOR_PAYOUT_PERCENTAGE = 80;
 
 export interface CommissionBreakdown {
   basePrice: number;
   markup: number;
   markupPercentage: number;
-  finalPrice: number;
+  customerPrice: number;
   sellerCommission: number;
   platformCommission: number;
   vendorPayout: number;
@@ -18,16 +20,16 @@ export function calculateCommissions(
   basePrice: number,
   vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE
 ): CommissionBreakdown {
-  const finalPrice = basePrice; // no markup — listed at vendor's price
-  const vendorPayout = finalPrice * (vendorPayoutPercentage / 100);
-  const platformCommission = finalPrice * ((100 - vendorPayoutPercentage) / 100);
+  const customerPrice = basePrice; // no markup — listed at vendor's price
+  const vendorPayout = customerPrice * (vendorPayoutPercentage / 100);
+  const platformCommission = customerPrice * ((100 - vendorPayoutPercentage) / 100);
   const sellerCommission = 0; // Not used in display anymore
 
   return {
     basePrice,
     markup: 0,
     markupPercentage: 0,
-    finalPrice: Math.round(finalPrice * 100) / 100,
+    customerPrice: Math.round(customerPrice * 100) / 100,
     sellerCommission: Math.round(sellerCommission * 100) / 100,
     platformCommission: Math.round(platformCommission * 100) / 100,
     vendorPayout: Math.round(vendorPayout * 100) / 100,
@@ -42,15 +44,32 @@ export function validateCommissionBreakdown(breakdown: CommissionBreakdown): boo
     breakdown.vendorPayout +
     breakdown.sellerCommission +
     breakdown.platformCommission;
-  return Math.abs(calculated - breakdown.finalPrice) < 0.01;
+  return Math.abs(calculated - breakdown.customerPrice) < 0.01;
 }
 
 /**
- * Generate referral code
+ * Generate referral code using superhero names and adjectives
+ * Creates a unique, memorable code based on seller ID
+ * @param sellerId - The seller's unique identifier
+ * @returns A unique referral code in format: "Adjective-Superhero"
  */
-export function generateReferralCode(sellerId: string, productId: string): string {
-  const hash = Math.random().toString(36).substring(2, 8);
-  return `${sellerId.substring(0, 4).toUpperCase()}_${productId.substring(0, 4).toUpperCase()}_${hash}`.substring(0, 8);
+export function generateReferralCode(sellerId: string): string {
+  // Create a hash from the seller ID to ensure consistency
+  let hash = 0;
+  for (let i = 0; i < sellerId.length; i++) {
+    const charCode = sellerId.charCodeAt(i);
+    hash = (hash << 5) - hash + charCode;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+
+  // Use the hash to get consistent indices
+  const adjectiveIndex = Math.abs(hash % adjectives.length);
+  const superheroIndex = Math.abs(Math.floor(hash / adjectives.length) % superheroData.length);
+
+  const selectedAdjective = adjectives[adjectiveIndex];
+  const selectedSuperhero = superheroData[superheroIndex];
+
+  return `${selectedAdjective}-${selectedSuperhero}`;
 }
 
 /**

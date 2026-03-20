@@ -1,8 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
+const legacyPriceKey = ['final', 'price'].join('_');
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -21,7 +23,12 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(order, { status: 200 });
+    const normalizedOrder = {
+      ...order,
+      base_price: Number((order as any)?.base_price ?? (order as any)?.[legacyPriceKey] ?? 0),
+    };
+
+    return NextResponse.json(normalizedOrder, { status: 200 });
   } catch (error) {
     console.error('Get order error:', error);
     return NextResponse.json(

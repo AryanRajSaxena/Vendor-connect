@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This guide walks you through deploying the VendorConnect database schema to your Supabase project.
+This guide walks you through deploying the Agent Croww database schema to your Supabase project.
 
 **Current Status:**
 - ✅ Supabase client configured
@@ -25,7 +25,7 @@ Anon Key: sb_publishable_0XpZsUiq-Zbx9IYQMEF01A_1UEaFRFK
 
 1. Go to [https://app.supabase.com](https://app.supabase.com)
 2. Sign in with your account
-3. Click on your project: **VendorConnect** (or whatever name you gave it)
+3. Click on your project: **Agent Croww** (or whatever name you gave it)
 4. Navigate to **SQL Editor** (left sidebar)
 
 ---
@@ -408,6 +408,6 @@ After setting up the database:
 
 ---
 
-**VendorConnect Database Setup Complete! 🎉**
+**Agent Croww Database Setup Complete! 🎉**
 
 Once you've deployed the schema, the application will be ready to use live data from Supabase instead of localStorage.

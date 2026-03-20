@@ -1,4 +1,4 @@
-# VENDOR_CONNECT - QUICK START GUIDE
+# Agent Croww - QUICK START GUIDE
 
 ## ⚡ Project Setup Status
 
@@ -350,8 +350,8 @@ vercel
 
 ### Docker
 ```bash
-docker build -t vendor-connect .
-docker run -p 3000:3000 vendor-connect
+docker build -t agent-croww .
+docker run -p 3000:3000 agent-croww
 ```
 
 ### Environment Variables
@@ -364,7 +364,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_0XpZsUiq-Zbx9IYQMEF01A_1UEaFRFK
 
 ## 📞 SUPPORT
 
-- Email: support@vendorconnect.in
+- Email: team@agentcroww.com
 - GitHub Issues: Report bugs and features
 - Documentation: See README.md
 
@@ -376,6 +376,6 @@ MIT License - Free to use and modify
 
 ---
 
-**VendorConnect - Building India's Commission Marketplace**
+**Agent Croww - Building India's Commission Marketplace**
 
 Created with ❤️ | February 2026

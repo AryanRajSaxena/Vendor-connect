@@ -1,6 +1,6 @@
 @echo off
 echo.
-echo 🚀 VendorConnect - Commission-Based Marketplace MVP
+echo 🚀 Agent Croww - Commission-Based Marketplace MVP
 echo =====================================================
 echo.
 echo Installing dependencies...

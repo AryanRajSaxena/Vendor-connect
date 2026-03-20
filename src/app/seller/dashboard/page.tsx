@@ -20,12 +20,12 @@ interface SellerProduct {
   product_name: string;
   description: string;
   base_price: number;
-  final_price: number;
   category: string;
   referral_code: string;
   sold_count: number;
   clicks: number;
   earnings: number;
+  is_active?: boolean;
   images?: string[];
   course_duration?: string;
   learning_outcomes?: string[];
@@ -108,12 +108,12 @@ export default function SellerDashboard() {
           product_name: p.product_name || p.name || '',
           description: p.description || '',
           base_price: p.base_price || 0,
-          final_price: p.final_price || 0,
           category: p.category || '',
           referral_code: p.referral_code || '',
           sold_count: p.sold_count || 0,
           clicks: p.clicks || 0,
           earnings: p.earnings || 0,
+          is_active: p.is_active !== false,
           images: p.images || [],
           course_duration: p.course_duration || '',
           learning_outcomes: p.learning_outcomes || [],
@@ -175,7 +175,112 @@ export default function SellerDashboard() {
     );
   }
 
-  if (!user || user.role !== 'seller') return null;
+  if (!user || user.role !== 'seller') {
+    return (
+      <div className="min-h-screen bg-slate-950">
+        {/* Header Section */}
+        <div className="flex items-center justify-center px-4 py-16 md:py-20">
+          <div className="text-center">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-violet-600/20 flex items-center justify-center">
+              <TrendingUp className="w-10 h-10 text-violet-400" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Join as a Seller</h1>
+            <p className="text-lg text-slate-300 mb-10 max-w-md mx-auto">
+              Sign up to start earning commissions on every sale. No inventory, no risk.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col gap-3 justify-center items-center mb-16">
+              <Link
+                href="/auth/signup?role=seller"
+                className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center justify-center gap-2 border-2 border-slate-700 text-slate-100 hover:border-slate-600 px-8 py-3 rounded-xl font-semibold transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/seller/marketplace?guestRole=seller"
+                className="inline-flex items-center justify-center gap-2 border border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10 px-8 py-3 rounded-xl font-semibold transition-colors"
+              >
+                Browse Products
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Commission Structure Section */}
+        <div className="w-full bg-gradient-to-b from-slate-900/50 to-slate-950 border-t border-slate-800 px-4 py-16">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">Commission Structure</h2>
+              <p className="text-slate-400 text-lg">Transparent and competitive earning model</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Main Commission Card */}
+              <div className="rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-500/15 to-violet-600/5 p-8">
+                <div className="mb-8">
+                  <p className="text-sm text-violet-300 font-semibold uppercase tracking-widest mb-4">Commission on Every Sale</p>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-6xl font-black text-violet-300">10%</span>
+                    <span className="text-base text-violet-200">of product price</span>
+                  </div>
+                </div>
+                
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  Earn a flat 10% commission on every successful sale through your referral link or product listing. Instant payouts and transparent tracking.
+                </p>
+              </div>
+
+              {/* Example Earnings Card */}
+              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/15 to-cyan-600/5 p-8">
+                <p className="text-sm text-cyan-300 font-semibold uppercase tracking-widest mb-6">Example Earnings</p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-cyan-900/20 rounded-lg p-4">
+                    <span className="text-slate-200">₹1,000 product sale</span>
+                    <span className="text-xl font-bold text-cyan-400">₹100</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-cyan-900/20 rounded-lg p-4">
+                    <span className="text-slate-200">₹5,000 product sale</span>
+                    <span className="text-xl font-bold text-cyan-400">₹500</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-cyan-900/20 rounded-lg p-4">
+                    <span className="text-slate-200">₹10,000 product sale</span>
+                    <span className="text-xl font-bold text-cyan-400">₹1,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Info */}
+            <div className="mt-12 pt-12 border-t border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div>
+                  <p className="text-3xl font-bold text-emerald-400 mb-2">10%</p>
+                  <p className="text-slate-400">Fixed commission rate for all products</p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-violet-400 mb-2">Instant</p>
+                  <p className="text-slate-400">Real-time earnings tracking and payouts</p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-cyan-400 mb-2">Unlimited</p>
+                  <p className="text-slate-400">No cap on how much you can earn</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const dayOfMonth = new Date().getDate();
   const estimatedMonthClose =
@@ -277,7 +382,6 @@ export default function SellerDashboard() {
         </div>
       </div>
 
-      {/* My Products */}
       <div className="bg-white rounded-lg border border-gray-200">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-800">My Products</h2>
@@ -337,7 +441,14 @@ export default function SellerDashboard() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{product.product_name}</p>
-                    <p className="text-xs text-gray-400">{product.category}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-400">{product.category}</p>
+                      {product.is_active === false && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                          Paused
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                       {product.course_duration ? <span>{product.course_duration}</span> : null}
                       {Array.isArray(product.curriculum) && product.curriculum.length > 0 ? (

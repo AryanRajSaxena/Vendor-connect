@@ -1,4 +1,4 @@
-# VendorConnect API Documentation
+# Agent Croww API Documentation
 
 Complete API reference for all backend endpoints.
 
@@ -946,6 +946,6 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 ---
 
-**VendorConnect API Complete!** 🚀
+**Agent Croww API Complete!** 🚀
 
 All endpoints are ready to use. Start by updating your frontend components to call these APIs instead of using localStorage.

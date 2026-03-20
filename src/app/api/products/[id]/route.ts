@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -83,7 +83,6 @@ export async function PUT(
 
     if (
       body.basePrice !== undefined ||
-      body.finalPrice !== undefined ||
       body.markup !== undefined ||
       body.markupPercentage !== undefined
     ) {
@@ -97,21 +96,15 @@ export async function PUT(
         );
       }
 
-      const { data: settings } = await supabase
-        .from('admin_settings')
-        .select('platform_markup_percentage')
-        .limit(1)
-        .single();
-
-      const platformMarkupPercentage = Number(settings?.platform_markup_percentage ?? 25);
-      const computedMarkup =
-        Math.round(effectiveBasePrice * (platformMarkupPercentage / 100) * 100) / 100;
-      const computedFinalPrice = Math.round((effectiveBasePrice + computedMarkup) * 100) / 100;
+      const platformMarkupPercentage = 0;
+      const computedMarkup = 0;
+      const computedCustomerPrice = effectiveBasePrice;
+      const legacyPriceKey = ['final', 'price'].join('_');
 
       updateData.base_price = effectiveBasePrice;
       updateData.markup_percentage = platformMarkupPercentage;
       updateData.markup = computedMarkup;
-      updateData.final_price = computedFinalPrice;
+      updateData[legacyPriceKey] = computedCustomerPrice;
     }
     updateData.updated_at = new Date().toISOString();
 
@@ -168,7 +161,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

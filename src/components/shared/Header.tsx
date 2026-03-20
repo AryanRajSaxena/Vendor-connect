@@ -115,7 +115,7 @@ export default function Header() {
             <Package className="w-6 h-6 text-white" />
           </div>
           <div className="hidden sm:block leading-tight">
-            <p className="font-semibold text-[18px] tracking-tight text-gray-900">Vendor Connect</p>
+            <p className="font-semibold text-[18px] tracking-tight text-gray-900">Agent Croww</p>
             {isAuthenticated && (
               <p className="text-[11px] uppercase tracking-[0.08em] text-gray-500">{getDashboardLabel()}</p>
             )}
@@ -194,7 +194,7 @@ export default function Header() {
           ) : (
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="btn-primary"
+              className="btn-primary !bg-violet-600 hover:!bg-violet-500"
             >
               Login / Sign Up
             </button>
@@ -202,12 +202,38 @@ export default function Header() {
         </div>
 
         {/* Mobile Menu Button */}
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="md:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-        >
-          {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="md:hidden flex items-center gap-1.5">
+          {isAuthenticated && user?.role === 'customer' && (
+            <Link
+              href="/cart"
+              className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              aria-label="Open cart"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-[10px] rounded-full min-w-[1rem] h-4 px-1 flex items-center justify-center font-bold shadow-sm">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            </Link>
+          )}
+
+          {isAuthenticated && (
+            <Link
+              href={getRoleBasedDashboardLink()}
+              className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              aria-label="Open dashboard"
+            >
+              <User className="w-5 h-5" />
+            </Link>
+          )}
+
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu */}
@@ -258,7 +284,7 @@ export default function Header() {
                 setIsAuthModalOpen(true);
                 setIsMenuOpen(false);
               }}
-              className="w-full btn-primary"
+              className="w-full btn-primary !bg-violet-600 hover:!bg-violet-500"
             >
               Login / Sign Up
             </button>

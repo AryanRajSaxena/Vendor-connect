@@ -11,6 +11,8 @@ import {
   ArrowUpRight,
   Plus,
   AlertCircle,
+  Store,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
@@ -37,7 +39,7 @@ interface TopProduct {
   id: string;
   name: string;
   sold_count: number;
-  final_price: number;
+  base_price: number;
 }
 
 export default function VendorDashboard() {
@@ -155,7 +157,44 @@ export default function VendorDashboard() {
     );
   }
 
-  if (!user || user.role !== 'vendor') return null;
+  if (!user || user.role !== 'vendor') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-600/20 flex items-center justify-center">
+            <Store className="w-10 h-10 text-emerald-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-4">Start Selling Today</h1>
+          <p className="text-slate-400 mb-8">
+            List your products and reach thousands of buyers. Grow your business on Agent Croww.
+          </p>
+          <div className="flex flex-col gap-3 justify-center items-center w-full max-w-md mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              <Link
+                href="/auth/signup?role=vendor"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors"
+              >
+                Start Selling Now
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/seller/marketplace?guestRole=vendor"
+                className="inline-flex items-center justify-center gap-2 border border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10 px-8 py-3 rounded-xl font-semibold transition-colors"
+              >
+                Browse Products
+              </Link>
+            </div>
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center justify-center gap-2 border-2 border-slate-700 text-slate-100 hover:border-slate-600 px-8 py-3 rounded-xl font-semibold transition-colors w-full"
+            >
+              Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const orderStatusColor: Record<string, string> = {
     pending: 'bg-amber-50 text-amber-700',
@@ -333,7 +372,7 @@ export default function VendorDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {formatCurrency(product.final_price)}
+                      {formatCurrency(product.base_price)}
                     </p>
                   </div>
                   <div className="text-right">
