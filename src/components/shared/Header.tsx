@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { ShoppingCart, User, LogOut, Menu, X, Home, Package, Settings } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Menu, X, Home, Settings } from 'lucide-react';
 import AuthModal from './AuthModal';
 
 export default function Header() {
@@ -111,23 +111,22 @@ export default function Header() {
       <nav className="container-custom py-3.5 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="bg-gradient-primary p-2 rounded-xl shadow-sm ring-1 ring-primary-200/60 group-hover:shadow-md transition-all duration-300">
-            <Package className="w-6 h-6 text-white" />
+          <div className="rounded-xl shadow-sm ring-1 ring-primary-200/60 group-hover:shadow-md transition-all duration-300 overflow-hidden">
+            <img src="/images/icon.jpeg" alt="Agent Croww" className="w-10 h-10 object-cover" />
           </div>
           <div className="hidden sm:block leading-tight">
-            <p className="font-semibold text-[18px] tracking-tight text-gray-900">Agent Croww</p>
+            <p className="brand-money-font font-semibold text-[18px] tracking-tight text-white">Agent Croww</p>
             {isAuthenticated && (
               <p className="text-[11px] uppercase tracking-[0.08em] text-gray-500">{getDashboardLabel()}</p>
             )}
           </div>
-          <span className="sm:hidden font-bold text-xl text-primary-600">AgentCroww</span>
+          <span className="brand-money-font sm:hidden font-bold text-xl text-white">Agent Croww</span>
         </Link>
 
         {/* Desktop Navigation */}
+        {isAuthenticated && (
         <div className="hidden md:flex items-center gap-4">
-          {isAuthenticated ? (
-            <>
-              <Link
+          <Link
                 href={getRoleBasedDashboardLink()}
                 className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
               >
@@ -190,13 +189,8 @@ export default function Header() {
                   </div>
                 )}
               </div>
-            </>
-          ) : (
-            <span className="inline-flex items-center px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 font-semibold">
-              Coming Soon
-            </span>
-          )}
-        </div>
+            </div>
+        )}
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-1.5">
@@ -275,11 +269,7 @@ export default function Header() {
                 Logout
               </button>
             </>
-          ) : (
-            <div className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 font-semibold">
-              Coming Soon
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 

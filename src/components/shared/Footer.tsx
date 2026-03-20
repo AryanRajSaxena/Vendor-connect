@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Mail, MapPin, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Mail, MapPin, Instagram } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -13,12 +13,6 @@ export default function Footer() {
           {/* About */}
           <div>
             <div className="flex items-center gap-3 mt-0">
-              <a href="#" className="w-10 h-10 rounded-lg bg-gray-800 hover:bg-primary-500 flex items-center justify-center transition-all duration-300 hover:scale-110">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-lg bg-gray-800 hover:bg-primary-500 flex items-center justify-center transition-all duration-300 hover:scale-110">
-                <Twitter className="w-5 h-5" />
-              </a>
               <a href="https://www.instagram.com/agentcroww?igsh=MXRlMWI0ZzAyY2c3bA==" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-gray-800 hover:bg-primary-500 flex items-center justify-center transition-all duration-300 hover:scale-110">
                 <Instagram className="w-5 h-5" />
               </a>

@@ -170,13 +170,12 @@ export default function VendorDashboard() {
           </p>
           <div className="flex flex-col gap-3 justify-center items-center w-full max-w-md mx-auto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              <Link
-                href="/auth/signup?role=vendor"
-                className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors"
+              <span
+                className="inline-flex items-center justify-center gap-2 bg-slate-700 text-slate-400 px-8 py-3 rounded-xl font-semibold cursor-not-allowed opacity-60"
               >
-                Start Selling Now
+                Coming Soon
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </span>
               <Link
                 href="/seller/marketplace?guestRole=vendor"
                 className="inline-flex items-center justify-center gap-2 border border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10 px-8 py-3 rounded-xl font-semibold transition-colors"

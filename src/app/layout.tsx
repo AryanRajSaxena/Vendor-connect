@@ -8,6 +8,10 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Agent Croww - Commission-Based Marketplace',
   description: 'A platform for vendors to sell products and sellers to earn commissions',
+  icons: {
+    icon: '/images/icon.jpeg',
+    apple: '/images/icon.jpeg',
+  },
 };
 
 export default function RootLayout({
