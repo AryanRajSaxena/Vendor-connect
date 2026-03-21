@@ -64,9 +64,7 @@ export default function Footer() {
             &copy; {currentYear} Agent Croww. All rights reserved.
           </p>
           <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-2 text-sm text-gray-400">
-            <Link href="/privacy" className="hover:text-white transition-colors duration-200">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white transition-colors duration-200">Terms of Service</Link>
-            <Link href="/help" className="hover:text-white transition-colors duration-200">Help Center</Link>
+            <span className="text-gray-600">team@agentcroww.com</span>
           </div>
         </div>
       </div>
