@@ -2,16 +2,31 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { ShoppingCart, User, LogOut, Home, Settings } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Home, Settings, Store, TrendingUp } from 'lucide-react';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [landingRole, setLandingRole] = useState<'vendor' | 'seller'>('vendor');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('landingPage_selectedRole');
+    if (saved === 'vendor' || saved === 'seller') setLandingRole(saved);
+  }, []);
+
+  const switchLandingRole = (role: 'vendor' | 'seller') => {
+    setLandingRole(role);
+    localStorage.setItem('landingPage_selectedRole', role);
+    window.dispatchEvent(new Event('landingRole-updated'));
+  };
 
   const getCartCount = () => {
     try {
@@ -121,6 +136,34 @@ export default function Header() {
           </div>
           <span className="brand-money-font sm:hidden font-bold text-xl text-white">Agent Croww</span>
         </Link>
+
+        {/* Landing Role Toggle — only on home page when not logged in */}
+        {isHomePage && !isAuthenticated && (
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl p-1">
+            <button
+              onClick={() => switchLandingRole('vendor')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                landingRole === 'vendor'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5" />
+              Vendor
+            </button>
+            <button
+              onClick={() => switchLandingRole('seller')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                landingRole === 'seller'
+                  ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Seller
+            </button>
+          </div>
+        )}
 
         {/* Desktop Navigation */}
         {isAuthenticated && (

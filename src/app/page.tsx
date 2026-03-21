@@ -20,6 +20,13 @@ export default function HomePage() {
     if (savedRole && (savedRole === 'vendor' || savedRole === 'seller')) {
       setSelectedRole(savedRole);
     }
+
+    const handleRoleUpdate = () => {
+      const updated = localStorage.getItem('landingPage_selectedRole') as UserRole;
+      if (updated === 'vendor' || updated === 'seller') setSelectedRole(updated);
+    };
+    window.addEventListener('landingRole-updated', handleRoleUpdate);
+    return () => window.removeEventListener('landingRole-updated', handleRoleUpdate);
   }, []);
 
   // Redirect non-customer users to their dashboards
