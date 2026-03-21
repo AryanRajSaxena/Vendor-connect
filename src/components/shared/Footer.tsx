@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Mail, MapPin, Instagram, Linkedin } from 'lucide-react';
+import { Mail, MapPin, Instagram,} from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
