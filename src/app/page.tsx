@@ -291,8 +291,8 @@ export default function HomePage() {
               {vendorData.features.map((item, index) => (
                 <div key={index} className="relative">
                   <div className="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-4 md:p-5 hover:border-emerald-600/50 transition-all duration-300">
-                    <div className="text-3xl md:text-4xl font-bold text-emerald-600/30 mb-2">{item.step}</div>
-                    <h3 className="font-bold text-sm md:text-base text-white mb-1">{item.title}</h3>
+                    <div className="text-3xl md:text-4xl font-bold text-emerald-400 mb-2">{item.step}</div>
+                    <h3 className="font-bold text-sm md:text-base text-emerald-100 mb-1">{item.title}</h3>
                     <p className="text-slate-400 text-xs md:text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
@@ -315,8 +315,8 @@ export default function HomePage() {
               {sellerData.features.map((item, index) => (
                 <div key={index} className="relative">
                   <div className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-5 md:p-6 hover:border-violet-600/50 transition-all duration-300">
-                    <div className="text-4xl md:text-5xl font-bold text-violet-600/30 mb-3">{item.step}</div>
-                    <h3 className="font-bold text-lg md:text-xl text-white mb-2">{item.title}</h3>
+                    <div className="text-4xl md:text-5xl font-bold text-violet-400 mb-3">{item.step}</div>
+                    <h3 className="font-bold text-lg md:text-xl text-violet-100 mb-2">{item.title}</h3>
                     <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
@@ -411,7 +411,7 @@ export default function HomePage() {
                     href={sellerGoogleFormUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/20"
+                    className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
                   >
                     <TrendingUp className="w-5 h-5" />
                     Join As Seller

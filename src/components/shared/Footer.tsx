@@ -34,12 +34,6 @@ export default function Footer() {
                 </div>
                 <span>@agentcroww</span>
               </a>
-              <a href="https://www.linkedin.com/company/agentcroww" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:text-white transition-colors duration-200 group">
-                <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-blue-600 flex items-center justify-center transition-all duration-300">
-                  <Linkedin className="w-4 h-4" />
-                </div>
-                <span>Agent Croww</span>
-              </a>
             </div>
           </div>
 
