@@ -3,11 +3,13 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { ShoppingCart, User, LogOut, Menu, X, Home, Settings } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Menu, X, Home, Settings, Sun, Moon } from 'lucide-react';
 import AuthModal from './AuthModal';
+import { useTheme } from './ThemeProvider';
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
+  const { theme, toggle } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -150,6 +152,16 @@ export default function Header() {
               )}
 
               <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={toggle}
+                  className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                  aria-label="Toggle theme"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                   className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
@@ -194,6 +206,14 @@ export default function Header() {
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-1.5">
+          <button
+            onClick={toggle}
+            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+
           {isAuthenticated && user?.role === 'customer' && (
             <Link
               href="/cart"

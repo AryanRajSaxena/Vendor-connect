@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
+import { showCartToast } from '@/components/shared/CartToast';
 
 interface Product {
   id: string;
@@ -131,7 +132,7 @@ function ProductDetailContent() {
     if (!product) return;
 
     if (isGuestVendorOrSeller) {
-      alert('Cart actions are disabled in guest seller/vendor browsing mode.');
+      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
       return;
     }
 
@@ -158,7 +159,7 @@ function ProductDetailContent() {
     if (!user?.id) {
       try {
         addToLocalCart();
-        alert(`Added to cart!`);
+        showCartToast(`Added to cart!`);
       } catch (error) {
         console.error('Failed to add to cart:', error);
       }
@@ -185,12 +186,12 @@ function ProductDetailContent() {
 
         const data = await response.json();
         syncLocalCart(data.items || []);
-        alert(`Added to cart!`);
+        showCartToast(`Added to cart!`);
       } catch (error) {
         console.error('Failed to add to database cart, falling back to local cart:', error);
         try {
           addToLocalCart();
-          alert(`Added to cart!`);
+          showCartToast(`Added to cart!`);
         } catch (fallbackError) {
           console.error('Failed to add to fallback local cart:', fallbackError);
         }

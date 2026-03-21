@@ -10,11 +10,15 @@ export default function Footer() {
     <footer className="bg-gray-900 text-white mt-0">
       <div className="container-custom py-4 md:py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-5">
-          {/* About */}
+          {/* Follow Us */}
           <div>
-            <div className="flex items-center gap-3 mt-0">
-              <a href="https://www.instagram.com/agentcroww?igsh=MXRlMWI0ZzAyY2c3bA==" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-gray-800 hover:bg-primary-500 flex items-center justify-center transition-all duration-300 hover:scale-110">
-                <Instagram className="w-5 h-5" />
+            <h4 className="font-bold mb-2 text-white">Follow Us</h4>
+            <div className="space-y-2 text-sm text-gray-400">
+              <a href="https://www.instagram.com/agentcroww?igsh=MXRlMWI0ZzAyY2c3bA==" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:text-white transition-colors duration-200 group">
+                <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-primary-500 flex items-center justify-center transition-all duration-300">
+                  <Instagram className="w-4 h-4" />
+                </div>
+                <span>@agentcroww</span>
               </a>
             </div>
           </div>

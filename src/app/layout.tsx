@@ -3,6 +3,8 @@ import { AuthProvider } from '@/hooks/useAuth';
 import Header from '@/components/shared/Header';
 import Footer from '@/components/shared/Footer';
 import MobileBottomNav from '@/components/shared/MobileBottomNav';
+import CartToast from '@/components/shared/CartToast';
+import ThemeProvider from '@/components/shared/ThemeProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +23,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
+      <head>
+        {/* Prevent flash of wrong theme */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');document.documentElement.classList.toggle('dark',t!=='light');})();` }} />
+      </head>
       <body className="bg-gray-50 antialiased">
+        <ThemeProvider>
         <AuthProvider>
           <Header />
           <main className="min-h-[calc(100vh-200px)] pb-20 md:pb-0">
@@ -29,7 +36,9 @@ export default function RootLayout({
           </main>
           <Footer />
           <MobileBottomNav />
+          <CartToast />
         </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

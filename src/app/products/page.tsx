@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ShoppingCart, ChevronDown, Search, Package } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
+import { showCartToast } from '@/components/shared/CartToast';
 
 interface Product {
   id: string;
@@ -139,7 +140,7 @@ function ProductsContent() {
 
   const handleAddToCart = (product: Product) => {
     if (isGuestVendorOrSeller) {
-      alert('Cart actions are disabled in guest seller/vendor browsing mode.');
+      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
       return;
     }
 
@@ -166,7 +167,7 @@ function ProductsContent() {
     if (!user?.id) {
       try {
         addToLocalCart();
-        alert('Product added to cart!');
+        showCartToast('Product added to cart!');
       } catch (error) {
         console.error('Failed to add to cart:', error);
       }
@@ -192,12 +193,12 @@ function ProductsContent() {
 
         const data = await response.json();
         syncLocalCart(data.items || []);
-        alert('Product added to cart!');
+        showCartToast('Product added to cart!');
       } catch (error) {
         console.error('Failed to add to database cart, falling back to local cart:', error);
         try {
           addToLocalCart();
-          alert('Product added to cart!');
+          showCartToast('Product added to cart!');
         } catch (fallbackError) {
           console.error('Failed to add to fallback local cart:', fallbackError);
         }
