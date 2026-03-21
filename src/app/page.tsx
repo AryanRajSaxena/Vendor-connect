@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Store, BarChart3, Percent, Lightbulb, CreditCard, Users, TrendingUp, Package, Star } from 'lucide-react';
+import { CheckCircle, Store, BarChart3, Percent, Lightbulb, CreditCard, Users, TrendingUp, Package } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { RoleSelectorModal, UserRole } from '@/components/shared/RoleSelectorModal';
