@@ -48,6 +48,7 @@ export default function HomePage() {
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
+    window.dispatchEvent(new Event('landingRole-updated'));
   };
 
   // Show loading state while checking authentication

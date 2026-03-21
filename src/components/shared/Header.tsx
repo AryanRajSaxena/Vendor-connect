@@ -18,8 +18,13 @@ export default function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('landingPage_selectedRole');
-    if (saved === 'vendor' || saved === 'seller') setLandingRole(saved);
+    const sync = () => {
+      const saved = localStorage.getItem('landingPage_selectedRole');
+      if (saved === 'vendor' || saved === 'seller') setLandingRole(saved);
+    };
+    sync();
+    window.addEventListener('landingRole-updated', sync);
+    return () => window.removeEventListener('landingRole-updated', sync);
   }, []);
 
   const switchLandingRole = (role: 'vendor' | 'seller') => {
