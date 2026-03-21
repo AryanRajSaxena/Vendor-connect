@@ -86,10 +86,10 @@ export default function HomePage() {
       { step: '04', title: 'Earn & Grow', desc: 'Get paid on time and track your growth' },
     ],
     stats: [
-      { value: '10k+', label: 'Active Vendors', icon: Store },
-      { value: '15k+', label: 'Products Listed', icon: Package },
-      { value: '₹50Cr+', label: 'Total Sales', icon: TrendingUp },
-      { value: '98%', label: 'Satisfaction Rate', icon: CheckCircle },
+      { value: '200+', label: 'Active Sellers', icon: Users },
+      { value: '5x', label: 'Sales Boosted', icon: TrendingUp },
+      { value: 'Instant', label: 'Money Credited', icon: CreditCard },
+      { value: '96%', label: 'Satisfaction Rate', icon: CheckCircle },
     ]
   };
 
@@ -110,10 +110,9 @@ export default function HomePage() {
       { step: '03', title: 'Track Earnings', desc: 'Monitor commissions and payouts in real-time' },
     ],
     stats: [
-      { value: '15k+', label: 'Active Sellers', icon: Users },
-      { value: '₹20Cr+', label: 'Commissions Paid', icon: TrendingUp },
-      { value: '2000+', label: 'Products Available', icon: Package },
-      { value: '4.8/5', label: 'Avg Rating', icon: Star },
+      { value: '₹5Lakh+', label: 'Commission Potential per month', icon: TrendingUp },
+      { value: '150+', label: 'Products to sell', icon: Package },
+      { value: 'Instant', label: 'Commission Payout in Wallet', icon: CreditCard },
     ]
   };
 
@@ -159,16 +158,16 @@ export default function HomePage() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">10k+</div>
-                  <div className="text-sm text-slate-400">Active Vendors</div>
+                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">200+</div>
+                  <div className="text-sm text-slate-400">Active Sellers</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">₹50Cr+</div>
-                  <div className="text-sm text-slate-400">Total Sales</div>
+                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">5x</div>
+                  <div className="text-sm text-slate-400">Sales Boosted</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">15k+</div>
-                  <div className="text-sm text-slate-400">Products</div>
+                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">Instant</div>
+                  <div className="text-sm text-slate-400">Money Credited</div>
                 </div>
               </div>
             </div>
@@ -211,16 +210,16 @@ export default function HomePage() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">15k+</div>
-                  <div className="text-sm text-slate-400">Active Sellers</div>
+                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">₹5Lakh+</div>
+                  <div className="text-sm text-slate-400">Commission Potential per month</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">₹20Cr+</div>
-                  <div className="text-sm text-slate-400">Commissions Paid</div>
+                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">150+</div>
+                  <div className="text-sm text-slate-400">Products to sell</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">2000+</div>
-                  <div className="text-sm text-slate-400">Products</div>
+                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">Instant</div>
+                  <div className="text-sm text-slate-400">Commission Payout in Wallet</div>
                 </div>
               </div>
             </div>

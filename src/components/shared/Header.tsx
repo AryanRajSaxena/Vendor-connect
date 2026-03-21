@@ -134,12 +134,12 @@ export default function Header() {
             <img src="/images/icon.jpeg" alt="Agent Croww" className="w-10 h-10 object-cover" />
           </div>
           <div className="hidden sm:block leading-tight">
-            <p className="brand-money-font font-semibold text-[18px] tracking-tight text-white">Agent Croww</p>
+            <p className="brand-text text-[18px] text-white">Agent Croww</p>
             {isAuthenticated && (
               <p className="text-[11px] uppercase tracking-[0.08em] text-gray-500">{getDashboardLabel()}</p>
             )}
           </div>
-          <span className="brand-money-font sm:hidden font-bold text-xl text-white">Agent Croww</span>
+          <span className="brand-text sm:hidden text-xl text-white">Agent Croww</span>
         </Link>
 
         {/* Landing Role Toggle — only on home page when not logged in */}
