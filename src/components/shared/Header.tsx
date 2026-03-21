@@ -3,12 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { ShoppingCart, User, LogOut, Menu, X, Home, Settings } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Home, Settings } from 'lucide-react';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
@@ -217,61 +216,8 @@ export default function Header() {
             </Link>
           )}
 
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-          >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </nav>
-
-      {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-2 animate-slide-down shadow-medium">
-          {isAuthenticated ? (
-            <>
-              <Link
-                href={getRoleBasedDashboardLink()}
-                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-150 font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Home className="w-5 h-5" />
-                {getDashboardLabel()}
-              </Link>
-              {user?.role === 'customer' && (
-                <Link 
-                  href="/cart" 
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-150 font-medium"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  Shopping Cart
-                </Link>
-              )}
-              <Link 
-                href={getRoleBasedSettingsLink()} 
-                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-150 font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Settings className="w-5 h-5" />
-                Settings
-              </Link>
-              <button
-                onClick={() => {
-                  logout();
-                  setIsMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150 font-medium"
-              >
-                <LogOut className="w-5 h-5" />
-                Logout
-              </button>
-            </>
-          ) : null}
-        </div>
-      )}
 
       {/* Auth Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
