@@ -3,7 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Save, Mail, LogOut } from 'lucide-react';
+import { AlertCircle, Save, Mail, LogOut, Lock, LockOpen } from 'lucide-react';
+
+interface LockedFields {
+  name: boolean;
+  phone: boolean;
+  panNumber: boolean;
+  accountNumber: boolean;
+}
 
 export default function SellerSettings() {
   const router = useRouter();
@@ -11,10 +18,17 @@ export default function SellerSettings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [lockedFields, setLockedFields] = useState<LockedFields>({
+    name: false,
+    phone: false,
+    panNumber: false,
+    accountNumber: false,
+  });
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    businessName: '',
+    panNumber: '',
+    accountNumber: '',
   });
 
   useEffect(() => {
@@ -23,7 +37,15 @@ export default function SellerSettings() {
       setFormData({
         name: user.name || '',
         phone: user.phone || '',
-        businessName: user.businessName || '',
+        panNumber: user.panNumber || '',
+        accountNumber: user.accountNumber || '',
+      });
+      // Determine which fields are locked (have values)
+      setLockedFields({
+        name: !!user.name,
+        phone: !!user.phone,
+        panNumber: !!user.panNumber,
+        accountNumber: !!user.accountNumber,
       });
     }
   }, [user, isLoading, router]);
@@ -40,12 +62,25 @@ export default function SellerSettings() {
     setSuccess(false);
     try {
       if (!formData.name.trim()) throw new Error('Name is required');
-      if (!formData.businessName.trim()) throw new Error('Store name is required');
+      if (!formData.panNumber.trim()) throw new Error('PAN number is required');
+      if (!formData.accountNumber.trim()) throw new Error('Account number is required');
+
+      // Update user
       updateUser({
         name: formData.name,
         phone: formData.phone,
-        businessName: formData.businessName,
+        panNumber: formData.panNumber,
+        accountNumber: formData.accountNumber,
       });
+
+      // Lock fields that now have values after saving
+      setLockedFields({
+        name: !!formData.name,
+        phone: !!formData.phone,
+        panNumber: !!formData.panNumber,
+        accountNumber: !!formData.accountNumber,
+      });
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -71,6 +106,13 @@ export default function SellerSettings() {
   }
   if (!user || user.role !== 'seller') return null;
 
+  const fields = [
+    { label: 'Name', name: 'name', placeholder: 'Full name', hint: 'Your legal name', required: true },
+    { label: 'Phone', name: 'phone', placeholder: 'Phone number', hint: 'Contact number', type: 'tel' },
+    { label: 'PAN Number', name: 'panNumber', placeholder: 'ABCDE1234F', hint: 'Your PAN for payments', required: true },
+    { label: 'Account Number', name: 'accountNumber', placeholder: '0123456789', hint: 'Bank account for payouts', required: true },
+  ];
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <div className="mb-6">
@@ -92,36 +134,51 @@ export default function SellerSettings() {
         </div>
       )}
 
-      {/* Store information */}
+      {/* Account information */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Store Information</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">Account Information</h2>
         <form onSubmit={handleSave} className="space-y-4">
-          {[
-            { label: 'Store Name', name: 'businessName', placeholder: 'Your store name', hint: 'Display name for your reselling store', required: true },
-            { label: 'Your Name', name: 'name', placeholder: 'Full name', hint: 'Store owner or manager name', required: true },
-            { label: 'Phone', name: 'phone', placeholder: 'Phone number', hint: 'Contact number', type: 'tel' },
-          ].map(({ label, name, placeholder, hint, required, type }) => (
-            <div key={name}>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {label} {required && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                type={type ?? 'text'}
-                name={name}
-                value={(formData as any)[name]}
-                onChange={handleChange}
-                placeholder={placeholder}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-            </div>
-          ))}
+          {fields.map(({ label, name, placeholder, hint, required, type }) => {
+            const isLocked = (lockedFields as any)[name];
+            return (
+              <div key={name}>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
+                  {label}
+                  {required && <span className="text-red-500">*</span>}
+                  {isLocked && (
+                    <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
+                      <Lock className="w-3 h-3" />
+                      Locked
+                    </span>
+                  )}
+                </label>
+                <input
+                  type={type ?? 'text'}
+                  name={name}
+                  value={(formData as any)[name]}
+                  onChange={handleChange}
+                  placeholder={placeholder}
+                  disabled={isLocked}
+                  className={`w-full px-3.5 py-2.5 border rounded-lg text-sm focus:outline-none transition-colors ${
+                    isLocked
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                  }`}
+                />
+                {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+              </div>
+            );
+          })}
 
           {/* Email (locked) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
               <Mail className="w-3.5 h-3.5" />
               Email Address
+              <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
+                <Lock className="w-3 h-3" />
+                Locked
+              </span>
             </label>
             <input
               type="email"
@@ -135,12 +192,15 @@ export default function SellerSettings() {
           <div className="pt-2">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || Object.values(lockedFields).every(Boolean)}
               className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
             >
               <Save className="w-4 h-4" />
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
+            {Object.values(lockedFields).every(Boolean) && (
+              <p className="text-xs text-amber-600 mt-2">All fields are locked. No changes can be made.</p>
+            )}
           </div>
         </form>
       </div>

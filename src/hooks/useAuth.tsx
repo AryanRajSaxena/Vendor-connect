@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     businessName?: string;
     gstNumber?: string;
     panNumber?: string;
+    accountNumber?: string;
   }) => {
     setIsLoading(true);
     try {
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           businessName: data.businessName,
           gstNumber: data.gstNumber,
           panNumber: data.panNumber,
+          accountNumber: data.accountNumber,
         }),
       });
 

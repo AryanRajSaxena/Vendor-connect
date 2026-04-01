@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Store,
   ShoppingBag,
+  Wallet,
   Settings,
   LogOut,
   Menu,
@@ -18,7 +19,8 @@ import { useAuth } from '@/hooks/useAuth';
 const navItems = [
   { href: '/seller/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/seller/marketplace', label: 'Marketplace', icon: Store },
-  { href: '/seller/sales', label: 'Sales & Earnings', icon: ShoppingBag },
+  { href: '/seller/wallet', label: 'Wallet', icon: Wallet },
+  { href: '/seller/sales', label: 'Sales', icon: ShoppingBag },
   { href: '/seller/settings', label: 'Settings', icon: Settings },
 ];
 

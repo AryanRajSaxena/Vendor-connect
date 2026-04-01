@@ -14,6 +14,7 @@ export interface User {
   businessName?: string;
   gstNumber?: string;
   panNumber?: string;
+  accountNumber?: string;
 }
 
 export interface VendorProfile extends User {

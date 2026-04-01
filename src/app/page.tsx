@@ -11,8 +11,6 @@ export default function HomePage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole>('vendor');
-  const vendorGoogleFormUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSe3O2kev5R9Dc_3wpaCl-hztNa3Map144tJ1LzsMMExV1HD-g/viewform?usp=sharing&ouid=103901138410908298709';
-  const sellerGoogleFormUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSc6lk7Ub8YHbWuii508_ENinZNroZyqyuQbbslstRdCaCCScg/viewform?usp=sharing&ouid=103901138410908298709';
 
   // Load saved role from localStorage on mount
   useEffect(() => {
@@ -71,7 +69,7 @@ export default function HomePage() {
     hero: {
       title: 'Grow Your Business on Agent Croww',
       subtitle: 'List your products to reach thousands of buyers instantly',
-      cta: 'Join as Vendor'
+      cta: 'Login as Vendor'
     },
     benefits: [
       { icon: Users, title: '50k+ Active Buyers', desc: 'Reach verified customers across India' },
@@ -98,7 +96,7 @@ export default function HomePage() {
     hero: {
       title: 'Earn Commissions Without Inventory',
       subtitle: 'Become a seller and earn commissions on sales',
-      cta: 'Join as Seller'
+      cta: 'Login as Seller'
     },
     benefits: [
       { icon: Percent, title: '10% Commission', desc: 'Earn commission on every product you sell' },
@@ -141,15 +139,13 @@ export default function HomePage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <a
-                  href={vendorGoogleFormUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/auth/login?role=vendor"
                   className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/20"
                 >
                   <Store className="w-5 h-5" />
                   {vendorData.hero.cta}
-                </a>
+                </Link>
                 <Link href="/seller/marketplace?guestRole=vendor" className="inline-flex items-center justify-center gap-2 border border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10 px-8 py-3 rounded-xl font-semibold transition-colors">
                   Browse Products
                 </Link>
@@ -194,14 +190,12 @@ export default function HomePage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <a
-                  href={sellerGoogleFormUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/auth/login?role=seller"
                   className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
                 >
                   {sellerData.hero.cta}
-                </a>
+                </Link>
                 <Link href="/seller/marketplace?guestRole=seller" className="inline-flex items-center justify-center gap-2 border border-violet-500/50 text-violet-200 hover:bg-violet-500/10 px-8 py-3 rounded-xl font-semibold transition-colors">
                   Browse Products
                 </Link>
@@ -394,15 +388,13 @@ export default function HomePage() {
                   Join thousand of successful vendors and scale your sales
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <a
-                    href={vendorGoogleFormUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/auth/login?role=vendor"
                     className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/20"
                   >
                     <Store className="w-5 h-5" />
-                    Join as Vendor
-                  </a>
+                    Login as Vendor
+                  </Link>
                 </div>
               </>
             )}
@@ -414,15 +406,13 @@ export default function HomePage() {
                   Join tens of thousands of sellers and build your passive income
                 </p>
                 <div className="flex justify-center">
-                  <a
-                    href={sellerGoogleFormUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/auth/login?role=seller"
                     className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
                   >
                     <TrendingUp className="w-5 h-5" />
-                    Join As Seller
-                  </a>
+                    Login as Seller
+                  </Link>
                 </div>
               </>
             )}

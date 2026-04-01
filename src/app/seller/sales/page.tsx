@@ -10,6 +10,8 @@ import {
   AlertCircle,
   FileText,
   Clock,
+  Wallet,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
@@ -29,6 +31,12 @@ interface SalesOrder {
 
 type FilterStatus = 'all' | 'pending' | 'available' | 'paid';
 
+interface WalletData {
+  allTimeEarnings: number;
+  currentBalance: number;
+  totalWithdrawn: number;
+}
+
 export default function SellerSalesPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -38,6 +46,11 @@ export default function SellerSalesPage() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'earnings'>('recent');
   const [totals, setTotals] = useState({ totalEarned: 0, totalPaid: 0, processing: 0 });
+  const [walletData, setWalletData] = useState<WalletData>({
+    allTimeEarnings: 0,
+    currentBalance: 0,
+    totalWithdrawn: 0,
+  });
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'seller') router.push('/');
@@ -54,6 +67,7 @@ export default function SellerSalesPage() {
       setError(null);
 
       const ordersRes = await fetch(`/api/orders?sellerId=${user!.id}`);
+      const walletRes = await fetch(`/api/seller/wallet?sellerId=${user!.id}`);
 
       let totalEarned = 0;
 
@@ -86,6 +100,12 @@ export default function SellerSalesPage() {
           (sum, o) => sum + Number(o.seller_commission || o.sellerCommission || 0),
           0
         );
+      }
+
+      // Fetch wallet data
+      if (walletRes.ok) {
+        const data = await walletRes.json();
+        setWalletData(data);
       }
 
       setOrders(orderList);
@@ -210,6 +230,43 @@ export default function SellerSalesPage() {
           <span className="text-sm font-semibold tabular-nums text-gray-900">
             {formatCurrency(totals.totalPaid)}
           </span>
+        </div>
+      </div>
+
+      {/* Wallet Cards */}
+      <div className="bg-gradient-to-r from-violet-50 to-violet-100 rounded-lg border border-violet-200 p-5 mb-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Current Balance */}
+          <div className="bg-white rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase">Wallet Balance</span>
+              <Wallet className="w-4 h-4 text-violet-600" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(walletData.currentBalance)}</p>
+            <p className="text-xs text-gray-500 mt-1">Available for transfer</p>
+          </div>
+
+          {/* All-Time Earnings */}
+          <div className="bg-white rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase">All-Time Earnings</span>
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(walletData.allTimeEarnings)}</p>
+            <p className="text-xs text-gray-500 mt-1">Total commissions earned</p>
+          </div>
+
+          {/* Transfer Button */}
+          <div className="bg-white rounded-lg p-4 flex flex-col justify-center">
+            <button
+              onClick={() => router.push('/seller/wallet')}
+              className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              Transfer to Account
+            </button>
+            <p className="text-xs text-gray-500 text-center mt-2">Withdrawn: {formatCurrency(walletData.totalWithdrawn)}</p>
+          </div>
         </div>
       </div>
 

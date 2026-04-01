@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidEmail } from '@/utils/auth';
-import { Mail, Lock, User, Phone, Building2, FileText, TrendingUp, Zap, Shield, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Phone, Building2, FileText, TrendingUp, Zap, Shield, ArrowRight, CreditCard } from 'lucide-react';
 
 function SignupContent() {
   const router = useRouter();
@@ -24,6 +24,7 @@ function SignupContent() {
     businessName: '',
     gstNumber: '',
     panNumber: '',
+    accountNumber: '',
   });
 
   useEffect(() => {
@@ -71,6 +72,10 @@ function SignupContent() {
         setError('Please enter PAN number');
         return false;
       }
+      if (!formData.accountNumber.trim()) {
+        setError('Please enter account number');
+        return false;
+      }
     }
     return true;
   };
@@ -93,6 +98,7 @@ function SignupContent() {
         businessName: role === 'vendor' ? formData.businessName : undefined,
         gstNumber: role === 'vendor' ? formData.gstNumber : undefined,
         panNumber: role === 'seller' ? formData.panNumber : undefined,
+        accountNumber: role === 'seller' ? formData.accountNumber : undefined,
       });
       setSuccessMessage('Account created successfully! Redirecting...');
       setTimeout(() => {
@@ -348,6 +354,25 @@ function SignupContent() {
                     value={formData.panNumber}
                     onChange={handleInputChange}
                     placeholder="ABCDE1234F"
+                    className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Account Number (Seller only) */}
+            {role === 'seller' && (
+              <div>
+                <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Account Number</label>
+                <div className="relative">
+                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={formData.accountNumber}
+                    onChange={handleInputChange}
+                    placeholder="0123456789"
                     className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
                     disabled={isLoading}
                   />

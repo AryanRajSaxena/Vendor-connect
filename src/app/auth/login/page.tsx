@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidEmail } from '@/utils/auth';
@@ -9,7 +9,10 @@ import { Mail, Lock, TrendingUp, Zap, Shield, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
+  const selectedRole = searchParams.get('role');
+  const role = selectedRole === 'vendor' || selectedRole === 'seller' ? selectedRole : null;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -80,6 +83,8 @@ export default function LoginPage() {
     }
   };
 
+  const signupHref = role ? `/auth/signup?role=${role}` : '/auth/signup';
+
   return (
     <div className="min-h-screen bg-slate-950 flex">
       {/* Left Side - Branding */}
@@ -100,7 +105,11 @@ export default function LoginPage() {
           <div className="space-y-8">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Welcome Back</h1>
-              <p className="text-lg text-slate-300">Sign in to manage your products and track earnings</p>
+              <p className="text-lg text-slate-300">
+                {role === 'vendor' && 'Vendor login to manage your products and track earnings'}
+                {role === 'seller' && 'Seller login to manage your marketplace and commissions'}
+                {!role && 'Sign in to manage your products and track earnings'}
+              </p>
             </div>
 
             {/* Features List */}
@@ -157,7 +166,11 @@ export default function LoginPage() {
               <span className="text-2xl font-bold text-white">Agent Croww</span>
             </Link>
             <h1 className="text-3xl font-bold text-white">Welcome Back</h1>
-            <p className="text-slate-400 mt-2">Sign in to your account</p>
+            <p className="text-slate-400 mt-2">
+              {role === 'vendor' && 'Sign in to your vendor account'}
+              {role === 'seller' && 'Sign in to your seller account'}
+              {!role && 'Sign in to your account'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -246,7 +259,7 @@ export default function LoginPage() {
             <div className="text-center pt-2">
               <p className="text-slate-400">
                 Don't have an account?{' '}
-                <Link href="/auth/signup" className="text-violet-400 font-semibold hover:text-violet-300 transition-colors">
+                <Link href={signupHref} className="text-violet-400 font-semibold hover:text-violet-300 transition-colors">
                   Create one
                 </Link>
               </p>
