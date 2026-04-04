@@ -128,7 +128,10 @@ export async function POST(request: NextRequest) {
     } = body;
 
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
-    const resolvedPaymentStatus = normalizedPaymentMethod === 'cod' ? 'pending' : 'completed';
+    // All orders start with pending payment status until payment is confirmed
+    // For COD: confirmed when order is marked as confirmed
+    // For online: confirmed when payment webhook arrives
+    const resolvedPaymentStatus = 'pending';
 
     if (
       !id ||
@@ -242,7 +245,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Create order error:', error);
       return NextResponse.json(
-        { error: 'Failed to create order' },
+        { error: 'Failed to create order', details: error.message },
         { status: 500 }
       );
     }

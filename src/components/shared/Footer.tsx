@@ -58,6 +58,29 @@ export default function Footer() {
 
         </div>
 
+        {/* Policies Section */}
+        <div className="border-t border-gray-800 pt-6 pb-6">
+          <div className="flex items-center justify-center flex-wrap gap-x-6 gap-y-3 text-sm">
+            <a 
+              href="/policies/privacy-policy.pdf" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+            >
+              Privacy Policy
+            </a>
+            <span className="text-gray-700">•</span>
+            <a 
+              href="/policies/refund-policy.pdf" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+            >
+              Refund & Cancellation
+            </a>
+          </div>
+        </div>
+
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 pt-4 flex flex-col md:flex-row items-center justify-between gap-2">
           <p className="text-gray-400 text-sm text-center md:text-left">

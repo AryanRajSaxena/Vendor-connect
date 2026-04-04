@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCashfreePayment } from '@/hooks/useCashfreePayment';
 import { formatCurrency } from '@/utils/calculations';
 
 interface CartItem {
@@ -29,12 +30,14 @@ function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { initiatePayment, redirectToPayment, verifyPayment } = useCashfreePayment();
   const [currentStep, setCurrentStep] = useState(1);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState('');
   const [referralFromLink, setReferralFromLink] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   // Form states
   const [deliveryData, setDeliveryData] = useState<DeliveryData>({
@@ -229,28 +232,82 @@ function CheckoutContent() {
           throw new Error(prefix + (responseError.error || 'Failed to create order'));
         }
 
-        createdOrders.push(await response.json());
+        const createdOrder = await response.json();
+        console.log('Order created:', createdOrder.id, 'Amount:', createdOrder.final_price);
+        createdOrders.push(createdOrder);
       }
 
-      // Clear cart
-      if (user?.id) {
-        await fetch('/api/cart', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customerId: user.id }),
-        });
+      // Handle payment based on method
+      if (paymentMethod === 'cod') {
+        // Cash on Delivery - direct confirmation
+        if (user?.id) {
+          await fetch('/api/cart', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customerId: user.id }),
+          });
+        }
+        localStorage.removeItem('cart');
+        window.dispatchEvent(new Event('cart-updated'));
+        router.push(`/order-confirmation?orderId=${createdOrders[0].id}`);
+      } else {
+        // Online payment - initiate Cashfree payment
+        console.log('Initiating payment for orders:', createdOrders.map(o => ({ id: o.id, amount: o.final_price })));
+        await handleOnlinePayment(createdOrders);
       }
-
-      localStorage.removeItem('cart');
-      window.dispatchEvent(new Event('cart-updated'));
-
-      // Redirect to confirmation
-      router.push(`/order-confirmation?orderId=${createdOrders[0].id}`);
     } catch (err) {
       setError((err as Error).message);
       console.error('Failed to place order:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOnlinePayment = async (orders: any[]) => {
+    try {
+      setProcessingPayment(true);
+      
+      const firstOrder = orders[0];
+      const totalAmount = orders.reduce((sum, order) => sum + (Number(order.final_price) || 0), 0);
+
+      console.log('Processing payment for order:', firstOrder.id);
+      console.log('Total amount:', totalAmount, 'from orders:', orders.map(o => ({ id: o.id, final_price: o.final_price })));
+
+      // Validate payment details with detailed error messages
+      if (!deliveryData.name) {
+        throw new Error('Name is required');
+      }
+      if (!deliveryData.email) {
+        throw new Error('Email is required');
+      }
+      if (!deliveryData.phone) {
+        throw new Error('Phone is required');
+      }
+
+      const paymentPayload = {
+        orderId: firstOrder.id,
+        orderAmount: Math.round(totalAmount * 100) / 100,
+        customerName: deliveryData.name,
+        customerEmail: deliveryData.email,
+        customerPhone: deliveryData.phone.replace(/[^0-9]/g, ''),
+      };
+      console.log('Sending payment payload:', paymentPayload);
+
+      // Initiate Cashfree payment
+      const paymentResult = await initiatePayment(paymentPayload);
+
+      if (!paymentResult?.success || !paymentResult?.paymentUrl) {
+        throw new Error(paymentResult?.error || 'Failed to initiate payment');
+      }
+
+      // Redirect to Cashfree payment gateway
+      setError(null);
+      redirectToPayment(paymentResult.paymentUrl);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Payment initiation failed';
+      setError(errorMessage);
+      console.error('Payment error:', err);
+      setProcessingPayment(false);
     }
   };
 
@@ -542,15 +599,25 @@ function CheckoutContent() {
                   <button
                     onClick={() => setCurrentStep(2)}
                     className="btn btn-outline flex-1 py-3"
+                    disabled={loading || processingPayment}
                   >
                     Back
                   </button>
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={loading}
-                    className="btn btn-primary flex-1 py-3 disabled:opacity-50"
+                    disabled={loading || processingPayment}
+                    className="btn btn-primary flex-1 py-3 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {loading ? 'Placing Order...' : 'Place Order'}
+                    {loading || processingPayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {processingPayment ? 'Redirecting to Payment...' : 'Placing Order...'}
+                      </>
+                    ) : (
+                      <>
+                        {paymentMethod === 'cod' ? 'Place Order' : 'Proceed to Payment'}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
