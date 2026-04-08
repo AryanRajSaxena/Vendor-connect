@@ -21,9 +21,6 @@ export default function HomePage() {
         case 'seller':
           router.push('/seller/dashboard');
           return;
-        case 'admin':
-          router.push('/admin/dashboard');
-          return;
       }
     }
   }, [user, isLoading, router]);

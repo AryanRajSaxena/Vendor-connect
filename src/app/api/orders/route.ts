@@ -180,17 +180,15 @@ export async function POST(request: NextRequest) {
       resolvedSellerId = sellerProductMatch.seller_id;
     }
 
-    const { data: settings } = await supabase
-      .from('admin_settings')
-      .select('seller_commission_percentage, platform_commission_percentage, commission_cooling_period_days')
-      .limit(1)
-      .single();
+    const defaultSellerCommissionPct = 10;
+    const defaultPlatformCommissionPct = 10;
+    const defaultCoolingDays = 15;
 
-    const sellerCommissionPct = Number(settings?.seller_commission_percentage ?? 10);
-    const platformCommissionPct = Number(settings?.platform_commission_percentage ?? 10);
+    const sellerCommissionPct = defaultSellerCommissionPct;
+    const platformCommissionPct = defaultPlatformCommissionPct;
     if (sellerCommissionPct < 0 || platformCommissionPct < 0 || sellerCommissionPct + platformCommissionPct > 100) {
       return NextResponse.json(
-        { error: 'Invalid admin commission configuration' },
+        { error: 'Invalid commission configuration' },
         { status: 400 }
       );
     }
@@ -207,11 +205,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const coolingDays = Number(settings?.commission_cooling_period_days ?? 15);
+    const coolingDays = defaultCoolingDays;
     const computedCommissionReleaseDate = new Date();
     computedCommissionReleaseDate.setDate(computedCommissionReleaseDate.getDate() + Math.max(0, coolingDays));
-    const autoCommissionAvailable =
-      coolingDays <= 0 && resolvedPaymentStatus === 'completed';
+    // Commission is available immediately only if cooling period is 0 and payment is completed
+    // Initially all orders have pending payment status, so commission starts as pending
+    const autoCommissionAvailable = false;
     const resolvedCommissionStatus = autoCommissionAvailable ? 'available' : 'pending';
 
     // Create order
@@ -232,7 +231,7 @@ export async function POST(request: NextRequest) {
           referral_code: referralCode,
           customer_details: customerDetails,
           delivery_address: deliveryAddress,
-          payment_method: paymentMethod,
+          payment_method: normalizedPaymentMethod,
           payment_status: resolvedPaymentStatus,
           order_status: orderStatus || 'pending',
           commission_status: resolvedCommissionStatus,

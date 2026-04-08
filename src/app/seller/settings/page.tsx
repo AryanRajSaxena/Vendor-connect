@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Save, Mail, LogOut, Lock, LockOpen } from 'lucide-react';
+import { AlertCircle, Save, Mail, LogOut, Lock } from 'lucide-react';
 
 interface LockedFields {
   name: boolean;

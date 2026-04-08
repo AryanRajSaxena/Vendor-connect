@@ -67,13 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: settings } = await supabase
-      .from('admin_settings')
-      .select('min_withdrawal_amount')
-      .limit(1)
-      .single();
-
-    const minWithdrawalAmount = Number(settings?.min_withdrawal_amount ?? 500);
+    const minWithdrawalAmount = 500;
     if (parsedAmount < minWithdrawalAmount) {
       return NextResponse.json(
         { error: `Minimum withdrawal amount is ${minWithdrawalAmount}` },
@@ -106,7 +100,7 @@ export async function POST(request: NextRequest) {
           bank_account: bankAccount,
           bank_ifsc: bankIfsc,
           bank_name: bankName,
-          status: 'pending',
+          status: 'approved',
         },
       ])
       .select()

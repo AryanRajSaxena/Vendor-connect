@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const orderId = searchParams.get('orderId');
-    const cfOrderId = searchParams.get('cfOrderId');
 
     if (!orderId || typeof orderId !== 'string') {
       return NextResponse.json(
@@ -72,15 +71,18 @@ export async function GET(request: NextRequest) {
 
         if (!updateError) {
           // Update order
-          await supabase
+          const { error: orderUpdateError } = await supabase
             .from('orders')
             .update({
               payment_status: 'completed',
               order_status: 'confirmed',
               updated_at: new Date().toISOString(),
             })
-            .eq('id', orderId)
-            .catch(err => console.warn('Failed to update order:', err));
+            .eq('id', orderId);
+          
+          if (orderUpdateError) {
+            console.warn('Failed to update order:', orderUpdateError);
+          }
         }
 
         return NextResponse.json({

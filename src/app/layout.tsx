@@ -3,7 +3,6 @@ import { AuthProvider } from '@/hooks/useAuth';
 import Header from '@/components/shared/Header';
 import Footer from '@/components/shared/Footer';
 import MobileBottomNav from '@/components/shared/MobileBottomNav';
-import CartToast from '@/components/shared/CartToast';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -33,7 +32,6 @@ export default function RootLayout({
           </main>
           <Footer />
           <MobileBottomNav />
-          <CartToast />
         </AuthProvider>
       </body>
     </html>

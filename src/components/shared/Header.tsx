@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { ShoppingCart, User, LogOut, Home, Settings, Store, TrendingUp } from 'lucide-react';
+import { User, LogOut, Home, Settings, Store, TrendingUp } from 'lucide-react';
 import AuthModal from './AuthModal';
 
 export default function Header() {
@@ -13,9 +13,16 @@ export default function Header() {
   const isHomePage = pathname === '/';
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
   const [landingRole, setLandingRole] = useState<'vendor' | 'seller'>('vendor');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get logo link based on user role
+  const getLogoLink = () => {
+    if (isAuthenticated && user?.role === 'customer') {
+      return '/products';
+    }
+    return '/';
+  };
 
   useEffect(() => {
     const sync = () => {
@@ -33,23 +40,6 @@ export default function Header() {
     window.dispatchEvent(new Event('landingRole-updated'));
   };
 
-  const getCartCount = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (!Array.isArray(parsed)) {
-        return 0;
-      }
-
-      return parsed.reduce((total, item) => {
-        const qty = Number(item?.quantity || 0);
-        return total + (Number.isFinite(qty) && qty > 0 ? qty : 0);
-      }, 0);
-    } catch (error) {
-      console.warn('Invalid cart in localStorage while reading badge count.', error);
-      return 0;
-    }
-  };
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -62,19 +52,6 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const updateCount = () => setCartCount(getCartCount());
-
-    updateCount();
-    window.addEventListener('storage', updateCount);
-    window.addEventListener('cart-updated', updateCount);
-
-    return () => {
-      window.removeEventListener('storage', updateCount);
-      window.removeEventListener('cart-updated', updateCount);
-    };
-  }, []);
-
   const getRoleBasedDashboardLink = () => {
     if (!user) return '/';
     switch (user.role) {
@@ -82,8 +59,6 @@ export default function Header() {
         return '/vendor/dashboard';
       case 'seller':
         return '/seller/dashboard';
-      case 'admin':
-        return '/admin/dashboard';
       default:
         return '/customer/dashboard';
     }
@@ -94,7 +69,6 @@ export default function Header() {
     const labels: Record<string, string> = {
       vendor: 'Vendor Dashboard',
       seller: 'Seller Dashboard',
-      admin: 'Admin Dashboard',
       customer: 'My Orders',
     };
     return labels[user.role] || 'Dashboard';
@@ -105,7 +79,6 @@ export default function Header() {
     const labels: Record<string, string> = {
       vendor: 'Vendor',
       seller: 'Seller',
-      admin: 'Admin',
       customer: 'Customer',
     };
     return labels[user.role] || 'User';
@@ -118,8 +91,6 @@ export default function Header() {
         return '/vendor/settings';
       case 'seller':
         return '/seller/settings';
-      case 'admin':
-        return '/admin/settings';
       default:
         return '/customer/settings';
     }
@@ -129,7 +100,7 @@ export default function Header() {
     <header className="bg-white shadow-soft sticky top-0 z-50 border-b border-gray-100">
       <nav className="container-custom py-3.5 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link href={getLogoLink()} className="flex items-center gap-3 group">
           <div className="rounded-xl shadow-sm ring-1 ring-primary-200/60 group-hover:shadow-md transition-all duration-300 overflow-hidden">
             <img src="/images/icon.jpeg" alt="Agent Croww" className="w-10 h-10 object-cover" />
           </div>
@@ -184,18 +155,6 @@ export default function Header() {
                 </div>
               </Link>
 
-              {user?.role === 'customer' && (
-                <Link
-                  href="/cart"
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium relative"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center font-bold shadow-sm">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                </Link>
-              )}
-
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
@@ -241,19 +200,6 @@ export default function Header() {
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-1.5">
-          {isAuthenticated && user?.role === 'customer' && (
-            <Link
-              href="/cart"
-              className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              aria-label="Open cart"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-[10px] rounded-full min-w-[1rem] h-4 px-1 flex items-center justify-center font-bold shadow-sm">
-                {cartCount > 99 ? '99+' : cartCount}
-              </span>
-            </Link>
-          )}
-
           {isAuthenticated && (
             <Link
               href={getRoleBasedDashboardLink()}

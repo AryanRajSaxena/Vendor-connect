@@ -102,12 +102,28 @@ function SignupContent() {
       });
       setSuccessMessage('Account created successfully! Redirecting...');
       setTimeout(() => {
-        const redirectPath = role === 'vendor' ? '/vendor/dashboard' : '/seller/dashboard';
-        router.push(redirectPath);
-      }, 500);
+        try {
+          const getRolePath = (userRole: string): string => {
+            switch (userRole) {
+              case 'vendor':
+                return '/vendor/dashboard';
+              case 'seller':
+                return '/seller/dashboard';
+              case 'customer':
+                return '/products';
+              default:
+                return '/products';
+            }
+          };
+          const redirectPath = getRolePath(role);
+          router.push(redirectPath);
+        } catch (error) {
+          console.error('Signup redirect error:', error);
+          router.push('/products');
+        }
+      }, 600);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
-    } finally {
       setIsLoading(false);
     }
   };

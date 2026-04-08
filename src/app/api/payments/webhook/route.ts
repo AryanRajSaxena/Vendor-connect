@@ -91,24 +91,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle payment status updates
-    let orderStatus: string;
     let shouldCreditSeller = false;
 
     switch (paymentStatus.toLowerCase()) {
       case 'success':
       case 'paid':
-        orderStatus = 'confirmed';
         shouldCreditSeller = true;
         break;
 
       case 'failed':
       case 'declined':
-        orderStatus = 'pending';
         break;
 
       case 'user_dropped':
       case 'cancelled':
-        orderStatus = 'cancelled';
         break;
 
       default:
@@ -179,7 +175,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Log successful payment for analytics
-      await supabase.from('payment_logs').insert([
+      const { error: logError } = await supabase.from('payment_logs').insert([
         {
           order_id: orderId,
           customer_id: order.customer_id,
@@ -191,7 +187,11 @@ export async function POST(request: NextRequest) {
           cf_payment_id: cfPaymentId,
           created_at: new Date().toISOString(),
         },
-      ]).catch(err => console.warn('Failed to log payment:', err));
+      ]);
+      
+      if (logError) {
+        console.warn('Failed to log payment:', logError);
+      }
     }
 
     // If payment failed, update order
@@ -292,8 +292,7 @@ async function creditSellerWallet(
           status: 'completed',
           created_at: new Date().toISOString(),
         },
-      ])
-      .catch(err => console.warn('Failed to log seller transaction:', err));
+      ]);
   } catch (error) {
     console.error(`Error crediting seller wallet for seller ${sellerId}:`, error);
     throw error;

@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
     if (cashfreeResponse.status !== 200 || !cashfreeResponse.data) {
       console.error('Cashfree API Error:', cashfreeResponse);
       return NextResponse.json(
-        { error: 'Failed to initiate payment with payment gateway: ' + (cashfreeResponse.data?.message || 'Unknown error') },
+        { error: 'Failed to initiate payment with payment gateway' },
         { status: 500 }
       );
     }

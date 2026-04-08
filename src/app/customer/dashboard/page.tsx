@@ -3,9 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Package, CheckCircle, Clock, AlertCircle, ShoppingBag } from 'lucide-react';
+import {
+  ShoppingBag,
+  AlertCircle,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency } from '@/utils/calculations';
+import {
+  Card,
+  OrderCard,
+  EmptyState,
+} from '@/components/customer';
 
 interface Order {
   id: string;
@@ -56,40 +63,15 @@ export default function CustomerDashboard() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'shipped':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'delivered':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'shipped':
-        return <Package className="w-5 h-5 text-blue-600" />;
-      case 'pending':
-        return <Clock className="w-5 h-5 text-yellow-600" />;
-      case 'cancelled':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
-      default:
-        return <Package className="w-5 h-5 text-gray-600" />;
-    }
-  };
+  const recentOrders = orders.slice(0, 5);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-3 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-gray-300">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -99,163 +81,101 @@ export default function CustomerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Orders</h1>
-          <p className="text-gray-600">Track and manage your purchases</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Total Orders</p>
-                <p className="text-3xl font-bold text-gray-900">{orders.length}</p>
-              </div>
-              <ShoppingBag className="w-8 h-8 text-primary opacity-20" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Total Spent</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(orders.reduce((sum, o) => sum + o.base_price, 0))}
-                </p>
-              </div>
-              <ShoppingBag className="w-8 h-8 text-green-600 opacity-20" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Completed</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {orders.filter((o) => o.status?.toLowerCase() === 'delivered').length}
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600 opacity-20" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium mb-1">In Transit</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {orders.filter((o) => o.status?.toLowerCase() === 'shipped' || o.status?.toLowerCase() === 'pending').length}
-                </p>
-              </div>
-              <Package className="w-8 h-8 text-blue-600 opacity-20" />
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950">
+      {/* Mobile Hero Section */}
+      <div className="bg-gradient-to-r from-primary-900/40 to-secondary-900/40 border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
+              Welcome, {user.name}! 👋
+            </h1>
+            <p className="text-gray-400">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Error State */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Error Alert */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
-          </div>
+          <Card className="bg-red-900/20 border border-red-800">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-red-300">Error</p>
+                <p className="text-sm text-red-200">{error}</p>
+              </div>
+            </div>
+          </Card>
         )}
 
-        {/* Orders Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Order History</h2>
+        {/* Recent Orders Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">
+                My Orders
+              </h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Your latest purchases with status and amount
+              </p>
+            </div>
+          </div>
 
           {loading ? (
-            <p className="text-gray-500 text-center py-8">Loading orders...</p>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-12">
-              <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium mb-2">No orders yet</p>
-              <p className="text-sm text-gray-500 mb-6">Start shopping to see your orders here</p>
-              <Link href="/products" className="btn btn-primary">
-                Browse Products
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <p className="font-semibold text-gray-900 flex items-center gap-2">
-                          {getStatusIcon(order.status)}
-                          Order {order.id}
-                        </p>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.status?.charAt(0).toUpperCase() + order.status?.slice(1).toLowerCase()}
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-gray-600 mb-2">
-                        {order.product_name || 'Product'} • Quantity: {order.quantity}
-                      </p>
-
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>
-                          {new Date(order.created_at).toLocaleDateString('en-IN', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </span>
-                        <span className="font-semibold text-lg text-gray-900">
-                          {formatCurrency(order.base_price)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <div className="h-24 bg-gray-800 rounded" />
+                </Card>
               ))}
             </div>
+          ) : recentOrders.length > 0 ? (
+            <div className="space-y-4">
+              {recentOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  productName={order.product_name || 'Product'}
+                  status={order.status || 'pending'}
+                  amount={order.base_price}
+                  date={order.created_at}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<ShoppingBag className="w-16 h-16" />}
+              title="No Orders Yet"
+              description="Start exploring courses and products to make your first purchase"
+              action={{
+                label: 'Browse Products',
+                onClick: () => router.push('/products'),
+              }}
+            />
           )}
         </div>
 
-        {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
           <Link
             href="/products"
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-lg transition group"
+            className="p-4 bg-gradient-to-br from-primary-900/30 to-primary-900/10 border border-primary-800/50 rounded-lg hover:border-primary-700 transition-all"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Continue Shopping</h3>
-                <p className="text-sm text-gray-600">Browse more products</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition" />
-            </div>
+            <div className="text-2xl mb-2">🛍️</div>
+            <p className="text-sm font-medium text-white">Browse</p>
           </Link>
-
           <Link
             href="/customer/settings"
-            className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-lg transition group"
+            className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-800/20 border border-gray-700/50 rounded-lg hover:border-gray-600 transition-all"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Account Settings</h3>
-                <p className="text-sm text-gray-600">Manage your profile</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition" />
-            </div>
+            <div className="text-2xl mb-2">⚙️</div>
+            <p className="text-sm font-medium text-white">Settings</p>
           </Link>
         </div>
       </div>

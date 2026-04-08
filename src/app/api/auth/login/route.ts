@@ -34,6 +34,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!['vendor', 'seller', 'customer'].includes(String(user.role))) {
+      return NextResponse.json(
+        { error: 'This account role is no longer supported' },
+        { status: 403 }
+      );
+    }
+
     // Verify password
     if (user.password_hash !== passwordHash) {
       return NextResponse.json(

@@ -22,7 +22,6 @@ export default function MobileBottomNav() {
   const customerItems: MobileNavItem[] = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/products', label: 'Products', icon: Store },
-    { href: '/cart', label: 'Cart', icon: ShoppingCart },
     { href: '/customer/dashboard', label: 'Orders', icon: BarChart3 },
     { href: '/customer/settings', label: 'Profile', icon: UserCircle },
   ];
@@ -43,16 +42,9 @@ export default function MobileBottomNav() {
     { href: '/vendor/settings', label: 'Profile', icon: UserCircle },
   ];
 
-  const adminItems: MobileNavItem[] = [
-    { href: '/admin/dashboard', label: 'Home', icon: Home },
-    { href: '/admin/withdrawals', label: 'Payouts', icon: ShoppingCart },
-    { href: '/admin/settings', label: 'Settings', icon: UserCircle },
-  ];
-
   const items = (() => {
     if (user.role === 'seller') return sellerItems;
     if (user.role === 'vendor') return vendorItems;
-    if (user.role === 'admin') return adminItems;
     return customerItems;
   })();
 

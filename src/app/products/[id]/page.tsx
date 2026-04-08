@@ -1,10 +1,9 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ShoppingCart,
   Check,
   ChevronLeft,
   Clock3,
@@ -17,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
-import { showCartToast } from '@/components/shared/CartToast';
 
 interface Product {
   id: string;
@@ -45,7 +43,8 @@ interface Product {
 function ProductDetailContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
   const isGuestVendorOrSeller =
     !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
@@ -64,25 +63,6 @@ function ProductDetailContent() {
     }
     return '/products';
   })();
-
-  const getSafeCart = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Invalid cart in localStorage, resetting cart.', error);
-    }
-
-    localStorage.setItem('cart', '[]');
-    return [];
-  };
-
-  const syncLocalCart = (cart: any[]) => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('cart-updated'));
-  };
 
   useEffect(() => {
     const code =
@@ -128,94 +108,51 @@ function ProductDetailContent() {
     }
   }, [params.id]);
 
-  const handleAddToCart = () => {
-    if (!product) return;
-
-    if (isGuestVendorOrSeller) {
-      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
+  const handleBuyNow = async () => {
+    if (authLoading) {
       return;
     }
 
-    const addToLocalCart = () => {
-      const cart = getSafeCart();
-      const existingItem = cart.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity = 1; // Always 1 for digital products
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.base_price,
-          quantity: 1,
-          image: product.images?.[0] || '📦',
-          vendorId: product.vendor_id,
-        });
-      }
-
-      syncLocalCart(cart);
-    };
-
-    if (!user?.id) {
-      try {
-        addToLocalCart();
-        showCartToast(`Added to cart!`);
-      } catch (error) {
-        console.error('Failed to add to cart:', error);
-      }
-      return;
-    }
-
-    (async () => {
-      try {
-        setIsBuying(true);
-        const response = await fetch('/api/cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: user.id,
-            productId: product.id,
-            quantity: 1,
-          }),
-        });
-
-        if (!response.ok) {
-          const apiError = await response.json().catch(() => ({}));
-          throw new Error(apiError.error || 'Failed to add to database cart');
-        }
-
-        const data = await response.json();
-        syncLocalCart(data.items || []);
-        showCartToast(`Added to cart!`);
-      } catch (error) {
-        console.error('Failed to add to database cart, falling back to local cart:', error);
-        try {
-          addToLocalCart();
-          showCartToast(`Added to cart!`);
-        } catch (fallbackError) {
-          console.error('Failed to add to fallback local cart:', fallbackError);
-        }
-      } finally {
-        setIsBuying(false);
-      }
-    })();
-  };
-
-  const handleBuyNow = () => {
     if (isGuestVendorOrSeller) {
+      console.warn('Checkout is disabled in guest seller/vendor browsing mode.');
       alert('Checkout is disabled in guest seller/vendor browsing mode.');
       return;
     }
 
     if (!user?.id) {
-      alert('Please login to continue');
+      router.push('/auth/login');
       return;
     }
-    handleAddToCart();
-    // Redirect to checkout after adding to cart
-    setTimeout(() => {
-      window.location.href = '/checkout';
-    }, 500);
+
+    if (!product) {
+      console.warn('Product not available');
+      alert('Product not available');
+      return;
+    }
+
+    try {
+      setIsBuying(true);
+      
+      // Create a temporary order item and redirect to checkout
+      const orderItem = {
+        id: product.id,
+        name: product.name,
+        price: product.base_price,
+        quantity: 1,
+        image: product.images?.[0] || '📦',
+        vendorId: product.vendor_id,
+      };
+      
+      // Store in temporary session storage for checkout to read
+      sessionStorage.setItem('directPurchaseItem', JSON.stringify(orderItem));
+      
+      // Navigate to checkout
+      router.push('/checkout');
+    } catch (error) {
+      console.error('Error during checkout:', error);
+      alert('Failed to proceed to checkout');
+      setIsBuying(false);
+    }
   };
 
   if (loading) {
@@ -362,21 +299,14 @@ function ProductDetailContent() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                <div className="mt-6">
                   <button
+                    type="button"
                     onClick={handleBuyNow}
                     disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {isGuestVendorOrSeller ? 'Buy Now' : 'Buy Now'}
-                  </button>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
-                  >
-                    <ShoppingCart className="w-5 h-5 inline mr-2" />
-                    {isGuestVendorOrSeller ? 'Add to Cart' : 'Add to Cart'}
+                    {isBuying ? 'Processing...' : 'Buy Now'}
                   </button>
                 </div>
               )}

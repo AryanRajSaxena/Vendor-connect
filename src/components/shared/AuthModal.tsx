@@ -89,25 +89,24 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
         await login(formData.email, formData.password);
         setSuccessMessage('Login successful! Redirecting...');
         
-        // Redirect based on the authenticated user's role from context
         setTimeout(() => {
-          const handleRedirect = async () => {
-            // Get the current auth context to check the role
+          try {
             const storedAuth = localStorage.getItem('auth');
             if (storedAuth) {
-              try {
-                const user = JSON.parse(storedAuth);
-                const redirectPath = getRolePath(user.role);
-                onClose();
-                router.push(redirectPath);
-              } catch {
-                onClose();
-                window.location.reload();
-              }
+              const user = JSON.parse(storedAuth);
+              const redirectPath = getRolePath(user.role);
+              onClose();
+              router.push(redirectPath);
+            } else {
+              onClose();
+              router.push('/products');
             }
-          };
-          handleRedirect();
-        }, 500);
+          } catch (error) {
+            console.error('Login redirect error:', error);
+            onClose();
+            router.push('/products');
+          }
+        }, 600);
       } else {
         await signup({
           email: formData.email,
@@ -122,9 +121,9 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
         setSuccessMessage('Account created successfully! Redirecting...');
         setTimeout(() => {
           onClose();
-          // For signup, we know the role from the form
-          router.push(getRolePath(role));
-        }, 500);
+          const redirectPath = getRolePath(role);
+          router.push(redirectPath);
+        }, 600);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -139,9 +138,8 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
         return '/vendor/dashboard';
       case 'seller':
         return '/seller/dashboard';
-      case 'admin':
-        return '/admin/dashboard';
       case 'customer':
+        return '/products';
       default:
         return '/products';
     }

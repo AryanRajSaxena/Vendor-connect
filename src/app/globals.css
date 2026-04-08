@@ -19,6 +19,11 @@ body {
   background-color: #0b1220;
   font-feature-settings: "rlig" 1, "calt" 1;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.6;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 .brand-money-font {
@@ -97,6 +102,115 @@ body {
 .hover\:border-gray-200:hover,
 .hover\:border-gray-300:hover {
   border-color: #334155 !important;
+}
+
+/* Mobile-Optimized Styles */
+
+/* Safe area support for mobile notches */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Mobile-first typography adjustments */
+@media (max-width: 640px) {
+  h1 {
+    @apply text-xl sm:text-2xl;
+  }
+  
+  h2 {
+    @apply text-lg sm:text-xl;
+  }
+  
+  h3 {
+    @apply text-base sm:text-lg;
+  }
+  
+  body {
+    font-size: 16px; /* Prevents iOS auto-zoom on input focus */
+  }
+}
+
+/* Touch-friendly buttons and links */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS auto-zoom */
+  }
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Improved focus states for accessibility */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus {
+  outline: none;
+}
+
+/* Responsive container utilities */
+@layer utilities {
+  .container-sm {
+    @apply max-w-md mx-auto px-4;
+  }
+  
+  .container-md {
+    @apply max-w-2xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .container-lg {
+    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .container-xl {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Mobile bottom nav safety */
+  .pb-mobile-safe {
+    @apply pb-20 md:pb-8;
+  }
+  
+  /* Gradient backgrounds */
+  .bg-gradient-dark-top {
+    @apply bg-gradient-to-b from-gray-920 to-gray-950;
+  }
+  
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-lg;
+  }
+  
+  /* Button reset */
+  .btn-reset {
+    @apply appearance-none bg-none border-none cursor-pointer p-0;
+  }
 }
 
 .from-white,

@@ -95,8 +95,7 @@ export function generateOrderSummary(order: any): OrderSummary {
  * Validate payment amount (prevent fraud)
  */
 export function validatePaymentAmount(
-  amount: number,
-  tolerance: number = 0.01
+  amount: number
 ): { valid: boolean; error?: string } {
   // Check amount is positive
   if (amount <= 0) {

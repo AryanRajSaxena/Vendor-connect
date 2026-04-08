@@ -18,6 +18,7 @@ interface AuthContextType {
     businessName?: string;
     gstNumber?: string;
     panNumber?: string;
+    accountNumber?: string;
   }) => Promise<void>;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;

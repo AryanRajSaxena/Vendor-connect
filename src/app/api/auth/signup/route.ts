@@ -15,6 +15,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!['vendor', 'seller', 'customer'].includes(String(role))) {
+      return NextResponse.json(
+        { error: 'Invalid role selected' },
+        { status: 400 }
+      );
+    }
+
     // Check if user already exists
     const { data: existingUser } = await supabase
       .from('users')

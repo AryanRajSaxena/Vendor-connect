@@ -1,5 +1,5 @@
 // User types
-export type UserRole = 'vendor' | 'seller' | 'customer' | 'admin';
+export type UserRole = 'vendor' | 'seller' | 'customer';
 
 export interface User {
   id: string;
@@ -116,20 +116,6 @@ export interface PaymentMethod {
   isDefault: boolean;
 }
 
-// Cart types
-export interface CartItem {
-  productId: string;
-  quantity: number;
-  price: number;
-}
-
-export interface Cart {
-  items: CartItem[];
-  subtotal: number;
-  deliveryCharge: number;
-  total: number;
-}
-
 // Address types
 export interface Address {
   id: string;
@@ -153,18 +139,6 @@ export interface SellerProduct {
   sales: number;
   earnings: number;
   addedAt: string;
-}
-
-// Admin Settings
-export interface AdminSettings {
-  id: string;
-  platformMarkupPercentage: number;
-  sellerCommissionPercentage: number;
-  platformCommissionPercentage: number;
-  minWithdrawalAmount: number;
-  commissionCoolingPeriodDays: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // Referral & Analytics

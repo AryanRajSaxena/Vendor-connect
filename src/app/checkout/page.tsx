@@ -2,10 +2,18 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { Loader2, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCashfreePayment } from '@/hooks/useCashfreePayment';
-import { formatCurrency } from '@/utils/calculations';
+import {
+  Card,
+  Button,
+  Input,
+  Select,
+  Checkbox,
+  AlertBanner,
+  EmptyState,
+} from '@/components/customer';
 
 interface CartItem {
   id: string;
@@ -29,17 +37,17 @@ interface DeliveryData {
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
-  const { initiatePayment, redirectToPayment, verifyPayment } = useCashfreePayment();
-  const [currentStep, setCurrentStep] = useState(1);
+  const { user, isLoading: authLoading } = useAuth();
+  const { initiatePayment } = useCashfreePayment();
+  
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState('');
-  const [referralFromLink, setReferralFromLink] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
+  const [step, setStep] = useState<'review' | 'payment'>('review');
 
-  // Form states
   const [deliveryData, setDeliveryData] = useState<DeliveryData>({
     name: user?.name || '',
     phone: user?.phone || '',
@@ -50,155 +58,171 @@ function CheckoutContent() {
     pincode: '',
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('online');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  const normalizeReferralCode = (value: string) => value.trim().toUpperCase();
+  // Calculate totals
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryCharges = subtotal > 500 ? 0 : 50;
+  const total = subtotal + deliveryCharges;
 
-  const getSafeCart = (): CartItem[] => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Invalid cart in localStorage, resetting cart.', error);
-    }
+  const S = [
+    { value: 'AN', label: 'Andaman and Nicobar' },
+    { value: 'AP', label: 'Andhra Pradesh' },
+    { value: 'AR', label: 'Arunachal Pradesh' },
+    { value: 'AS', label: 'Assam' },
+    { value: 'BR', label: 'Bihar' },
+    { value: 'CG', label: 'Chhattisgarh' },
+    { value: 'CH', label: 'Chandigarh' },
+    { value: 'DD', label: 'Daman and Diu' },
+    { value: 'DL', label: 'Delhi' },
+    { value: 'DN', label: 'Dadra and Nagar Haveli' },
+    { value: 'GA', label: 'Goa' },
+    { value: 'GJ', label: 'Gujarat' },
+    { value: 'HR', label: 'Haryana' },
+    { value: 'HP', label: 'Himachal Pradesh' },
+    { value: 'JK', label: 'Jammu and Kashmir' },
+    { value: 'JH', label: 'Jharkhand' },
+    { value: 'KA', label: 'Karnataka' },
+    { value: 'KL', label: 'Kerala' },
+    { value: 'LA', label: 'Ladakh' },
+    { value: 'LD', label: 'Lakshadweep' },
+    { value: 'MP', label: 'Madhya Pradesh' },
+    { value: 'MH', label: 'Maharashtra' },
+    { value: 'MN', label: 'Manipur' },
+    { value: 'ML', label: 'Meghalaya' },
+    { value: 'MZ', label: 'Mizoram' },
+    { value: 'NL', label: 'Nagaland' },
+    { value: 'OD', label: 'Odisha' },
+    { value: 'PB', label: 'Punjab' },
+    { value: 'RJ', label: 'Rajasthan' },
+    { value: 'SK', label: 'Sikkim' },
+    { value: 'TN', label: 'Tamil Nadu' },
+    { value: 'TR', label: 'Tripura' },
+    { value: 'TS', label: 'Telangana' },
+    { value: 'UK', label: 'Uttarakhand' },
+    { value: 'UP', label: 'Uttar Pradesh' },
+    { value: 'WB', label: 'West Bengal' },
+  ];
 
-    localStorage.setItem('cart', '[]');
-    return [];
-  };
-
-  const syncLocalCart = (items: CartItem[]) => {
-    localStorage.setItem('cart', JSON.stringify(items));
-    window.dispatchEvent(new Event('cart-updated'));
-  };
-
-  const loadDatabaseCart = async (customerId: string) => {
-    const response = await fetch(`/api/cart?customerId=${encodeURIComponent(customerId)}`);
-    if (!response.ok) {
-      const apiError = await response.json().catch(() => ({}));
-      throw new Error(apiError.error || 'Failed to fetch cart');
-    }
-
-    const data = await response.json();
-    const items = (data.items || []) as CartItem[];
-    setCartItems(items);
-    syncLocalCart(items);
-  };
-
+  // Load cart
   useEffect(() => {
     const loadCart = async () => {
       try {
-        if (user?.id) {
-          await loadDatabaseCart(user.id);
-        } else {
-          const cart = getSafeCart();
-          setCartItems(cart);
-          syncLocalCart(cart);
+        setLoading(true);
+        
+        // Check for direct purchase item first (from "Buy Now" button)
+        const directPurchase = sessionStorage.getItem('directPurchaseItem');
+        if (directPurchase) {
+          try {
+            const item = JSON.parse(directPurchase);
+            setCartItems([item]);
+            // Clear the sessionStorage after loading
+            sessionStorage.removeItem('directPurchaseItem');
+            setLoading(false);
+            return;
+          } catch (error) {
+            console.error('Failed to parse direct purchase item:', error);
+          }
         }
-      } catch (error) {
-        console.error('Failed to load cart:', error);
-        const cart = getSafeCart();
-        setCartItems(cart);
-        syncLocalCart(cart);
+
+        // No items found, redirect to products
+        setCartItems([]);
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to load cart:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
     loadCart();
   }, [user?.id]);
 
+  // Handle referral code from URL
   useEffect(() => {
-    const codeFromUrl =
-      searchParams.get('ref') ||
-      searchParams.get('referral') ||
-      searchParams.get('code') ||
-      '';
-
-    const normalizedFromUrl = normalizeReferralCode(codeFromUrl);
-    if (normalizedFromUrl) {
-      setReferralCode(normalizedFromUrl);
-      setReferralFromLink(true);
-      localStorage.setItem('referralCode', normalizedFromUrl);
-      return;
-    }
-
-    const storedReferralCode = normalizeReferralCode(localStorage.getItem('referralCode') || '');
-    if (storedReferralCode) {
-      setReferralCode(storedReferralCode);
-      setReferralFromLink(false);
+    const code = searchParams.get('ref') || searchParams.get('referral') || '';
+    if (code) {
+      setReferralCode(code.toUpperCase());
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    const normalized = normalizeReferralCode(referralCode);
-    if (normalized) {
-      localStorage.setItem('referralCode', normalized);
-    } else {
-      localStorage.removeItem('referralCode');
-    }
-  }, [referralCode]);
-
   // Redirect if not authenticated or cart is empty
   useEffect(() => {
-    if (!user) {
-      router.push('/');
+    if (authLoading) {
       return;
     }
-    if (cartItems.length === 0 && currentStep > 1) {
-      router.push('/cart');
+
+    if (!user) {
+      router.push('/auth/login');
+      return;
     }
-  }, [user, cartItems, currentStep, router]);
 
-  const handleDeliveryDataChange = (field: keyof DeliveryData, value: string) => {
-    setDeliveryData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+    if (cartItems.length === 0 && !loading) {
+      router.push('/products');
+    }
+  }, [authLoading, user, cartItems, loading, router]);
 
-  const validateDeliveryData = () => {
-    if (!deliveryData.name || !deliveryData.phone || !deliveryData.email) {
-      setError('Please fill all required fields');
+  const validateDeliveryData = (): boolean => {
+    if (!deliveryData.name?.trim()) {
+      setError('Please enter your name');
       return false;
     }
-    if (!deliveryData.address || !deliveryData.city || !deliveryData.state || !deliveryData.pincode) {
-      setError('Please fill complete address');
+    if (!deliveryData.phone?.trim()) {
+      setError('Please enter your phone number');
       return false;
     }
-    if (deliveryData.pincode.length !== 6) {
-      setError('Pincode must be 6 digits');
+    if (!/^[0-9]{10}$/.test(deliveryData.phone.replace(/\D/g, ''))) {
+      setError('Please enter a valid 10-digit phone number');
+      return false;
+    }
+    if (!deliveryData.email?.trim()) {
+      setError('Please enter your email address');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!deliveryData.address?.trim()) {
+      setError('Please enter your address');
+      return false;
+    }
+    if (!deliveryData.city?.trim()) {
+      setError('Please enter your city');
+      return false;
+    }
+    if (!deliveryData.state) {
+      setError('Please select your state');
+      return false;
+    }
+    if (!/^[0-9]{6}$/.test(deliveryData.pincode)) {
+      setError('Please enter a valid 6-digit pincode');
       return false;
     }
     return true;
   };
 
-  const handlePaymentSubmit = () => {
-    if (!agreeTerms) {
-      setError('Please accept terms and conditions');
-      return;
-    }
-    setCurrentStep(3);
-  };
-
   const handlePlaceOrder = async () => {
     try {
-      setLoading(true);
       setError(null);
+      setSuccess(null);
 
-      // Validate
-      if (cartItems.length === 0) {
-        throw new Error('Cart is empty');
+      if (!validateDeliveryData()) return;
+      if (!agreeTerms) {
+        setError('Please accept the terms and conditions');
+        return;
       }
 
-      const normalizedReferralCode = normalizeReferralCode(referralCode);
+      setProcessing(true);
 
       const createdOrders: any[] = [];
-      for (let index = 0; index < cartItems.length; index += 1) {
-        const item = cartItems[index];
-        const orderId = `ORD-${Date.now()}-${index + 1}`;
 
-        const response = await fetch('/api/orders', {
+      for (let i = 0; i < cartItems.length; i++) {
+        const item = cartItems[i];
+        const orderId = `ORD-${Date.now()}-${i + 1}`;
+
+        const orderResponse = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -207,7 +231,7 @@ function CheckoutContent() {
             vendorId: item.vendorId,
             productId: item.id,
             quantity: item.quantity,
-            referralCode: normalizedReferralCode || null,
+            referralCode: referralCode || null,
             customerDetails: {
               name: deliveryData.name,
               email: deliveryData.email,
@@ -219,27 +243,23 @@ function CheckoutContent() {
               state: deliveryData.state,
               pincode: deliveryData.pincode,
             },
-            paymentMethod: paymentMethod,
+            paymentMethod,
             orderStatus: 'pending',
           }),
         });
 
-        if (!response.ok) {
-          const responseError = await response.json();
-          const prefix = createdOrders.length > 0
-            ? `${createdOrders.length} item(s) already placed. `
-            : '';
-          throw new Error(prefix + (responseError.error || 'Failed to create order'));
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json();
+          throw new Error(errorData.error || 'Failed to create order');
         }
 
-        const createdOrder = await response.json();
-        console.log('Order created:', createdOrder.id, 'Amount:', createdOrder.final_price);
+        const createdOrder = await orderResponse.json();
         createdOrders.push(createdOrder);
       }
 
-      // Handle payment based on method
+      // Handle payment
       if (paymentMethod === 'cod') {
-        // Cash on Delivery - direct confirmation
+        // Clear cart
         if (user?.id) {
           await fetch('/api/cart', {
             method: 'DELETE',
@@ -251,413 +271,362 @@ function CheckoutContent() {
         window.dispatchEvent(new Event('cart-updated'));
         router.push(`/order-confirmation?orderId=${createdOrders[0].id}`);
       } else {
-        // Online payment - initiate Cashfree payment
-        console.log('Initiating payment for orders:', createdOrders.map(o => ({ id: o.id, amount: o.final_price })));
-        await handleOnlinePayment(createdOrders);
+        // Online payment
+        const totalAmount = createdOrders.reduce(
+          (sum, order) => sum + (Number(order.final_price) || 0),
+          0
+        );
+
+        const paymentPayload = {
+          orderId: createdOrders[0].id,
+          orderAmount: Math.round(totalAmount * 100) / 100,
+          customerName: deliveryData.name,
+          customerEmail: deliveryData.email,
+          customerPhone: deliveryData.phone.replace(/\D/g, ''),
+        };
+
+        const paymentResult = await initiatePayment(paymentPayload);
+
+        if (!paymentResult?.success || !paymentResult?.paymentUrl) {
+          throw new Error(paymentResult?.error || 'Failed to initiate payment');
+        }
+
+        window.location.href = paymentResult.paymentUrl;
       }
     } catch (err) {
       setError((err as Error).message);
-      console.error('Failed to place order:', err);
+      console.error('Checkout error:', err);
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
-  const handleOnlinePayment = async (orders: any[]) => {
-    try {
-      setProcessingPayment(true);
-      
-      const firstOrder = orders[0];
-      const totalAmount = orders.reduce((sum, order) => sum + (Number(order.final_price) || 0), 0);
-
-      console.log('Processing payment for order:', firstOrder.id);
-      console.log('Total amount:', totalAmount, 'from orders:', orders.map(o => ({ id: o.id, final_price: o.final_price })));
-
-      // Validate payment details with detailed error messages
-      if (!deliveryData.name) {
-        throw new Error('Name is required');
-      }
-      if (!deliveryData.email) {
-        throw new Error('Email is required');
-      }
-      if (!deliveryData.phone) {
-        throw new Error('Phone is required');
-      }
-
-      const paymentPayload = {
-        orderId: firstOrder.id,
-        orderAmount: Math.round(totalAmount * 100) / 100,
-        customerName: deliveryData.name,
-        customerEmail: deliveryData.email,
-        customerPhone: deliveryData.phone.replace(/[^0-9]/g, ''),
-      };
-      console.log('Sending payment payload:', paymentPayload);
-
-      // Initiate Cashfree payment
-      const paymentResult = await initiatePayment(paymentPayload);
-
-      if (!paymentResult?.success || !paymentResult?.paymentUrl) {
-        throw new Error(paymentResult?.error || 'Failed to initiate payment');
-      }
-
-      // Redirect to Cashfree payment gateway
-      setError(null);
-      redirectToPayment(paymentResult.paymentUrl);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Payment initiation failed';
-      setError(errorMessage);
-      console.error('Payment error:', err);
-      setProcessingPayment(false);
-    }
-  };
-
-  const calculateTotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
-
-  const subtotal = calculateTotal();
-  const deliveryCharges = 0;
-  const total = subtotal + deliveryCharges;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-3 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-gray-300">Loading checkout...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
+    return null;
+  }
+
+  if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Redirecting to login...</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950">
+        <div className="max-w-lg mx-auto px-4 py-8">
+          <EmptyState
+            icon={<ShoppingBag className="w-16 h-16" />}
+            title="Cart is Empty"
+            description="Add some products to your cart to checkout"
+            action={{
+              label: 'Continue Shopping',
+              onClick: () => router.push('/products'),
+            }}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                    currentStep >= step
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-300 text-gray-600'
-                  }`}
-                >
-                  {step}
-                </div>
-                {step < 3 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 ${
-                      currentStep > step ? 'bg-primary' : 'bg-gray-300'
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span className={currentStep >= 1 ? 'text-gray-900 font-semibold' : ''}>
-              Delivery Address
-            </span>
-            <span className={currentStep >= 2 ? 'text-gray-900 font-semibold' : ''}>
-              Payment Method
-            </span>
-            <span className={currentStep >= 3 ? 'text-gray-900 font-semibold' : ''}>
-              Review Order
-            </span>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950 pb-20 md:pb-8">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            {step === 'review' ? 'Order Review' : 'Complete Payment'}
+          </h1>
+          <p className="text-gray-400 mt-2">
+            {step === 'review'
+              ? 'Review your order and enter delivery details'
+              : 'Choose payment method and confirm'}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Step 1: Delivery Address */}
-            {currentStep === 1 && (
-              <div className="bg-white rounded-lg p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Delivery Address</h2>
+        {/* Error & Success Alerts */}
+        {error && (
+          <AlertBanner
+            variant="error"
+            message={error}
+            onClose={() => setError(null)}
+          />
+        )}
+        {success && (
+          <AlertBanner
+            variant="success"
+            message={success}
+            onClose={() => setSuccess(null)}
+          />
+        )}
 
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Full Name *"
-                      value={deliveryData.name}
-                      onChange={(e) => handleDeliveryDataChange('name', e.target.value)}
-                      className="col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="tel"
-                      placeholder="Phone Number *"
-                      value={deliveryData.phone}
-                      onChange={(e) => handleDeliveryDataChange('phone', e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email *"
-                      value={deliveryData.email}
-                      onChange={(e) => handleDeliveryDataChange('email', e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <input
-                    type="text"
-                    placeholder="Street Address *"
-                    value={deliveryData.address}
-                    onChange={(e) => handleDeliveryDataChange('address', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <input
-                      type="text"
-                      placeholder="City *"
-                      value={deliveryData.city}
-                      onChange={(e) => handleDeliveryDataChange('city', e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <input
-                      type="text"
-                      placeholder="State *"
-                      value={deliveryData.state}
-                      onChange={(e) => handleDeliveryDataChange('state', e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Pincode *"
-                      value={deliveryData.pincode}
-                      onChange={(e) => handleDeliveryDataChange('pincode', e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
-
-                  <button
-                    onClick={() => {
-                      if (validateDeliveryData()) {
-                        setError(null);
-                        setCurrentStep(2);
-                      }
-                    }}
-                    className="btn btn-primary w-full py-3 flex items-center justify-center gap-2"
-                  >
-                    Continue to Payment <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+        {step === 'review' ? (
+          // REVIEW STEP
+          <div className="space-y-6">
+            {/* Order Items */}
+            <Card>
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-800">
+                <h2 className="text-lg font-bold text-white">Your Items</h2>
+                <span className="text-primary-400 font-semibold">{cartItems.length} item(s)</span>
               </div>
-            )}
-
-            {/* Step 2: Payment Method */}
-            {currentStep === 2 && (
-              <div className="bg-white rounded-lg p-6 border border-slate-700/70 shadow-lg shadow-slate-950/30">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Payment Method</h2>
-
-                <div className="space-y-4 mb-6">
-                  {[
-                    { value: 'cod', label: 'Cash on Delivery', icon: '💵' },
-                    { value: 'upi', label: 'UPI (GPay, PhonePe, Paytm)', icon: '📱' },
-                    { value: 'card', label: 'Credit/Debit Card', icon: '💳' },
-                    { value: 'netbanking', label: 'Net Banking', icon: '🏦' },
-                    { value: 'wallet', label: 'Digital Wallets', icon: '👛' },
-                  ].map((method) => (
-                    <label
-                      key={method.value}
-                      className={`group flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        paymentMethod === method.value
-                          ? 'border-emerald-500/80 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_8px_20px_rgba(16,185,129,0.1)]'
-                          : 'border-slate-700 bg-slate-900/35 hover:border-slate-500 hover:bg-slate-800/45'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment"
-                        value={method.value}
-                        checked={paymentMethod === method.value}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="w-4 h-4 accent-emerald-500"
-                      />
-                      <span className="text-xl ml-3">{method.icon}</span>
-                      <span className={`ml-3 font-semibold ${paymentMethod === method.value ? 'text-emerald-200' : 'text-slate-200'}`}>
-                        {method.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="mb-6 p-4 rounded-xl border border-slate-700 bg-slate-900/40">
-                  <label className="block text-sm font-semibold text-slate-100 mb-2">
-                    Referral Code (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={referralCode}
-                    onChange={(e) => {
-                      setReferralCode(e.target.value);
-                      if (referralFromLink) {
-                        setReferralFromLink(false);
-                      }
-                    }}
-                    placeholder="Enter referral code"
-                    maxLength={20}
-                    className="w-full px-4 py-2 border border-slate-600 rounded-lg bg-slate-950/60 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  {referralFromLink && referralCode && (
-                    <p className="text-xs text-emerald-300 mt-2">
-                      Referral detected from your link and auto-filled.
-                    </p>
-                  )}
-                </div>
-
-                {/* Terms */}
-                <label className="flex items-start mb-6 rounded-lg border border-slate-700 bg-slate-900/35 p-3">
-                  <input
-                    type="checkbox"
-                    checked={agreeTerms}
-                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="w-4 h-4 mt-1 accent-emerald-500"
-                  />
-                  <span className="ml-3 text-slate-300 text-sm">
-                    I agree to the terms and conditions and privacy policy
-                  </span>
-                </label>
-
-                {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setCurrentStep(1)}
-                    className="btn btn-outline flex-1 py-3"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handlePaymentSubmit}
-                    className="btn btn-primary flex-1 py-3 flex items-center justify-center gap-2"
-                  >
-                    Review Order <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Review Order */}
-            {currentStep === 3 && (
-              <div className="bg-white rounded-lg p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Review Your Order</h2>
-
-                {/* Items */}
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900 mb-4">Order Items</h3>
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex justify-between py-2">
-                      <span className="text-gray-600">
-                        {item.name} x {item.quantity}
-                      </span>
-                      <span className="font-semibold">{formatCurrency(item.price * item.quantity)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Address */}
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900 mb-2">Delivery To</h3>
-                  <p className="text-gray-600">
-                    {deliveryData.name}, {deliveryData.phone} <br />
-                    {deliveryData.address}, {deliveryData.city}, {deliveryData.state} {deliveryData.pincode}
-                  </p>
-                </div>
-
-                {/* Payment */}
-                <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-2">Payment Method</h3>
-                  <p className="text-gray-600 capitalize">
-                    {paymentMethod === 'cod'
-                      ? 'Cash on Delivery'
-                      : paymentMethod === 'upi'
-                        ? 'UPI'
-                        : paymentMethod === 'card'
-                          ? 'Card'
-                          : 'Other'}
-                  </p>
-                </div>
-
-                {referralCode && (
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-gray-900 mb-2">Referral Code</h3>
-                    <p className="text-gray-600">{normalizeReferralCode(referralCode)}</p>
-                  </div>
-                )}
-
-                {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="btn btn-outline flex-1 py-3"
-                    disabled={loading || processingPayment}
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handlePlaceOrder}
-                    disabled={loading || processingPayment}
-                    className="btn btn-primary flex-1 py-3 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading || processingPayment ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        {processingPayment ? 'Redirecting to Payment...' : 'Placing Order...'}
-                      </>
-                    ) : (
-                      <>
-                        {paymentMethod === 'cod' ? 'Place Order' : 'Proceed to Payment'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Order Summary Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg p-6 sticky top-20">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h3>
-
-              <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
+              <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      {item.name} x{item.quantity}
-                    </span>
-                    <span className="font-semibold">{formatCurrency(item.price * item.quantity)}</span>
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between pb-3 border-b border-gray-800 last:border-0"
+                  >
+                    <div>
+                      <p className="text-white font-medium">{item.name}</p>
+                      <p className="text-sm text-gray-400">QTY: {item.quantity}</p>
+                    </div>
+                    <p className="text-white font-semibold">
+                      ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                    </p>
                   </div>
                 ))}
               </div>
+            </Card>
 
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-gray-600">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
+            {/* Order Summary */}
+            <Card>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Subtotal</span>
+                  <span className="text-white">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Delivery</span>
-                  <span>{deliveryCharges === 0 ? 'FREE' : formatCurrency(deliveryCharges)}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Delivery Charges</span>
+                  <span className={`${deliveryCharges === 0 ? 'text-green-400' : 'text-white'}`}>
+                    {deliveryCharges === 0 ? 'FREE' : `₹${deliveryCharges}`}
+                  </span>
+                </div>
+                <div className="pt-3 border-t border-gray-800 flex items-center justify-between">
+                  <span className="text-white font-bold">Total</span>
+                  <span className="text-2xl font-bold text-primary-400">
+                    ₹{total.toLocaleString('en-IN')}
+                  </span>
                 </div>
               </div>
+            </Card>
 
-              <div className="border-t pt-4 flex justify-between items-center">
-                <span className="font-bold text-gray-900">Total</span>
-                <span className="text-2xl font-bold text-primary">{formatCurrency(total)}</span>
+            {/* Delivery Details */}
+            <Card>
+              <div className="mb-4 pb-4 border-b border-gray-800">
+                <h3 className="text-lg font-bold text-white">Delivery Details</h3>
               </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Name *</label>
+                    <Input
+                      value={deliveryData.name}
+                      onChange={(e) =>
+                        setDeliveryData({ ...deliveryData, name: e.target.value })
+                      }
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Phone *</label>
+                    <Input
+                      value={deliveryData.phone}
+                      onChange={(e) =>
+                        setDeliveryData({ ...deliveryData, phone: e.target.value })
+                      }
+                      placeholder="10-digit number"
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Email *</label>
+                  <Input
+                    type="email"
+                    value={deliveryData.email}
+                    onChange={(e) =>
+                      setDeliveryData({ ...deliveryData, email: e.target.value })
+                    }
+                    placeholder="your@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Address *</label>
+                  <Input
+                    value={deliveryData.address}
+                    onChange={(e) =>
+                      setDeliveryData({ ...deliveryData, address: e.target.value })
+                    }
+                    placeholder="Street address"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">City *</label>
+                    <Input
+                      value={deliveryData.city}
+                      onChange={(e) =>
+                        setDeliveryData({ ...deliveryData, city: e.target.value })
+                      }
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Pincode *</label>
+                    <Input
+                      value={deliveryData.pincode}
+                      onChange={(e) =>
+                        setDeliveryData({ ...deliveryData, pincode: e.target.value })
+                      }
+                      placeholder="6-digit code"
+                      maxLength={6}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">State *</label>
+                  <Select
+                    options={S}
+                    value={deliveryData.state}
+                    onChange={(e) =>
+                      setDeliveryData({ ...deliveryData, state: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Referral Code */}
+            <Card>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Referral Code (Optional)</label>
+                <Input
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="Enter referee code"
+                />
+              </div>
+            </Card>
+
+            {/* Next Button */}
+            <Button
+              onClick={() => {
+                if (validateDeliveryData()) {
+                  setStep('payment');
+                }
+              }}
+              fullWidth
+              size="lg"
+              disabled={processing}
+            >
+              Continue to Payment
+            </Button>
+          </div>
+        ) : (
+          // PAYMENT STEP
+          <div className="space-y-6">
+            {/* Order Summary (Compact) */}
+            <Card>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">{cartItems.length} item(s) - Total</span>
+                <span className="text-2xl font-bold text-primary-400">
+                  ₹{total.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </Card>
+
+            {/* Payment Method */}
+            <Card>
+              <div className="mb-4 pb-4 border-b border-gray-800">
+                <h3 className="text-lg font-bold text-white">Payment Method</h3>
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center p-4 border border-gray-700 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-gray-800/50 transition"
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="online"
+                    checked={paymentMethod === 'online'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-4 h-4 text-primary-500"
+                  />
+                  <span className="ml-3">
+                    <p className="font-medium text-white">Card / UPI / Wallet</p>
+                    <p className="text-xs text-gray-400 mt-1">Powered by Cashfree</p>
+                  </span>
+                </label>
+
+                <label className="flex items-center p-4 border border-gray-700 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-gray-800/50 transition"
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="cod"
+                    checked={paymentMethod === 'cod'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-4 h-4 text-primary-500"
+                  />
+                  <span className="ml-3">
+                    <p className="font-medium text-white">Cash on Delivery</p>
+                    <p className="text-xs text-gray-400 mt-1">Pay when you receive the order</p>
+                  </span>
+                </label>
+              </div>
+            </Card>
+
+            {/* Delivery Address Summary */}
+            <Card>
+              <div className="mb-4 pb-4 border-b border-gray-800">
+                <h3 className="text-lg font-bold text-white">Delivery To</h3>
+              </div>
+              <div className="text-sm space-y-1">
+                <p className="text-white font-medium">{deliveryData.name}</p>
+                <p className="text-gray-400">{deliveryData.phone}</p>
+                <p className="text-gray-400">{deliveryData.email}</p>
+                <p className="text-gray-400 mt-2">
+                  {deliveryData.address}, {deliveryData.city}, {deliveryData.state} {deliveryData.pincode}
+                </p>
+              </div>
+            </Card>
+
+            {/* Terms Checkbox */}
+            <Checkbox
+              label="I agree to the Terms & Conditions and Privacy Policy"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+            />
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setStep('review')}
+                variant="ghost"
+                fullWidth
+                disabled={processing}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handlePlaceOrder}
+                fullWidth
+                size="lg"
+                isLoading={processing}
+                disabled={!agreeTerms}
+              >
+                {processing ? 'Processing...' : `Pay ₹${total.toLocaleString('en-IN')}`}
+              </Button>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -667,8 +636,11 @@ export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">Loading checkout...</p>
+        <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-primary-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-300">Loading...</p>
+          </div>
         </div>
       }
     >

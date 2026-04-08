@@ -1,17 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { LogOut, Save, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Save, Home, Lock, Mail } from 'lucide-react';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Button,
+  Input,
+  AlertBanner,
+} from '@/components/customer';
 
 export default function CustomerSettings() {
   const router = useRouter();
-  const { user, isLoading, updateUser, logout } = useAuth();
+  const { user, isLoading, logout, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,6 +29,7 @@ export default function CustomerSettings() {
   useEffect(() => {
     if (!isLoading && user?.role !== 'customer') {
       router.push('/');
+      return;
     }
 
     if (user) {
@@ -32,32 +41,48 @@ export default function CustomerSettings() {
     }
   }, [user, isLoading, router]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-
+  const handleUpdateProfile = async () => {
     try {
-      if (!formData.name.trim()) {
-        throw new Error('Name is required');
+      setError(null);
+      setSuccess(null);
+
+      if (!formData.name?.trim()) {
+        setError('Name is required');
+        return;
       }
 
+      if (!formData.email?.trim()) {
+        setError('Email is required');
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
+
+      if (!formData.phone?.trim()) {
+        setError('Phone number is required');
+        return;
+      }
+
+      if (!/^[0-9]{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+        setError('Please enter a valid 10-digit phone number');
+        return;
+      }
+
+      setLoading(true);
+
+      // In a real app, this would update the database
+      // For now, we'll just update the local state
       updateUser({
         name: formData.name,
+        email: formData.email,
         phone: formData.phone,
       });
 
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setSuccess('Profile updated successfully!');
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -66,7 +91,7 @@ export default function CustomerSettings() {
   };
 
   const handleLogout = () => {
-    if (confirm('Are you sure you want to logout?')) {
+    if (confirm('Are you sure you want to log out?')) {
       logout();
       router.push('/');
     }
@@ -74,8 +99,11 @@ export default function CustomerSettings() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-3 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-gray-300">Loading settings...</p>
+        </div>
       </div>
     );
   }
@@ -85,163 +113,150 @@ export default function CustomerSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-920 to-gray-950">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/customer/dashboard" className="text-primary hover:underline mb-4 inline-flex items-center gap-1">
-            <Home className="w-4 h-4" /> Back to Dashboard
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Settings</h1>
-          <p className="text-gray-600">Manage your account and preferences</p>
+          <h1 className="text-3xl font-bold text-white">Account Settings</h1>
+          <p className="text-gray-400 mt-2">Manage your account information and preferences</p>
         </div>
 
-        {/* Error Alert */}
+        {/* Alerts */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
+          <div className="mb-6">
+            <AlertBanner
+              variant="error"
+              message={error}
+              onClose={() => setError(null)}
+            />
           </div>
         )}
 
-        {/* Success Alert */}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-600 p-4 rounded-lg mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>Profile updated successfully!</p>
+          <div className="mb-6">
+            <AlertBanner
+              variant="success"
+              message={success}
+              onClose={() => setSuccess(null)}
+            />
           </div>
         )}
 
-        {/* Profile Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
+        <div className="space-y-6">
+          {/* Profile Information */}
+          <Card>
+            <CardHeader title="Profile Information" subtitle="Update your personal details" />
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Full Name</label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder="Your full name"
+                />
+              </div>
 
-          <form onSubmit={handleSaveProfile} className="space-y-6">
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Your display name across the platform</p>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Email Address</label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  placeholder="your@email.com"
+                />
+              </div>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <Mail className="w-4 h-4" /> Email Address
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-              />
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed. Contact support if needed.</p>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Phone Number</label>
+                <Input
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  placeholder="10-digit number"
+                  maxLength={10}
+                />
+              </div>
 
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="Phone number"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Optional - for order notifications</p>
-            </div>
+              <div className="pt-4 border-t border-gray-800 flex gap-3">
+                <Button
+                  onClick={handleUpdateProfile}
+                  isLoading={loading}
+                  icon={<Save className="w-4 h-4" />}
+                  fullWidth
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Save Button */}
-            <div className="flex gap-4 pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
-              >
-                <Save className="w-5 h-5" />
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Account Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Security</h2>
-
-          <div className="space-y-6">
-            {/* Change Password */}
-            <div>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <Lock className="w-5 h-5 text-gray-400 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Change Password</h3>
-                    <p className="text-sm text-gray-600 mt-1">Update your account password</p>
+          {/* Account Status */}
+          <Card>
+            <CardHeader title="Account Status" />
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                  <p className="text-sm text-gray-400 mb-1">Account Status</p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-white font-medium">Active</span>
                   </div>
                 </div>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                  Update
-                </button>
-              </div>
-            </div>
 
-            <hr className="my-6" />
-
-            {/* Account Info */}
-            <div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">Account Type</h3>
-                  <p className="text-sm text-gray-600 mt-1">Customer Account</p>
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                  <p className="text-sm text-gray-400 mb-1">Verification Status</p>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span className="text-white font-medium">
+                      {user.isVerified ? 'Verified' : 'Unverified'}
+                    </span>
+                  </div>
                 </div>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                  Active
-                </span>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Danger Zone */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-red-900 mb-6">Danger Zone</h2>
-
-          <div className="space-y-4">
-            {/* Logout */}
-            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Logout From All Devices</h3>
-                <p className="text-sm text-gray-600 mt-1">Sign out from your account</p>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Member Since</label>
+                <p className="text-white">
+                  {new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </p>
               </div>
-              <button
+            </CardContent>
+          </Card>
+
+          {/* Quick Links */}
+          <Card className="hover:shadow-lg transition cursor-pointer">
+            <a href="/customer/dashboard" className="block">
+              <h3 className="text-lg font-bold text-white mb-1">My Orders</h3>
+              <p className="text-sm text-gray-400">View and track your orders</p>
+            </a>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-red-800 bg-red-900/10">
+            <CardHeader
+              title="Danger Zone"
+              subtitle="Irreversible and destructive actions"
+            />
+            <CardContent>
+              <Button
                 onClick={handleLogout}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+                variant="danger"
+                icon={<LogOut className="w-4 h-4" />}
+                fullWidth
               >
-                Logout
-              </button>
-            </div>
-
-            <hr className="my-4" />
-
-            {/* Delete Account */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Delete Account</h3>
-                <p className="text-sm text-gray-600 mt-1">Permanently delete your account and data</p>
-              </div>
-              <button className="px-6 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-semibold">
-                Delete
-              </button>
-            </div>
-          </div>
+                Log Out
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

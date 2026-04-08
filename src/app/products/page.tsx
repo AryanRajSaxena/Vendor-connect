@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ShoppingCart, ChevronDown, Search, Package } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
-import { showCartToast } from '@/components/shared/CartToast';
 
 interface Product {
   id: string;
@@ -39,24 +38,7 @@ function ProductsContent() {
   const [activeReferralCode, setActiveReferralCode] = useState<string>('');
   const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
-  const getSafeCart = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Invalid cart in localStorage, resetting cart.', error);
-    }
 
-    localStorage.setItem('cart', '[]');
-    return [];
-  };
-
-  const syncLocalCart = (cart: any[]) => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('cart-updated'));
-  };
 
   const sortOptions = [
     { value: 'relevance', label: 'Relevance' },
@@ -138,73 +120,7 @@ function ProductsContent() {
     product.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
   );
 
-  const handleAddToCart = (product: Product) => {
-    if (isGuestVendorOrSeller) {
-      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
-      return;
-    }
 
-    const addToLocalCart = () => {
-      const cart = getSafeCart();
-      const existingItem = cart.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity += 1;
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.base_price,
-          quantity: 1,
-          image: product.images?.[0] || '📦',
-          vendorId: product.vendor_id,
-        });
-      }
-
-      syncLocalCart(cart);
-    };
-
-    if (!user?.id) {
-      try {
-        addToLocalCart();
-        showCartToast('Product added to cart!');
-      } catch (error) {
-        console.error('Failed to add to cart:', error);
-      }
-      return;
-    }
-
-    (async () => {
-      try {
-        const response = await fetch('/api/cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: user.id,
-            productId: product.id,
-            quantity: 1,
-          }),
-        });
-
-        if (!response.ok) {
-          const apiError = await response.json().catch(() => ({}));
-          throw new Error(apiError.error || 'Failed to add to database cart');
-        }
-
-        const data = await response.json();
-        syncLocalCart(data.items || []);
-        showCartToast('Product added to cart!');
-      } catch (error) {
-        console.error('Failed to add to database cart, falling back to local cart:', error);
-        try {
-          addToLocalCart();
-          showCartToast('Product added to cart!');
-        } catch (fallbackError) {
-          console.error('Failed to add to fallback local cart:', fallbackError);
-        }
-      }
-    })();
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -319,11 +235,11 @@ function ProductsContent() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 mt-auto">
+                        <div className="mt-auto">
                           {isUnauthenticated ? (
                             <span
                               aria-disabled="true"
-                              className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800/40 text-slate-500 cursor-not-allowed py-2.5 text-sm font-medium"
+                              className="inline-flex items-center justify-center w-full rounded-lg border border-slate-700 bg-slate-800/40 text-slate-500 cursor-not-allowed py-2.5 text-sm font-medium"
                             >
                               View Details
                             </span>
@@ -340,23 +256,12 @@ function ProductsContent() {
                                 const query = detailParams.toString();
                                 return query ? `?${query}` : '';
                               })()}`}
-                              className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
+                              className="inline-flex items-center justify-center w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 py-2.5 text-sm font-medium transition-colors"
                             >
-                              View Details
+                              <ShoppingCart className="w-4 h-4 mr-2" />
+                              Buy Now
                             </Link>
                           )}
-                          <button
-                            onClick={() => handleAddToCart(product)}
-                            disabled={isGuestVendorOrSeller}
-                            className={`inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
-                              isGuestVendorOrSeller
-                                ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
-                                : 'bg-emerald-600 text-white hover:bg-emerald-500'
-                            }`}
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                            {isGuestVendorOrSeller ? 'Add to Cart' : 'Add'}
-                          </button>
                         </div>
                       </div>
                     </div>

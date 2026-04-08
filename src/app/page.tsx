@@ -27,7 +27,7 @@ export default function HomePage() {
     return () => window.removeEventListener('landingRole-updated', handleRoleUpdate);
   }, []);
 
-  // Redirect non-customer users to their dashboards
+  // Redirect users to their dashboards
   useEffect(() => {
     if (!isLoading && user) {
       switch (user.role) {
@@ -37,8 +37,8 @@ export default function HomePage() {
         case 'seller':
           router.push('/seller/dashboard');
           return;
-        case 'admin':
-          router.push('/admin/dashboard');
+        case 'customer':
+          router.push('/products');
           return;
       }
     }
