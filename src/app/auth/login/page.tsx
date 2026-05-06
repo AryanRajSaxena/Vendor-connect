@@ -48,18 +48,21 @@ export default function LoginPage() {
       await login(formData.email, formData.password);
       setSuccessMessage('Login successful! Redirecting...');
       
-      setTimeout(() => {
-        const storedAuth = localStorage.getItem('auth');
-        if (storedAuth) {
-          try {
-            const user = JSON.parse(storedAuth);
-            const redirectPath = getRolePath(user.role);
-            router.push(redirectPath);
-          } catch {
-            window.location.reload();
-          }
+      // Get user data from localStorage immediately after login
+      const storedAuth = localStorage.getItem('auth_user');
+      if (storedAuth) {
+        try {
+          const user = JSON.parse(storedAuth);
+          const redirectPath = getRolePath(user.role);
+          // Use window.location.href for immediate redirect
+          window.location.href = redirectPath;
+        } catch (error) {
+          console.error('Error parsing auth data:', error);
+          setError('Login successful but redirect failed. Please try again.');
         }
-      }, 500);
+      } else {
+        setError('Login successful but session not found. Please try again.');
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {
