@@ -5,7 +5,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidEmail } from '@/utils/auth';
-import { Mail, Lock, User, Phone, Building2, FileText, TrendingUp, Zap, Shield, ArrowRight } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  User,
+  Phone,
+  Building2,
+  FileText,
+  ArrowRight,
+  GraduationCap,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+  CheckCircle2,
+} from 'lucide-react';
 
 function SignupContent() {
   const router = useRouter();
@@ -37,6 +50,13 @@ function SignupContent() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
+  };
+
+  const getErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return 'An error occurred';
   };
 
   const validateForm = () => {
@@ -99,329 +119,275 @@ function SignupContent() {
         const redirectPath = role === 'vendor' ? '/vendor/dashboard' : '/seller/dashboard';
         router.push(redirectPath);
       }, 500);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const focusBg = 'focus:border-violet-500/50 focus:ring-violet-500/20';
+  const focusBg = 'focus:border-sky-500/60 focus:ring-sky-500/20';
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 flex-col justify-between p-12 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl -mr-48 -mt-48"></div>
-        <div className={`absolute bottom-0 left-0 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl -ml-48 -mb-48`}></div>
+    <div className="min-h-screen bg-[#08131c] text-slate-100 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(22,163,74,0.22),transparent_35%),radial-gradient(circle_at_85%_12%,rgba(14,165,233,0.2),transparent_35%),radial-gradient(circle_at_60%_85%,rgba(249,115,22,0.16),transparent_30%)]" />
 
-        {/* Logo/Branding */}
-        <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-2 mb-12">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-emerald-500 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
+      <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="hidden lg:flex p-12 xl:p-16 flex-col">
+          <Link href="/" className="inline-flex items-center gap-3 mb-14">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 flex items-center justify-center shadow-lg shadow-sky-500/20">
+              <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-white">Agent Croww</span>
+            <span className="text-2xl brand-money-font text-white">Agent Croww</span>
           </Link>
 
-          <div className="space-y-8">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                {role === 'vendor' ? 'Start Selling' : 'Become a Seller'}
-              </h1>
-              <p className="text-lg text-slate-300">
-                {role === 'vendor' 
-                  ? 'List your products and reach thousands of customers'
-                  : 'Earn commissions by promoting products'}
-              </p>
-            </div>
-
-            {/* Features List */}
-            <div className="space-y-4 pt-8">
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Zap className="w-3 h-3 text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-white font-semibold">Quick Setup</p>
-                  <p className="text-sm text-slate-400">Get your account ready in minutes</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-violet-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                  <TrendingUp className="w-3 h-3 text-violet-400" />
-                </div>
-                <div>
-                  <p className="text-white font-semibold">Grow Your Income</p>
-                  <p className="text-sm text-slate-400">
-                    {role === 'vendor' 
-                      ? 'List unlimited products and maximize revenue'
-                      : 'Unlimited earning potential on every sale'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-cyan-500/30 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Shield className="w-3 h-3 text-cyan-400" />
-                </div>
-                <div>
-                  <p className="text-white font-semibold">Secure & Transparent</p>
-                  <p className="text-sm text-slate-400">Real-time tracking and secure payments</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Quote */}
-        <div className="relative z-10">
-          <p className="text-slate-400 italic">
-            {role === 'vendor'
-              ? '"Agent Croww helped us scale from 0 to 10K orders in just 6 months."'
-              : '"I earn ₹50K+ monthly just by promoting quality products."'}
-          </p>
-          <p className="text-sm text-slate-500 mt-3">
-            {role === 'vendor' ? '— Success Vendor' : '— Top Seller'}
-          </p>
-        </div>
-      </div>
-
-      {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 bg-slate-950 flex items-center justify-center p-6">
-        <div className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-          {/* Mobile Header */}
-          <div className="lg:hidden mb-8">
-            <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-emerald-500 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-white">Agent Croww</span>
-            </Link>
-            <h1 className="text-3xl font-bold text-white">
-              {role === 'vendor' ? 'Start Selling' : 'Become a Seller'}
+          <div className="max-w-xl">
+            <p className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-400/30 text-emerald-200 text-sm bg-emerald-500/10">
+              <Sparkles className="w-4 h-4" />
+              Build your course commerce engine
+            </p>
+            <h1 className="mt-6 text-5xl leading-tight tracking-tight font-semibold text-white" style={{ fontFamily: 'Outfit, Inter, sans-serif' }}>
+              {role === 'vendor' ? 'Create your vendor account.' : 'Create your seller account.'}
             </h1>
-            <p className="text-slate-400 mt-2">Create your account now</p>
+            <p className="mt-5 text-lg text-slate-300">
+              {role === 'vendor'
+                ? 'Publish and sell your courses with full control over catalog and pricing.'
+                : 'Promote high-converting courses and earn transparent commissions.'}
+            </p>
+
+            <div className="mt-10 grid grid-cols-1 gap-4">
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-900/55 p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-300 flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-100">Course-ready storefront</p>
+                  <p className="text-sm text-slate-400">Launch products fast and optimize your listing quality.</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-900/55 p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-100">Predictable earnings</p>
+                  <p className="text-sm text-slate-400">Payout tracking and attribution for every successful order.</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-900/55 p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-300 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-100">Secure onboarding</p>
+                  <p className="text-sm text-slate-400">Identity details stay protected with strict account controls.</p>
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
-            {error && (
-              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 animate-slide-down">
-                <p className="text-red-300 text-sm font-medium">{error}</p>
-              </div>
-            )}
-
-            {/* Success Message */}
-            {successMessage && (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 animate-slide-down">
-                <p className="text-emerald-300 text-sm font-medium">{successMessage}</p>
-              </div>
-            )}
-
-            {/* Role Selection */}
-            <div>
-              <label className="text-sm font-semibold text-slate-200 mb-3 block">I am a:</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(['vendor', 'seller'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`py-3 px-4 rounded-xl border-2 transition-all font-semibold ${
-                      role === r
-                        ? 'border-violet-500 bg-violet-500/10 text-violet-300 shadow-lg shadow-violet-500/20'
-                        : 'border-slate-700 text-slate-300 hover:border-slate-600 bg-slate-900/50'
-                    }`}
-                  >
-                    {r === 'vendor' ? '🏪 Vendor' : '📢 Seller'}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-slate-500 mt-2">
-                {role === 'vendor' 
-                  ? 'List your own products directly' 
-                  : 'Promote and earn commissions'}
-              </p>
-            </div>
-
-            {/* Email Input */}
-            <div>
-              <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="you@example.com"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Full Name Input */}
-            <div>
-              <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="John Doe"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Phone Input */}
-            <div>
-              <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Phone Number</label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="9876543210"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Business Name (Vendor only) */}
-            {role === 'vendor' && (
-              <div>
-                <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Business Name</label>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    name="businessName"
-                    value={formData.businessName}
-                    onChange={handleInputChange}
-                    placeholder="Your Business Pvt Ltd"
-                    className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                    disabled={isLoading}
-                  />
+        <section className="p-5 sm:p-8 lg:p-12 flex items-center justify-center">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700/70 bg-slate-900/70 backdrop-blur-xl p-6 sm:p-8 shadow-[0_22px_70px_rgba(2,6,23,0.55)] max-h-[92vh] overflow-y-auto">
+            <div className="lg:hidden mb-7">
+              <Link href="/" className="inline-flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 text-white" />
                 </div>
-              </div>
-            )}
-
-            {/* GST Number (Vendor only) */}
-            {role === 'vendor' && (
-              <div>
-                <label className="text-sm font-semibold text-slate-200 mb-2.5 block">GST Number</label>
-                <div className="relative">
-                  <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    name="gstNumber"
-                    value={formData.gstNumber}
-                    onChange={handleInputChange}
-                    placeholder="22AAAAA0000A1Z5"
-                    className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* PAN Number (Seller only) */}
-            {role === 'seller' && (
-              <div>
-                <label className="text-sm font-semibold text-slate-200 mb-2.5 block">PAN Number</label>
-                <div className="relative">
-                  <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    name="panNumber"
-                    value={formData.panNumber}
-                    onChange={handleInputChange}
-                    placeholder="ABCDE1234F"
-                    className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Password Input */}
-            <div>
-              <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="••••••••"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
-                  disabled={isLoading}
-                />
-              </div>
-              <p className="text-xs text-slate-500 mt-2">Minimum 6 characters</p>
+                <span className="text-xl brand-money-font text-white">Agent Croww</span>
+              </Link>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-600/20"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Creating account...
-                </>
-              ) : (
-                <>
-                  Create Account
-                  <ArrowRight className="w-4 h-4" />
-                </>
+            <div>
+              <h2 className="text-3xl font-semibold text-white" style={{ fontFamily: 'Outfit, Inter, sans-serif' }}>Create Account</h2>
+              <p className="text-slate-400 mt-2">Start selling or promoting courses in minutes.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              {error && (
+                <div className="p-3.5 rounded-xl bg-red-500/12 border border-red-400/30 animate-slide-down">
+                  <p className="text-red-200 text-sm font-medium">{error}</p>
+                </div>
               )}
-            </button>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-slate-800"></div>
-              <span className="text-xs text-slate-500">OR</span>
-              <div className="flex-1 h-px bg-slate-800"></div>
-            </div>
+              {successMessage && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/12 border border-emerald-400/30 animate-slide-down">
+                  <p className="text-emerald-200 text-sm font-medium">{successMessage}</p>
+                </div>
+              )}
 
-            {/* Login Link */}
-            <div className="text-center pt-2">
-              <p className="text-slate-400">
-                Already have an account?{' '}
-                <Link href="/auth/login" className="font-semibold text-violet-400 hover:text-violet-300 transition-colors">
-                  Sign in
-                </Link>
-              </p>
-            </div>
-          </form>
+              <div>
+                <label className="text-sm font-semibold text-slate-200 mb-2.5 block">Choose Role</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['vendor', 'seller'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      className={`py-3 px-4 rounded-xl border transition-all font-semibold ${
+                        role === r
+                          ? 'border-sky-400/70 bg-sky-500/15 text-sky-200 shadow-md shadow-sky-500/10'
+                          : 'border-slate-700 text-slate-300 hover:border-slate-500 bg-slate-950/60'
+                      }`}
+                    >
+                      {r === 'vendor' ? 'Vendor' : 'Seller'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {role === 'vendor' ? 'Sell your own courses and digital products.' : 'Promote marketplace courses for commission.'}
+                </p>
+              </div>
 
-          {/* Footer Text */}
-          <p className="text-xs text-slate-500 text-center mt-8">
-            By creating an account, you agree to our{' '}
-            <Link href="#" className="text-slate-400 hover:text-slate-300 transition-colors">
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="#" className="text-slate-400 hover:text-slate-300 transition-colors">
-              Privacy Policy
-            </Link>
-          </p>
-        </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-200 mb-2 block">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="you@example.com"
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-200 mb-2 block">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="John Doe"
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-200 mb-2 block">Phone Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="9876543210"
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              {role === 'vendor' && (
+                <div>
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">Business Name</label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      name="businessName"
+                      value={formData.businessName}
+                      onChange={handleInputChange}
+                      placeholder="Your Business Pvt Ltd"
+                      className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {role === 'vendor' && (
+                <div>
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">GST Number</label>
+                  <div className="relative">
+                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      name="gstNumber"
+                      value={formData.gstNumber}
+                      onChange={handleInputChange}
+                      placeholder="22AAAAA0000A1Z5"
+                      className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {role === 'seller' && (
+                <div>
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">PAN Number</label>
+                  <div className="relative">
+                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      name="panNumber"
+                      value={formData.panNumber}
+                      onChange={handleInputChange}
+                      placeholder="ABCDE1234F"
+                      className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-semibold text-slate-200 mb-2 block">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="••••••••"
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
+                    disabled={isLoading}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Minimum 6 characters.</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-sky-600/25"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    Create Account
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-1">
+                <p className="text-slate-400">
+                  Already have an account?{' '}
+                  <Link href="/auth/login" className="font-semibold text-sky-300 hover:text-sky-200 transition-colors">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
+            </form>
+          </div>
+        </section>
       </div>
     </div>
   );

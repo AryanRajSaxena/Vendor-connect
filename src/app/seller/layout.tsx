@@ -56,11 +56,11 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)]">
+    <div className="flex min-h-[calc(100vh-64px)] bg-[#0b1320]">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/45 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -68,15 +68,15 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-16 bottom-0 left-0 z-40 w-56 bg-slate-900 border-r border-slate-800
+          fixed top-16 bottom-0 left-0 z-40 w-60 bg-gradient-to-b from-slate-900 to-slate-950 border-r border-slate-800/90
           flex flex-col transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:sticky lg:top-0 lg:h-[calc(100vh-64px)] lg:translate-x-0
         `}
       >
         {/* Brand strip */}
-        <div className="h-14 flex items-center justify-between px-5 border-b border-slate-800">
-          <span className="text-[15px] font-semibold text-white tracking-tight">
+        <div className="h-14 flex items-center justify-between px-5 border-b border-slate-800/90">
+          <span className="text-[15px] font-semibold text-white tracking-tight brand-money-font">
             Seller Portal
           </span>
           <button
@@ -89,6 +89,9 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">
+            Navigation
+          </p>
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive =
               href === '/seller/dashboard'
@@ -101,8 +104,8 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
                   isActive
-                    ? 'bg-white/[0.07] text-white font-semibold'
-                    : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 font-medium'
+                    ? 'bg-white/[0.09] text-white font-semibold border border-slate-700/80'
+                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200 font-medium border border-transparent'
                 }`}
               >
                 <Icon
@@ -120,7 +123,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
           <Link
             href="/seller/dashboard"
             onClick={() => setSidebarOpen(false)}
-            className="mb-2 flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm rounded-md transition-colors"
+            className="mb-2 flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm rounded-lg transition-colors"
           >
             <ShoppingBag className="w-3.5 h-3.5" />
             My Store
@@ -128,7 +131,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
           <Link
             href="/seller/marketplace"
             onClick={() => setSidebarOpen(false)}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-medium text-sm rounded-md transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-medium text-sm rounded-lg transition-colors shadow-md shadow-primary-900/30"
           >
             <Search className="w-3.5 h-3.5" />
             Browse Products
@@ -136,7 +139,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         </div>
 
         {/* User + logout */}
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800/90 bg-slate-950/40">
           <div className="flex items-center gap-2.5 mb-2.5">
             <div className="w-7 h-7 bg-primary-600 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white font-semibold text-xs">
@@ -169,7 +172,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       </button>
 
       {/* Page content */}
-      <main className="flex-1 bg-gray-50 overflow-auto">
+      <main className="flex-1 bg-gradient-to-b from-slate-950 to-slate-900 overflow-auto">
         {children}
       </main>
     </div>

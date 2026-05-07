@@ -1,435 +1,301 @@
-'use client';
+﻿'use client';
 
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { CheckCircle, Store, BarChart3, Percent, Lightbulb, CreditCard, Users, TrendingUp, Package } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ChevronDown, Search, Package, Users, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { RoleSelectorModal, UserRole } from '@/components/shared/RoleSelectorModal';
+import { formatCurrency, getImageUrl } from '@/utils/calculations';
 
-export default function HomePage() {
-  const router = useRouter();
-  const { user, isLoading } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<UserRole>('vendor');
-  const vendorGoogleFormUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSe3O2kev5R9Dc_3wpaCl-hztNa3Map144tJ1LzsMMExV1HD-g/viewform?usp=sharing&ouid=103901138410908298709';
-  const sellerGoogleFormUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSc6lk7Ub8YHbWuii508_ENinZNroZyqyuQbbslstRdCaCCScg/viewform?usp=sharing&ouid=103901138410908298709';
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  base_price: number;
+  markup: number;
+  markup_percentage: number;
+  stock: number;
+  sold_count: number;
+  is_active: boolean;
+  images: string[];
+  vendor_id: string;
+  created_at: string;
+  course_duration?: string;
+}
 
-  // Load saved role from localStorage on mount
+function ProductsContent() {
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const isUnauthenticated = !user?.id;
+  const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
+  const isGuestVendorOrSeller =
+    !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
+  const [sortBy, setSortBy] = useState('relevance');
+  const [activeReferralCode, setActiveReferralCode] = useState<string>('');
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
+
+  const buildProductDetailsHref = (productId: string) => {
+    const detailParams = new URLSearchParams();
+    if (activeReferralCode) {
+      detailParams.set('ref', activeReferralCode);
+    }
+    if (isGuestVendorOrSeller) {
+      detailParams.set('guestRole', guestRoleParam);
+    }
+    const query = detailParams.toString();
+    return `/products/${productId}${query ? `?${query}` : ''}`;
+  };
+
+  const sortOptions = [
+    { value: 'relevance', label: 'Relevance' },
+    { value: 'price-low', label: 'Price: Low to High' },
+    { value: 'price-high', label: 'Price: High to Low' },
+    { value: 'rating', label: 'Rating' },
+    { value: 'newest', label: 'Newest' },
+  ];
+
+  // Fetch products
   useEffect(() => {
-    const savedRole = localStorage.getItem('landingPage_selectedRole') as UserRole;
-    if (savedRole && (savedRole === 'vendor' || savedRole === 'seller')) {
-      setSelectedRole(savedRole);
+    const code =
+      searchParams.get('ref') ||
+      searchParams.get('referral') ||
+      searchParams.get('code') ||
+      '';
+
+    const normalized = code.trim().toUpperCase();
+    if (normalized) {
+      setActiveReferralCode(normalized);
+      localStorage.setItem('referralCode', normalized);
+      return;
     }
 
-    const handleRoleUpdate = () => {
-      const updated = localStorage.getItem('landingPage_selectedRole') as UserRole;
-      if (updated === 'vendor' || updated === 'seller') setSelectedRole(updated);
-    };
-    window.addEventListener('landingRole-updated', handleRoleUpdate);
-    return () => window.removeEventListener('landingRole-updated', handleRoleUpdate);
-  }, []);
+    const storedCode = (localStorage.getItem('referralCode') || '').trim().toUpperCase();
+    if (storedCode) {
+      setActiveReferralCode(storedCode);
+    }
+  }, [searchParams]);
 
-  // Redirect non-customer users to their dashboards
   useEffect(() => {
-    if (!isLoading && user) {
-      switch (user.role) {
-        case 'vendor':
-          router.push('/vendor/dashboard');
-          return;
-        case 'seller':
-          router.push('/seller/dashboard');
-          return;
-        case 'admin':
-          router.push('/admin/dashboard');
-          return;
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const params = new URLSearchParams();
+        params.append('isActive', 'true');
+
+        const response = await fetch(`/api/products?${params}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+
+        const data = await response.json();
+        let filtered = data;
+
+        // Sort products
+        if (sortBy === 'price-low') {
+          filtered.sort((a: Product, b: Product) => a.base_price - b.base_price);
+        } else if (sortBy === 'price-high') {
+          filtered.sort((a: Product, b: Product) => b.base_price - a.base_price);
+        } else if (sortBy === 'newest') {
+          filtered.sort(
+            (a: Product, b: Product) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        } else if (sortBy === 'rating') {
+          filtered.sort((a: Product, b: Product) => b.sold_count - a.sold_count);
+        }
+
+        setProducts(filtered);
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+        setError((error as Error).message);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [user, isLoading, router]);
+    };
 
-  const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role);
-    window.dispatchEvent(new Event('landingRole-updated'));
-  };
+    fetchProducts();
+  }, [sortBy]);
 
-  // Show loading state while checking authentication
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="text-center">
-          <div className="spinner w-12 h-12 mx-auto mb-4"></div>
-          <p className="text-slate-400 font-medium">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ===== DUMMY DATA FOR DIFFERENT ROLES =====
-
-  // CUSTOMER VIEW
-  // VENDOR VIEW
-  const vendorData = {
-    hero: {
-      title: 'Grow Your Business on Agent Croww',
-      subtitle: 'List your products to reach thousands of buyers instantly',
-      cta: 'Join as Vendor'
-    },
-    benefits: [
-      { icon: Users, title: '50k+ Active Buyers', desc: 'Reach verified customers across India' },
-      { icon: BarChart3, title: 'Real-Time Analytics', desc: 'Track sales, views, and customer behavior' },
-      { icon: TrendingUp, title: 'Boost Your Sales', desc: 'Integrated marketplace with built-in buyers' },
-      { icon: CreditCard, title: 'Easy Payouts', desc: 'Fast and secure payment processing' },
-    ],
-    features: [
-      { step: '01', title: 'Create Account', desc: 'Sign up in 2 minutes with basic information' },
-      { step: '02', title: 'Upload Products', desc: 'Add unlimited products with photos and details' },
-      { step: '03', title: 'Start Selling', desc: 'Receive orders and manage shipments easily' },
-      { step: '04', title: 'Earn & Grow', desc: 'Get paid on time and track your growth' },
-    ],
-    stats: [
-      { value: '200+', label: 'Active Sellers', icon: Users },
-      { value: '5x', label: 'Sales Boosted', icon: TrendingUp },
-      { value: 'Instant', label: 'Money Credited', icon: CreditCard },
-      { value: '96%', label: 'Satisfaction Rate', icon: CheckCircle },
-    ]
-  };
-
-  // SELLER VIEW
-  const sellerData = {
-    hero: {
-      title: 'Earn Commissions Without Inventory',
-      subtitle: 'Become a seller and earn commissions on sales',
-      cta: 'Join as Seller'
-    },
-    benefits: [
-      { icon: Percent, title: '10% Commission', desc: 'Earn commission on every product you sell' },
-      { icon: Lightbulb, title: 'Zero Risk Model', desc: 'No inventory hassles, no stock management' },
-    ],
-    features: [
-      { step: '01', title: 'Sign up on Platform', desc: 'Register as a seller in just 2 minutes' },
-      { step: '02', title: 'Choose Products', desc: 'Select products to sell from our catalog' },
-      { step: '03', title: 'Track Earnings', desc: 'Monitor commissions and payouts in real-time' },
-    ],
-    stats: [
-      { value: '₹5Lakh+', label: 'Commission Potential per month', icon: TrendingUp },
-      { value: '150+', label: 'Products to sell', icon: Package },
-      { value: 'Instant', label: 'Commission Payout in Wallet', icon: CreditCard },
-    ]
-  };
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
 
   return (
-    <div className="bg-slate-950 text-slate-100 min-h-screen">
-      {/* Role Selector Modal */}
-      <RoleSelectorModal onRoleSelect={handleRoleSelect} />
-
-      {/* ===== ROLE-SPECIFIC HERO SECTION ===== */}
-      {selectedRole === 'vendor' && (
-        <section className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-20 md:py-28 relative overflow-hidden border-b border-slate-800">
-          {/* Background Effects */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-600 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-600 rounded-full blur-3xl"></div>
-          </div>
-
-          <div className="container-custom relative z-10">
-            <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white">
-                {vendorData.hero.title}
-              </h1>
-              <p className="text-lg md:text-xl mb-10 text-slate-300 leading-relaxed">
-                {vendorData.hero.subtitle}
-              </p>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <a
-                  href={vendorGoogleFormUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/20"
-                >
-                  <Store className="w-5 h-5" />
-                  {vendorData.hero.cta}
-                </a>
-                <Link href="/seller/marketplace?guestRole=vendor" className="inline-flex items-center justify-center gap-2 border border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10 px-8 py-3 rounded-xl font-semibold transition-colors">
-                  Browse Products
-                </Link>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">200+</div>
-                  <div className="text-sm text-slate-400">Active Sellers</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">5x</div>
-                  <div className="text-sm text-slate-400">Sales Boosted</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">Instant</div>
-                  <div className="text-sm text-slate-400">Money Credited</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {selectedRole === 'seller' && (
-        <section className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-20 md:py-28 relative overflow-hidden border-b border-slate-800">
-          {/* Background Effects */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-violet-600 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-violet-600 rounded-full blur-3xl"></div>
-          </div>
-
-          <div className="container-custom relative z-10">
-            <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white">
-                {sellerData.hero.title}
-              </h1>
-              <p className="text-lg md:text-xl mb-10 text-slate-300 leading-relaxed">
-                {sellerData.hero.subtitle}
-              </p>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <a
-                  href={sellerGoogleFormUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
-                >
-                  {sellerData.hero.cta}
-                </a>
-                <Link href="/seller/marketplace?guestRole=seller" className="inline-flex items-center justify-center gap-2 border border-violet-500/50 text-violet-200 hover:bg-violet-500/10 px-8 py-3 rounded-xl font-semibold transition-colors">
-                  Browse Products
-                </Link>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">₹5Lakh+</div>
-                  <div className="text-sm text-slate-400">Commission Potential per month</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">150+</div>
-                  <div className="text-sm text-slate-400">Products to sell</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">Instant</div>
-                  <div className="text-sm text-slate-400">Commission Payout in Wallet</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* VENDOR: Benefits Section */}
-      {selectedRole === 'vendor' && (
-        <section className="section-sm">
-          <div className="container-custom">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Why Vendors Trust Agent Croww</h2>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {vendorData.benefits.map((benefit, index) => {
-                const Icon = benefit.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-4 md:p-5 hover:border-emerald-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-600/10"
-                  >
-                    <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl bg-emerald-600/20 text-emerald-400 mb-3">
-                      <Icon className="w-6 h-6 md:w-7 md:h-7" />
-                    </div>
-                    <h3 className="font-bold text-white text-base md:text-lg">{benefit.title}</h3>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* SELLER: Benefits Section */}
-      {selectedRole === 'seller' && (
-        <section className="section-sm">
-          <div className="container-custom">
-            <div className="text-center mb-8 md:mb-10">
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Why Choose Agent Croww</h2>
-              <p className="text-slate-400 text-base md:text-lg">Start earning with zero risk and investment</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {sellerData.benefits.map((benefit, index) => {
-                const Icon = benefit.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-violet-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-violet-600/10"
-                  >
-                    <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl bg-violet-600/20 text-violet-400 mb-3 md:mb-4">
-                      <Icon className="w-6 h-6 md:w-7 md:h-7" />
-                    </div>
-                    <h3 className="font-bold text-white mb-2 text-base md:text-lg">{benefit.title}</h3>
-                    <p className="text-slate-400 text-sm">{benefit.desc}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* VENDOR: Onboarding Steps */}
-      {selectedRole === 'vendor' && (
-        <section className="section-sm bg-slate-900/50 border-b border-slate-800">
-          <div className="container-custom">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Get Started in 4 Simple Steps</h2>
-              <p className="text-slate-400 text-base md:text-base">Start selling in minutes</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
-              {vendorData.features.map((item, index) => (
-                <div key={index} className="relative">
-                  <div className="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-4 md:p-5 hover:border-emerald-600/50 transition-all duration-300">
-                    <div className="text-3xl md:text-4xl font-bold text-emerald-400 mb-2">{item.step}</div>
-                    <h3 className="font-bold text-sm md:text-base text-emerald-100 mb-1">{item.title}</h3>
-                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* SELLER: Onboarding Steps */}
-      {selectedRole === 'seller' && (
-        <section className="section-sm bg-slate-900/50 border-b border-slate-800">
-          <div className="container-custom">
-            <div className="text-center mb-8 md:mb-10">
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Get Started in 3 Simple Steps</h2>
-              <p className="text-slate-400">Start earning within 24 hours</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              {sellerData.features.map((item, index) => (
-                <div key={index} className="relative">
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-5 md:p-6 hover:border-violet-600/50 transition-all duration-300">
-                    <div className="text-4xl md:text-5xl font-bold text-violet-400 mb-3">{item.step}</div>
-                    <h3 className="font-bold text-lg md:text-xl text-violet-100 mb-2">{item.title}</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* VENDOR: Commission & Pricing */}
-      {selectedRole === 'vendor' && (
-        <section className="section-sm border-b border-slate-800">
-          <div className="container-custom">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Transparent Commission Structure</h2>
-              <p className="text-slate-400">No hidden charges, just simple pricing</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-8 hover:border-emerald-600/50 transition-all duration-300">
-                <h3 className="font-bold text-2xl text-white mb-2">Vendor Commission</h3>
-                <p className="text-slate-400 text-sm mb-4">Earn on every sale</p>
-                <div className="inline-flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-emerald-400">80%</span>
-                  <span className="text-slate-400">you keep</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-900 border-2 border-emerald-600/50 rounded-2xl p-8 relative">
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                  BREAKDOWN
-                </div>
-                <h3 className="font-bold text-2xl text-white mb-2">Commission Split</h3>
-                <p className="text-slate-400 text-sm mb-4">Transparent for all products</p>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-300">Vendor (You)</span>
-                    <span className="font-bold text-emerald-400">80%</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-slate-700 pt-2">
-                    <span className="text-slate-400 text-sm">Platform</span>
-                    <span className="font-bold text-slate-300 text-sm">10%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-sm">Seller</span>
-                    <span className="font-bold text-slate-300 text-sm">10%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* CTA Section */}
-      <section className="section-sm relative overflow-hidden border-t border-slate-800">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-sky-600 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-sky-600 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="container-custom relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            {selectedRole === 'vendor' && (
-              <>
-                <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Start Growing Your Business Today</h2>
-                <p className="text-lg md:text-xl text-slate-300 mb-10">
-                  Join thousand of successful vendors and scale your sales
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <a
-                    href={vendorGoogleFormUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/20"
-                  >
-                    <Store className="w-5 h-5" />
-                    Join as Vendor
-                  </a>
-                </div>
-              </>
-            )}
-
-            {selectedRole === 'seller' && (
-              <>
-                <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Start Earning This Week</h2>
-                <p className="text-lg md:text-xl text-slate-300 mb-10">
-                  Join tens of thousands of sellers and build your passive income
-                </p>
-                <div className="flex justify-center">
-                  <a
-                    href={sellerGoogleFormUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
-                  >
-                    <TrendingUp className="w-5 h-5" />
-                    Join As Seller
-                  </a>
-                </div>
-              </>
-            )}
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-100 sticky top-16 z-40 shadow-soft">
+        <div className="container-custom py-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Discover Products</h1>
+            <p className="text-gray-600 mt-1">Browse our curated collection of quality products</p>
           </div>
         </div>
-      </section>
+      </div>
 
+      <div className="container-custom py-8">
+        <div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 bg-white rounded-xl p-4 shadow-soft border border-gray-100">
+              <div className="relative w-full md:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search courses by name..."
+                  className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+                />
+              </div>
+
+              <p className="text-gray-600 font-medium md:order-3">
+                <span className="text-gray-900 font-bold">{filteredProducts.length}</span> products found
+              </p>
+
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="select pr-10 text-sm font-medium"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {loading && (
+              <div className="text-center py-20">
+                <div className="spinner w-12 h-12 mx-auto mb-4"></div>
+                <p className="text-gray-500 font-medium">Loading products...</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="alert-error">
+                <p className="font-semibold">Error: {error}</p>
+              </div>
+            )}
+
+            {!loading && !error && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="group rounded-xl border border-slate-700/80 bg-slate-900/80 overflow-hidden hover:border-emerald-400/50 hover:shadow-[0_10px_30px_rgba(16,185,129,0.08)] transition-all duration-200 flex flex-col"
+                    >
+                      <div className="relative h-44 bg-gradient-to-br from-slate-200 to-slate-100 overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent z-10" />
+
+                        <div className="h-full w-full flex items-center justify-center">
+                          {getImageUrl(product.images?.[0]) && !imageLoadErrors[product.id] ? (
+                            <img
+                              src={getImageUrl(product.images?.[0])!}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={() => {
+                                setImageLoadErrors((prev) => ({ ...prev, [product.id]: true }));
+                              }}
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl bg-slate-900 text-slate-200 flex items-center justify-center text-3xl shadow-sm">
+                              📦
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-4 flex flex-col flex-1">
+                        <div className="mb-3 min-h-[66px]">
+                          <h3 className="text-lg leading-snug font-semibold text-slate-100 line-clamp-2">
+                            {product.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-300 line-clamp-2">
+                            {product.description || 'Premium course with practical learning outcomes.'}
+                          </p>
+                        </div>
+
+                        <div className="mb-3 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/10 to-emerald-600/5 p-3">
+                          <p className="text-[11px] text-slate-400 font-medium">Course Price</p>
+                          <span className="text-2xl font-black tracking-tight text-slate-100 tabular-nums">
+                            {formatCurrency(product.base_price)}
+                          </span>
+                          <span className="ml-2 text-xs font-medium text-slate-300 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+                            Lifetime access
+                          </span>
+                        </div>
+
+                        <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                          <div className="inline-flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            <span>{product.sold_count} enrolled</span>
+                          </div>
+                          <div className="inline-flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{(product.course_duration || 'Self-paced').trim() || 'Self-paced'}</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto">
+                          {isUnauthenticated ? (
+                            <span
+                              aria-disabled="true"
+                              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-800/40 text-slate-500 cursor-not-allowed py-2.5 text-sm font-medium"
+                            >
+                              View Details
+                            </span>
+                          ) : (
+                            <Link
+                              href={buildProductDetailsHref(product.id)}
+                              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
+                            >
+                              View Details
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-20">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gray-100 text-gray-400 mb-4">
+                      <Package className="w-10 h-10" />
+                    </div>
+                    <p className="text-gray-500 text-lg font-medium">No products found</p>
+                    <p className="text-gray-400 text-sm mt-2">Try a different course name</p>
+                  </div>
+                )}
+              </div>
+            )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">Loading products...</p>
+        </div>
+      }
+    >
+      <ProductsContent />
+    </Suspense>
   );
 }

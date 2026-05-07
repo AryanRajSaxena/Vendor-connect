@@ -30,7 +30,6 @@ export default function MobileBottomNav() {
   const sellerItems: MobileNavItem[] = [
     { href: '/seller/dashboard', label: 'Home', icon: Home },
     { href: '/seller/marketplace', label: 'Market', icon: Store },
-    { href: '/seller/sales', label: 'Sales', icon: BarChart3 },
     { href: '/seller/earnings', label: 'Earnings', icon: ShoppingCart },
     { href: '/seller/settings', label: 'Profile', icon: UserCircle },
   ];
@@ -58,7 +57,10 @@ export default function MobileBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[60] md:hidden border-t border-gray-200 bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/80 pb-[env(safe-area-inset-bottom)]">
-      <div className="grid grid-cols-5 gap-1 px-2 py-2">
+      <div
+        className="grid gap-1 px-2 py-2"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      >
         {items.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);

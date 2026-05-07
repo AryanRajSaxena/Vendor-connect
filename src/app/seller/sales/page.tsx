@@ -141,14 +141,15 @@ export default function SellerSalesPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Commission History</h1>
-        <p className="text-sm text-gray-500 mt-0.5">All commission transactions from your referred orders</p>
+      <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-gradient-to-r from-slate-900 to-slate-800 p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Seller Finance</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-100">Commission History</h1>
+        <p className="text-sm text-slate-300 mt-1">Track every order commission and payout status from one place.</p>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-5 text-sm text-red-700">
+        <div className="flex items-center gap-2 p-3 bg-red-500/12 border border-red-400/30 rounded-lg mb-5 text-sm text-red-200">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
         </div>
@@ -156,69 +157,69 @@ export default function SellerSalesPage() {
 
       {/* KPI cards — Orders */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <ShoppingBag className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Total Orders</span>
+            <ShoppingBag className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs text-slate-400">Total Orders</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.total}</p>
+          <p className="text-2xl font-semibold tabular-nums text-slate-100">{stats.total}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Commission Ready</span>
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="text-xs text-slate-400">Commission Ready</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.completed}</p>
+          <p className="text-2xl font-semibold tabular-nums text-slate-100">{stats.completed}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">In Progress</span>
+            <TrendingUp className="w-3.5 h-3.5 text-sky-300" />
+            <span className="text-xs text-slate-400">In Progress</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-gray-900">{stats.pending}</p>
+          <p className="text-2xl font-semibold tabular-nums text-slate-100">{stats.pending}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/12 to-emerald-600/6 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Total Commissions</span>
+            <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="text-xs text-slate-300">Total Commissions</span>
           </div>
-          <p className="text-2xl font-semibold tabular-nums text-gray-900">
+          <p className="text-2xl font-semibold tabular-nums text-slate-100">
             {formatCurrency(totals.totalEarned)}
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">10% of all sales</p>
+          <p className="text-[10px] text-slate-400 mt-1">10% of all sales</p>
         </div>
       </div>
 
       {/* KPI cards — Earnings breakdown */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-sm text-gray-600">Processing</span>
-            <span className="text-[10px] text-gray-400">· from pending orders</span>
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-sm text-slate-300">Processing</span>
+            <span className="text-[10px] text-slate-500">· from pending orders</span>
           </div>
-          <span className="text-sm font-semibold tabular-nums text-gray-900">
+          <span className="text-sm font-semibold tabular-nums text-slate-100">
             {formatCurrency(totals.processing)}
           </span>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-sm text-gray-600">Ready/Paid</span>
-            <span className="text-[10px] text-gray-400">· automatically processed</span>
+            <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="text-sm text-slate-300">Ready/Paid</span>
+            <span className="text-[10px] text-slate-500">· automatically processed</span>
           </div>
-          <span className="text-sm font-semibold tabular-nums text-gray-900">
+          <span className="text-sm font-semibold tabular-nums text-slate-100">
             {formatCurrency(totals.totalPaid)}
           </span>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-3.5 mb-5 flex flex-wrap items-center gap-2">
+      <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-3.5 mb-5 flex flex-wrap items-center gap-2">
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700"
+          className="px-3 py-2 text-sm border border-slate-700 bg-slate-950 text-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
         >
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
@@ -228,18 +229,18 @@ export default function SellerSalesPage() {
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as 'recent' | 'earnings')}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700"
+          className="px-3 py-2 text-sm border border-slate-700 bg-slate-950 text-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
         >
           <option value="recent">Most Recent</option>
           <option value="earnings">Highest Commission</option>
         </select>
-        <span className="ml-auto text-xs text-gray-400">
+        <span className="ml-auto text-xs text-slate-500">
           {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
         </span>
         {orders.length > 0 && (
           <button
             onClick={exportCSV}
-            className="text-xs text-gray-500 hover:text-gray-900 transition-colors border border-gray-200 px-3 py-2 rounded-md"
+            className="text-xs text-slate-300 hover:text-white transition-colors border border-slate-700 px-3 py-2 rounded-md"
           >
             Export CSV
           </button>
@@ -252,46 +253,46 @@ export default function SellerSalesPage() {
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 py-16 text-center">
-          <FileText className="w-8 h-8 text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">No commission transactions found</p>
-          <p className="text-xs text-gray-400 mt-1">Share your referral links and complete sales to see entries</p>
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 py-16 text-center">
+          <FileText className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-300">No commission transactions found</p>
+          <p className="text-xs text-slate-500 mt-1">Share your referral links and complete sales to see entries</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 overflow-hidden">
           <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Product</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Price</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Commission</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Payment</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
+                <tr className="bg-slate-950 border-b border-slate-700/80">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">Product</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400">Price</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400">Commission</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">Payment</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-800/80">
                 {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-gray-900 max-w-[200px] truncate">{order.productName}</td>
-                    <td className="px-4 py-3 text-right text-gray-900 tabular-nums">
+                  <tr key={order.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3 text-slate-100 max-w-[200px] truncate">{order.productName}</td>
+                    <td className="px-4 py-3 text-right text-slate-300 tabular-nums">
                       {formatCurrency(order.basePrice)}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-gray-900">
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">
                       {formatCurrency(order.sellerCommission)}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                         order.paymentStatus.toLowerCase() === 'completed'
-                          ? 'bg-green-100 text-green-700'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30'
                           : order.paymentStatus.toLowerCase() === 'failed'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-yellow-100 text-yellow-700'
+                            ? 'bg-red-500/15 text-red-300 border border-red-400/30'
+                            : 'bg-amber-500/15 text-amber-300 border border-amber-400/30'
                       }`}>
                         {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
+                    <td className="px-4 py-3 text-xs text-slate-400">
                       {new Date(order.createdAt).toLocaleDateString('en-IN', {
                         day: 'numeric',
                         month: 'short',

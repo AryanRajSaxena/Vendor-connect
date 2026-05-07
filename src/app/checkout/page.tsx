@@ -84,12 +84,42 @@ function CheckoutContent() {
     syncLocalCart(items);
   };
 
+  const loadProductDirectCheckout = async (productId: string) => {
+    const response = await fetch(`/api/products/${productId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      throw new Error('Product not found');
+    }
+
+    const product = await response.json();
+    const item: CartItem = {
+      id: product.id,
+      name: product.name,
+      price: product.base_price,
+      quantity: 1,
+      image: product.images?.[0] || '📦',
+      vendorId: product.vendor_id,
+    };
+
+    setCartItems([item]);
+    syncLocalCart([item]);
+  };
+
   useEffect(() => {
     const loadCart = async () => {
       try {
-        if (user?.id) {
+        const productId = searchParams.get('productId');
+
+        if (productId) {
+          // Direct checkout from product page
+          await loadProductDirectCheckout(productId);
+        } else if (user?.id) {
+          // Load from database cart
           await loadDatabaseCart(user.id);
         } else {
+          // Load from local storage
           const cart = getSafeCart();
           setCartItems(cart);
           syncLocalCart(cart);
@@ -103,7 +133,7 @@ function CheckoutContent() {
     };
 
     loadCart();
-  }, [user?.id]);
+  }, [user?.id, searchParams]);
 
   useEffect(() => {
     const codeFromUrl =

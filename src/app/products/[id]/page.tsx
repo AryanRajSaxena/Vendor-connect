@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ShoppingCart,
   Check,
   ChevronLeft,
   Clock3,
@@ -17,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
-import { showCartToast } from '@/components/shared/CartToast';
 
 interface Product {
   id: string;
@@ -47,13 +45,10 @@ function ProductDetailContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
-  const isGuestVendorOrSeller =
-    !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isBuying, setIsBuying] = useState(false);
 
   const backHref = (() => {
     if (user?.role === 'seller') {
@@ -65,24 +60,7 @@ function ProductDetailContent() {
     return '/products';
   })();
 
-  const getSafeCart = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Invalid cart in localStorage, resetting cart.', error);
-    }
 
-    localStorage.setItem('cart', '[]');
-    return [];
-  };
-
-  const syncLocalCart = (cart: any[]) => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('cart-updated'));
-  };
 
   useEffect(() => {
     const code =
@@ -127,96 +105,6 @@ function ProductDetailContent() {
       fetchProduct();
     }
   }, [params.id]);
-
-  const handleAddToCart = () => {
-    if (!product) return;
-
-    if (isGuestVendorOrSeller) {
-      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
-      return;
-    }
-
-    const addToLocalCart = () => {
-      const cart = getSafeCart();
-      const existingItem = cart.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity = 1; // Always 1 for digital products
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.base_price,
-          quantity: 1,
-          image: product.images?.[0] || '📦',
-          vendorId: product.vendor_id,
-        });
-      }
-
-      syncLocalCart(cart);
-    };
-
-    if (!user?.id) {
-      try {
-        addToLocalCart();
-        showCartToast(`Added to cart!`);
-      } catch (error) {
-        console.error('Failed to add to cart:', error);
-      }
-      return;
-    }
-
-    (async () => {
-      try {
-        setIsBuying(true);
-        const response = await fetch('/api/cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: user.id,
-            productId: product.id,
-            quantity: 1,
-          }),
-        });
-
-        if (!response.ok) {
-          const apiError = await response.json().catch(() => ({}));
-          throw new Error(apiError.error || 'Failed to add to database cart');
-        }
-
-        const data = await response.json();
-        syncLocalCart(data.items || []);
-        showCartToast(`Added to cart!`);
-      } catch (error) {
-        console.error('Failed to add to database cart, falling back to local cart:', error);
-        try {
-          addToLocalCart();
-          showCartToast(`Added to cart!`);
-        } catch (fallbackError) {
-          console.error('Failed to add to fallback local cart:', fallbackError);
-        }
-      } finally {
-        setIsBuying(false);
-      }
-    })();
-  };
-
-  const handleBuyNow = () => {
-    if (isGuestVendorOrSeller) {
-      alert('Checkout is disabled in guest seller/vendor browsing mode.');
-      return;
-    }
-
-    if (!user?.id) {
-      alert('Please login to continue');
-      return;
-    }
-    handleAddToCart();
-    // Redirect to checkout after adding to cart
-    setTimeout(() => {
-      window.location.href = '/checkout';
-    }, 500);
-  };
 
   if (loading) {
     return (
@@ -273,8 +161,6 @@ function ProductDetailContent() {
     'Self-paced';
 
   const totalLessons = curriculum.reduce((sum, module) => sum + (module.lessons > 0 ? module.lessons : 0), 0);
-  const isAuthenticatedSeller = user?.role === 'seller';
-  const isPausedCourse = product.is_active === false;
   const publishedOn = product.created_at
     ? new Date(product.created_at).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -323,9 +209,6 @@ function ProductDetailContent() {
                 {product.name}
               </h1>
               <div className="flex flex-wrap items-center gap-3 mt-4 text-sm">
-                <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
-                  {'★★★★★'}
-                </span>
                 <span className="text-slate-400">{product.sold_count}+ enrolled learners</span>
                 <span className="text-slate-700">•</span>
                 <span className="inline-flex items-center gap-1 text-slate-300">
@@ -346,40 +229,6 @@ function ProductDetailContent() {
                   <span className="text-xs text-emerald-400 font-semibold mb-1">Instant digital access</span>
                 </div>
               </div>
-
-              {isPausedCourse && (
-                <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                  <p className="text-sm text-amber-200">
-                    This course is currently paused by the vendor. New purchases are disabled.
-                  </p>
-                </div>
-              )}
-
-              {isAuthenticatedSeller ? (
-                <div className="mt-6 rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-3">
-                  <p className="text-sm text-slate-300">
-                    Purchase actions are available for customers only.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-                  <button
-                    onClick={handleBuyNow}
-                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isGuestVendorOrSeller ? 'Buy Now' : 'Buy Now'}
-                  </button>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
-                  >
-                    <ShoppingCart className="w-5 h-5 inline mr-2" />
-                    {isGuestVendorOrSeller ? 'Add to Cart' : 'Add to Cart'}
-                  </button>
-                </div>
-              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                 <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">

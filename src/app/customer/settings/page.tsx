@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Save, Home, Lock, Mail } from 'lucide-react';
+import { AlertCircle, Save, Home, Lock, Mail, LogOut, Trash2 } from 'lucide-react';
 
 export default function CustomerSettings() {
   const router = useRouter();
@@ -74,8 +74,8 @@ export default function CustomerSettings() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">Loading...</p>
       </div>
     );
   }
@@ -85,77 +85,77 @@ export default function CustomerSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900">
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/customer/dashboard" className="text-primary hover:underline mb-4 inline-flex items-center gap-1">
+          <Link href="/customer/dashboard" className="text-sky-400 hover:text-sky-300 mb-4 inline-flex items-center gap-1 transition">
             <Home className="w-4 h-4" /> Back to Dashboard
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Settings</h1>
-          <p className="text-gray-600">Manage your account and preferences</p>
+          <h1 className="text-4xl font-bold text-slate-100 mb-2">Settings</h1>
+          <p className="text-slate-400">Manage your account and preferences</p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6 flex items-start gap-3">
+          <div className="bg-red-500/10 border border-red-400/30 text-red-300 p-4 rounded-xl mb-6 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
+            <p className="text-sm">{error}</p>
           </div>
         )}
 
         {/* Success Alert */}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-600 p-4 rounded-lg mb-6 flex items-start gap-3">
+          <div className="bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 p-4 rounded-xl mb-6 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p>Profile updated successfully!</p>
+            <p className="text-sm">Profile updated successfully!</p>
           </div>
         )}
 
         {/* Profile Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile Information</h2>
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-8 mb-8">
+          <h2 className="text-2xl font-bold text-slate-100 mb-6">Profile Information</h2>
 
           <form onSubmit={handleSaveProfile} className="space-y-6">
             {/* Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Full Name</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition"
               />
-              <p className="text-xs text-gray-500 mt-1">Your display name across the platform</p>
+              <p className="text-xs text-slate-500 mt-1">Your display name across the platform</p>
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
                 <Mail className="w-4 h-4" /> Email Address
               </label>
               <input
                 type="email"
                 value={formData.email}
                 disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                className="w-full px-4 py-3 bg-slate-950/60 border border-slate-700/60 text-slate-500 rounded-lg cursor-not-allowed"
               />
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed. Contact support if needed.</p>
+              <p className="text-xs text-slate-500 mt-1">Email cannot be changed. Contact support if needed.</p>
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Phone Number</label>
               <input
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                placeholder="Phone number"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="+91 XXXXX XXXXX"
+                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 placeholder:text-slate-600 transition"
               />
-              <p className="text-xs text-gray-500 mt-1">Optional - for order notifications</p>
+              <p className="text-xs text-slate-500 mt-1">Optional - for order notifications</p>
             </div>
 
             {/* Save Button */}
@@ -163,7 +163,7 @@ export default function CustomerSettings() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition"
               >
                 <Save className="w-5 h-5" />
                 {loading ? 'Saving...' : 'Save Changes'}
@@ -173,36 +173,36 @@ export default function CustomerSettings() {
         </div>
 
         {/* Account Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Security</h2>
+        <div className="bg-slate-900/80 rounded-xl border border-slate-700/80 p-8 mb-8">
+          <h2 className="text-2xl font-bold text-slate-100 mb-6">Account Security</h2>
 
           <div className="space-y-6">
             {/* Change Password */}
             <div>
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <Lock className="w-5 h-5 text-gray-400 mt-1" />
+                  <Lock className="w-5 h-5 text-sky-400 mt-1" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Change Password</h3>
-                    <p className="text-sm text-gray-600 mt-1">Update your account password</p>
+                    <h3 className="font-semibold text-slate-100">Change Password</h3>
+                    <p className="text-sm text-slate-400 mt-1">Update your account password</p>
                   </div>
                 </div>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                <button className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800/50 transition">
                   Update
                 </button>
               </div>
             </div>
 
-            <hr className="my-6" />
+            <div className="border-t border-slate-700/50"></div>
 
             {/* Account Info */}
             <div>
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900">Account Type</h3>
-                  <p className="text-sm text-gray-600 mt-1">Customer Account</p>
+                  <h3 className="font-semibold text-slate-100">Account Type</h3>
+                  <p className="text-sm text-slate-400 mt-1">Customer Account</p>
                 </div>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                <span className="px-3 py-1 bg-emerald-500/15 text-emerald-300 text-xs font-semibold rounded-full border border-emerald-400/30">
                   Active
                 </span>
               </div>
@@ -211,33 +211,35 @@ export default function CustomerSettings() {
         </div>
 
         {/* Danger Zone */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-red-900 mb-6">Danger Zone</h2>
+        <div className="bg-red-500/5 border border-red-400/20 rounded-xl p-8">
+          <h2 className="text-2xl font-bold text-red-400 mb-6">Danger Zone</h2>
 
           <div className="space-y-4">
             {/* Logout */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Logout From All Devices</h3>
-                <p className="text-sm text-gray-600 mt-1">Sign out from your account</p>
+                <h3 className="font-semibold text-slate-100">Logout From All Devices</h3>
+                <p className="text-sm text-slate-400 mt-1">Sign out from your account</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+                className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition flex items-center gap-2"
               >
+                <LogOut className="w-4 h-4" />
                 Logout
               </button>
             </div>
 
-            <hr className="my-4" />
+            <div className="border-t border-red-400/10"></div>
 
             {/* Delete Account */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Delete Account</h3>
-                <p className="text-sm text-gray-600 mt-1">Permanently delete your account and data</p>
+                <h3 className="font-semibold text-slate-100">Delete Account</h3>
+                <p className="text-sm text-slate-400 mt-1">Permanently delete your account and data</p>
               </div>
-              <button className="px-6 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-semibold">
+              <button className="px-6 py-2 border border-red-400/30 text-red-400 hover:bg-red-500/10 rounded-lg font-semibold transition flex items-center gap-2">
+                <Trash2 className="w-4 h-4" />
                 Delete
               </button>
             </div>

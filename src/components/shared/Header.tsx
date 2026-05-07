@@ -2,53 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { ShoppingCart, User, LogOut, Home, Settings, Store, TrendingUp } from 'lucide-react';
+import { User, LogOut, Home, Settings } from 'lucide-react';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
-  const pathname = usePathname();
-  const isHomePage = pathname === '/';
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
-  const [landingRole, setLandingRole] = useState<'vendor' | 'seller'>('vendor');
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const sync = () => {
-      const saved = localStorage.getItem('landingPage_selectedRole');
-      if (saved === 'vendor' || saved === 'seller') setLandingRole(saved);
-    };
-    sync();
-    window.addEventListener('landingRole-updated', sync);
-    return () => window.removeEventListener('landingRole-updated', sync);
-  }, []);
-
-  const switchLandingRole = (role: 'vendor' | 'seller') => {
-    setLandingRole(role);
-    localStorage.setItem('landingPage_selectedRole', role);
-    window.dispatchEvent(new Event('landingRole-updated'));
-  };
-
-  const getCartCount = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (!Array.isArray(parsed)) {
-        return 0;
-      }
-
-      return parsed.reduce((total, item) => {
-        const qty = Number(item?.quantity || 0);
-        return total + (Number.isFinite(qty) && qty > 0 ? qty : 0);
-      }, 0);
-    } catch (error) {
-      console.warn('Invalid cart in localStorage while reading badge count.', error);
-      return 0;
-    }
-  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -62,18 +24,7 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const updateCount = () => setCartCount(getCartCount());
 
-    updateCount();
-    window.addEventListener('storage', updateCount);
-    window.addEventListener('cart-updated', updateCount);
-
-    return () => {
-      window.removeEventListener('storage', updateCount);
-      window.removeEventListener('cart-updated', updateCount);
-    };
-  }, []);
 
   const getRoleBasedDashboardLink = () => {
     if (!user) return '/';
@@ -142,38 +93,10 @@ export default function Header() {
           <span className="brand-text sm:hidden text-xl text-white">Agent Croww</span>
         </Link>
 
-        {/* Landing Role Toggle — only on home page when not logged in */}
-        {isHomePage && !isAuthenticated && (
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl p-1">
-            <button
-              onClick={() => switchLandingRole('vendor')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                landingRole === 'vendor'
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Store className="w-3.5 h-3.5" />
-              Vendor
-            </button>
-            <button
-              onClick={() => switchLandingRole('seller')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                landingRole === 'seller'
-                  ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              Seller
-            </button>
-          </div>
-        )}
-
         {/* Desktop Navigation */}
-        {isAuthenticated && (
-        <div className="hidden md:flex items-center gap-4">
-          <Link
+        {isAuthenticated ? (
+          <div className="hidden md:flex items-center gap-4">
+            <Link
                 href={getRoleBasedDashboardLink()}
                 className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
               >
@@ -184,20 +107,8 @@ export default function Header() {
                 </div>
               </Link>
 
-              {user?.role === 'customer' && (
-                <Link
-                  href="/cart"
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium relative"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center font-bold shadow-sm">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                </Link>
-              )}
-
-              <div className="relative" ref={dropdownRef}>
-                <button 
+            <div className="relative" ref={dropdownRef}>
+                <button
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                   className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
                 >
@@ -235,25 +146,27 @@ export default function Header() {
                     </button>
                   </div>
                 )}
-              </div>
             </div>
+          </div>
+        ) : (
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-4 py-2 text-gray-700 hover:text-primary-600 font-semibold transition-colors duration-200"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-sm"
+            >
+              Sign Up
+            </button>
+          </div>
         )}
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-1.5">
-          {isAuthenticated && user?.role === 'customer' && (
-            <Link
-              href="/cart"
-              className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              aria-label="Open cart"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-[10px] rounded-full min-w-[1rem] h-4 px-1 flex items-center justify-center font-bold shadow-sm">
-                {cartCount > 99 ? '99+' : cartCount}
-              </span>
-            </Link>
-          )}
-
           {isAuthenticated && (
             <Link
               href={getRoleBasedDashboardLink()}
@@ -264,6 +177,22 @@ export default function Header() {
             </Link>
           )}
 
+          {!isAuthenticated && (
+            <>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-3 py-2 text-sm text-gray-700 hover:text-primary-600 font-semibold transition-colors duration-200"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-3 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-sm"
+              >
+                Sign Up
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
