@@ -109,18 +109,16 @@ export function getImageUrl(url: string | undefined | null): string | null {
   // Google Drive: https://drive.google.com/file/d/FILE_ID/view...
   const driveFile = raw.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
   if (driveFile) {
-    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${driveFile[1]}&sz=w800`;
-    return `/api/images/proxy?url=${encodeURIComponent(thumbnailUrl)}`;
+    return `/api/images/proxy/drive/${driveFile[1]}?sz=w800`;
   }
 
   // Google Drive: https://drive.google.com/open?id=FILE_ID
   const driveOpen = raw.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
   if (driveOpen) {
-    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w800`;
-    return `/api/images/proxy?url=${encodeURIComponent(thumbnailUrl)}`;
+    return `/api/images/proxy/drive/${driveOpen[1]}?sz=w800`;
   }
 
-  // If it's a Google Drive lh3 URL, also proxy it
+  // If it's a Google Drive lh3 URL, also proxy it via query fallback
   if (raw.includes('lh3.googleusercontent.com')) {
     return `/api/images/proxy?url=${encodeURIComponent(raw)}`;
   }
