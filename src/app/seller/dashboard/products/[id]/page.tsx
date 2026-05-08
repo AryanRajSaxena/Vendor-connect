@@ -251,6 +251,8 @@ export default function SellerProductDetailPage() {
                   src={imgUrl}
                   alt={product.product_name}
                   className="w-full h-full object-cover"
+                  loading="eager"
+                  fetchPriority="high"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : null}

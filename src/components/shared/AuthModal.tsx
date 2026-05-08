@@ -28,8 +28,7 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
     name: '',
     phone: '',
     businessName: '',
-    gstNumber: '',
-    panNumber: '',
+    ifscCode: '',
   });
 
   const getErrorMessage = (error: unknown) => {
@@ -58,26 +57,6 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
       if (!formData.name.trim()) {
         setError('Please enter your name');
         return false;
-      }
-      if (!formData.phone.trim()) {
-        setError('Please enter your phone number');
-        return false;
-      }
-      if (role === 'vendor') {
-        if (!formData.businessName.trim()) {
-          setError('Please enter business name');
-          return false;
-        }
-        if (!formData.gstNumber.trim()) {
-          setError('Please enter GST number');
-          return false;
-        }
-      }
-      if (role === 'seller') {
-        if (!formData.panNumber.trim()) {
-          setError('Please enter PAN number');
-          return false;
-        }
       }
     }
     return true;
@@ -108,8 +87,7 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
           role: role,
           phone: formData.phone,
           businessName: role === 'vendor' ? formData.businessName : undefined,
-          gstNumber: role === 'vendor' ? formData.gstNumber : undefined,
-          panNumber: role === 'seller' ? formData.panNumber : undefined,
+          ifscCode: formData.ifscCode || undefined,
         });
         setSuccessMessage('Account created successfully! Redirecting...');
         setTimeout(() => {
@@ -240,7 +218,7 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
 
           {!isLogin && (
             <div>
-              <label className={labelClass}>Phone Number</label>
+              <label className={labelClass}>Phone Number <span className="text-slate-500 font-normal">(optional)</span></label>
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
@@ -258,7 +236,7 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
 
           {!isLogin && role === 'vendor' && (
             <div>
-              <label className={labelClass}>Business Name</label>
+              <label className={labelClass}>Business Name <span className="text-slate-500 font-normal">(optional)</span></label>
               <div className="relative">
                 <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
@@ -274,35 +252,17 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
             </div>
           )}
 
-          {!isLogin && role === 'vendor' && (
+          {!isLogin && (role === 'vendor' || role === 'seller') && (
             <div>
-              <label className={labelClass}>GST Number</label>
+              <label className={labelClass}>IFSC Code <span className="text-slate-500 font-normal">(optional)</span></label>
               <div className="relative">
                 <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   type="text"
-                  name="gstNumber"
-                  value={formData.gstNumber}
+                  name="ifscCode"
+                  value={formData.ifscCode}
                   onChange={handleInputChange}
-                  placeholder="22AAAAA0000A1Z5"
-                  className={inputClass}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {!isLogin && role === 'seller' && (
-            <div>
-              <label className={labelClass}>PAN Number</label>
-              <div className="relative">
-                <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="text"
-                  name="panNumber"
-                  value={formData.panNumber}
-                  onChange={handleInputChange}
-                  placeholder="ABCDE1234F"
+                  placeholder="SBIN0001234"
                   className={inputClass}
                   disabled={isLoading}
                 />
@@ -345,31 +305,7 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
             )}
           </button>
 
-          <div className="text-center pt-2">
-            <p className="text-sm text-slate-400">
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError('');
-                  setSuccessMessage('');
-                  setFormData({
-                    email: '',
-                    password: '',
-                    name: '',
-                    phone: '',
-                    businessName: '',
-                    gstNumber: '',
-                    panNumber: '',
-                  });
-                }}
-                className="text-sky-300 font-semibold hover:text-sky-200 hover:underline transition-colors"
-              >
-                {isLogin ? 'Sign Up' : 'Login'}
-              </button>
-            </p>
-          </div>
+          {/* Signup toggle removed — modal shows login only */}
         </form>
       </div>
     </div>

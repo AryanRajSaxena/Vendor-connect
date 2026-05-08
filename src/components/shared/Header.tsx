@@ -156,12 +156,6 @@ export default function Header() {
             >
               Login
             </button>
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-sm"
-            >
-              Sign Up
-            </button>
           </div>
         )}
 
@@ -184,12 +178,6 @@ export default function Header() {
                 className="px-3 py-2 text-sm text-gray-700 hover:text-primary-600 font-semibold transition-colors duration-200"
               >
                 Login
-              </button>
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="px-3 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-sm"
-              >
-                Sign Up
               </button>
             </>
           )}

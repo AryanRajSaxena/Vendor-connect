@@ -69,7 +69,6 @@ export async function PUT(
     if (body.basePrice !== undefined) updateData.base_price = Number(body.basePrice);
     if (body.images !== undefined) updateData.images = body.images;
     if (body.specifications !== undefined) updateData.specifications = body.specifications;
-    if (body.stock !== undefined) updateData.stock = body.stock;
     if (body.isActive !== undefined) updateData.is_active = body.isActive;
     
     // Course-specific fields
@@ -78,11 +77,7 @@ export async function PUT(
     if (body.learningOutcomes !== undefined) updateData.learning_outcomes = body.learningOutcomes;
     if (body.curriculum !== undefined) updateData.curriculum = body.curriculum;
 
-    if (
-      body.basePrice !== undefined ||
-      body.markup !== undefined ||
-      body.markupPercentage !== undefined
-    ) {
+    if (body.basePrice !== undefined) {
       const effectiveBasePrice = Number(
         body.basePrice !== undefined ? body.basePrice : existingProduct.base_price
       );
@@ -93,15 +88,7 @@ export async function PUT(
         );
       }
 
-      const platformMarkupPercentage = 0;
-      const computedMarkup = 0;
-      const computedCustomerPrice = effectiveBasePrice;
-      const legacyPriceKey = ['final', 'price'].join('_');
-
       updateData.base_price = effectiveBasePrice;
-      updateData.markup_percentage = platformMarkupPercentage;
-      updateData.markup = computedMarkup;
-      updateData[legacyPriceKey] = computedCustomerPrice;
     }
     updateData.updated_at = new Date().toISOString();
 

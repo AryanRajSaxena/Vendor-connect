@@ -206,6 +206,8 @@ function ProductsContent() {
                               src={getImageUrl(product.images?.[0])!}
                               alt={product.name}
                               className="w-full h-full object-cover"
+                              loading="eager"
+                              fetchPriority="high"
                               onError={() => {
                                 setImageLoadErrors((prev) => ({ ...prev, [product.id]: true }));
                               }}

@@ -35,8 +35,7 @@ function SignupContent() {
     name: '',
     phone: '',
     businessName: '',
-    gstNumber: '',
-    panNumber: '',
+    ifscCode: '',
   });
 
   useEffect(() => {
@@ -72,26 +71,6 @@ function SignupContent() {
       setError('Please enter your name');
       return false;
     }
-    if (!formData.phone.trim()) {
-      setError('Please enter your phone number');
-      return false;
-    }
-    if (role === 'vendor') {
-      if (!formData.businessName.trim()) {
-        setError('Please enter business name');
-        return false;
-      }
-      if (!formData.gstNumber.trim()) {
-        setError('Please enter GST number');
-        return false;
-      }
-    }
-    if (role === 'seller') {
-      if (!formData.panNumber.trim()) {
-        setError('Please enter PAN number');
-        return false;
-      }
-    }
     return true;
   };
 
@@ -111,8 +90,7 @@ function SignupContent() {
         role: role,
         phone: formData.phone,
         businessName: role === 'vendor' ? formData.businessName : undefined,
-        gstNumber: role === 'vendor' ? formData.gstNumber : undefined,
-        panNumber: role === 'seller' ? formData.panNumber : undefined,
+        ifscCode: formData.ifscCode || undefined,
       });
       setSuccessMessage('Account created successfully! Redirecting...');
       setTimeout(() => {
@@ -286,11 +264,12 @@ function SignupContent() {
                     disabled={isLoading}
                   />
                 </div>
+                <p className="mt-1.5 text-xs text-slate-500">Optional</p>
               </div>
 
               {role === 'vendor' && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-200 mb-2 block">Business Name</label>
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">Business Name <span className="text-slate-500 font-normal">(optional)</span></label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                     <input
@@ -308,15 +287,15 @@ function SignupContent() {
 
               {role === 'vendor' && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-200 mb-2 block">GST Number</label>
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">IFSC Code</label>
                   <div className="relative">
-                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">IFSC Code <span className="text-slate-500 font-normal">(optional)</span></label>
                     <input
                       type="text"
-                      name="gstNumber"
-                      value={formData.gstNumber}
+                      name="ifscCode"
+                      value={formData.ifscCode}
                       onChange={handleInputChange}
-                      placeholder="22AAAAA0000A1Z5"
+                      placeholder="SBIN0001234"
                       className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
                       disabled={isLoading}
                     />
@@ -326,15 +305,15 @@ function SignupContent() {
 
               {role === 'seller' && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-200 mb-2 block">PAN Number</label>
+                  <label className="text-sm font-semibold text-slate-200 mb-2 block">IFSC Code</label>
                   <div className="relative">
                     <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                     <input
                       type="text"
-                      name="panNumber"
-                      value={formData.panNumber}
+                      name="ifscCode"
+                      value={formData.ifscCode}
                       onChange={handleInputChange}
-                      placeholder="ABCDE1234F"
+                      placeholder="SBIN0001234"
                       className={`w-full pl-12 pr-4 py-3.5 rounded-xl bg-slate-950/65 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${focusBg} transition-all`}
                       disabled={isLoading}
                     />

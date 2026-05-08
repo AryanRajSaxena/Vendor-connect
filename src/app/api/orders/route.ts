@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('customerId');
     const vendorId = searchParams.get('vendorId');
     const sellerId = searchParams.get('sellerId');
+    const nowIso = new Date().toISOString();
 
     let query = supabase.from('orders').select(
       '*, product:products!product_id(name)'
@@ -94,9 +95,53 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const eligiblePendingIds = (orders || [])
+      .filter((order: any) => {
+        const commissionStatus = String(order?.commission_status || '').toLowerCase();
+        const paymentStatus = String(order?.payment_status || '').toLowerCase();
+
+        if (commissionStatus !== 'pending' || paymentStatus !== 'completed') {
+          return false;
+        }
+
+        if (!order?.commission_release_date) {
+          return true;
+        }
+
+        const releaseDate = new Date(order.commission_release_date);
+        return !Number.isNaN(releaseDate.getTime()) && releaseDate <= new Date(nowIso);
+      })
+      .map((order: any) => String(order.id));
+
+    if (eligiblePendingIds.length > 0) {
+      const { error: releaseError } = await supabase
+        .from('orders')
+        .update({
+          commission_status: 'available',
+          updated_at: nowIso,
+        })
+        .in('id', eligiblePendingIds)
+        .eq('commission_status', 'pending')
+        .eq('payment_status', 'completed');
+
+      if (releaseError) {
+        console.error('Commission auto-release error:', releaseError);
+      }
+    }
+
+    const releasedIdSet = new Set(eligiblePendingIds);
+
     const normalizedOrders = (orders || []).map((order: any) => ({
       ...order,
+      product_name: order?.product_name ?? order?.product?.name ?? null,
+      commission_status: releasedIdSet.has(String(order.id))
+        ? 'available'
+        : order?.commission_status,
       base_price: Number(order?.base_price ?? order?.[legacyPriceKey] ?? 0),
+      vendor_payout: Number(order?.vendor_payout ?? order?.vendorPayout ?? 0),
+      seller_commission: Number(order?.seller_commission ?? order?.sellerCommission ?? 0),
+      platform_commission: Number(order?.platform_commission ?? order?.platformCommission ?? 0),
+      quantity: Number(order?.quantity ?? order?.qty ?? 0) || 0,
     }));
 
     return NextResponse.json(normalizedOrders, { status: 200 });

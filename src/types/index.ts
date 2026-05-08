@@ -12,13 +12,11 @@ export interface User {
   updatedAt: string;
   avatar?: string;
   businessName?: string;
-  gstNumber?: string;
-  panNumber?: string;
+  ifscCode?: string;
 }
 
 export interface VendorProfile extends User {
   businessName: string;
-  gstNumber: string;
   bankDetails: {
     accountHolder: string;
     accountNumber: string;
@@ -28,7 +26,7 @@ export interface VendorProfile extends User {
 }
 
 export interface SellerProfile extends User {
-  panNumber: string;
+  ifscCode?: string;
   bankAccount: string;
   upiId: string;
   totalEarnings: number;
@@ -48,8 +46,6 @@ export interface Product {
   category: ProductCategory;
   description: string;
   basePrice: number;
-  markup: number;
-  markupPercentage: number;
   images: string[];
   stock: number;
   specscs: Record<string, string>;

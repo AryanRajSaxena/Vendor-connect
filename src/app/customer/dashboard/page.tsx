@@ -156,6 +156,8 @@ export default function CustomerDashboard() {
                           src={courseImage}
                           alt={order.product_name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="eager"
+                          fetchPriority="high"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

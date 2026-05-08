@@ -201,14 +201,7 @@ export default function LoginPage() {
                 )}
               </button>
 
-              <div className="pt-2 text-center">
-                <p className="text-slate-400">
-                  Don&apos;t have an account?{' '}
-                  <Link href="/auth/signup" className="text-sky-300 font-semibold hover:text-sky-200 transition-colors">
-                    Create one
-                  </Link>
-                </p>
-              </div>
+              {/* Signup link removed — login only */}
 
               <div className="text-center pt-3">
                 <Link href="/" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">

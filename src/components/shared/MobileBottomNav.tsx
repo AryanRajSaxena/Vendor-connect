@@ -37,7 +37,6 @@ export default function MobileBottomNav() {
   const vendorItems: MobileNavItem[] = [
     { href: '/vendor/dashboard', label: 'Home', icon: Home },
     { href: '/vendor/products', label: 'Products', icon: Store },
-    { href: '/vendor/sales', label: 'Sales', icon: BarChart3 },
     { href: '/vendor/earnings', label: 'Earnings', icon: ShoppingCart },
     { href: '/vendor/settings', label: 'Profile', icon: UserCircle },
   ];

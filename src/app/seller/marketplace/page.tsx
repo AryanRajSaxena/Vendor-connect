@@ -307,6 +307,8 @@ function SellerMarketplaceContent() {
                       src={imgUrl}
                       alt={product.name}
                       className="w-full h-full object-cover"
+                      loading="eager"
+                      fetchPriority="high"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}

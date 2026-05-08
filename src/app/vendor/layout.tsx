@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Package,
-  ShoppingBag,
   Settings,
   LogOut,
   Menu,
@@ -18,7 +17,6 @@ import { useAuth } from '@/hooks/useAuth';
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/vendor/products', label: 'My Products', icon: Package },
-  { href: '/vendor/sales', label: 'Sales & Earnings', icon: ShoppingBag },
   { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ];
 

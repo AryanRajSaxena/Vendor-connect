@@ -16,8 +16,7 @@ interface AuthContextType {
     role: UserRole;
     phone?: string;
     businessName?: string;
-    gstNumber?: string;
-    panNumber?: string;
+      ifscCode?: string;
   }) => Promise<void>;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
@@ -77,8 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: UserRole;
     phone?: string;
     businessName?: string;
-    gstNumber?: string;
-    panNumber?: string;
+    ifscCode?: string;
   }) => {
     setIsLoading(true);
     try {
@@ -100,8 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: data.role,
           phone: data.phone,
           businessName: data.businessName,
-          gstNumber: data.gstNumber,
-          panNumber: data.panNumber,
+          ifscCode: data.ifscCode,
         }),
       });
 

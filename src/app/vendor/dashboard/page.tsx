@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Store,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
@@ -30,6 +32,7 @@ interface RecentOrder {
   id: string;
   productName: string;
   vendorPayout: number;
+  basePrice?: number;
   order_status: string;
   commission_status: string;
   createdAt: string;
@@ -53,10 +56,12 @@ export default function VendorDashboard() {
     thisMonthSales: 0,
     thisMonthEarnings: 0,
   });
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [allOrders, setAllOrders] = useState<RecentOrder[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') {
@@ -94,15 +99,22 @@ export default function VendorDashboard() {
         const cm = now.getMonth();
         const cy = now.getFullYear();
 
-        const totalSold = products.reduce((s, p) => s + (p.sold_count ?? 0), 0);
+        const totalSold = orders.reduce((s, o) => {
+          const paymentStatus = String(o.payment_status ?? o.paymentStatus ?? '').toLowerCase();
+          if (paymentStatus !== 'completed') return s;
+          return s + (Number(o.quantity ?? o.qty ?? 0) || 0);
+        }, 0);
         const activeListings = products.filter((p) => p.is_active !== false).length;
 
         const totalEarned = orders
-          .filter((o) => o.commission_status === 'available' || o.commission_status === 'paid')
+          .filter((o) => {
+            const status = String(o.commission_status ?? '').toLowerCase();
+            return status === 'available' || status === 'paid';
+          })
           .reduce((s, o) => s + (o.vendor_payout ?? o.vendorPayout ?? 0), 0);
 
         const inTransit = orders
-          .filter((o) => o.commission_status === 'pending')
+          .filter((o) => String(o.commission_status ?? '').toLowerCase() === 'pending')
           .reduce((s, o) => s + (o.vendor_payout ?? o.vendorPayout ?? 0), 0);
 
         const thisMonthOrders = orders.filter((o) => {
@@ -126,16 +138,19 @@ export default function VendorDashboard() {
           [...products].sort((a, b) => (b.sold_count ?? 0) - (a.sold_count ?? 0)).slice(0, 4)
         );
 
-        setRecentOrders(
-          orders.slice(0, 6).map((o) => ({
+        setAllOrders(
+          orders.map((o) => ({
             id: o.id,
-            productName: o.product_name ?? o.productName ?? 'Product',
+            productName: o.product_name ?? o.productName ?? o.product?.name ?? 'Product',
+            basePrice: Number(o.base_price ?? o.basePrice ?? o.price ?? 0),
             vendorPayout: o.vendor_payout ?? o.vendorPayout ?? 0,
+            quantity: Number(o.quantity ?? o.qty ?? 0) || 0,
             order_status: o.order_status ?? o.status ?? 'pending',
-            commission_status: o.commission_status ?? 'pending',
+            commission_status: String(o.commission_status ?? 'pending').toLowerCase(),
             createdAt: o.created_at ?? o.createdAt,
           }))
         );
+        setCurrentPage(1);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -195,19 +210,15 @@ export default function VendorDashboard() {
     );
   }
 
-  const orderStatusColor: Record<string, string> = {
-    pending: 'bg-amber-50 text-amber-700',
-    confirmed: 'bg-blue-50 text-blue-700',
-    shipped: 'bg-purple-50 text-purple-700',
-    delivered: 'bg-green-50 text-green-700',
-    cancelled: 'bg-red-50 text-red-700',
-  };
-
   const commissionColor: Record<string, string> = {
     pending: 'text-amber-600',
     available: 'text-green-600',
     paid: 'text-gray-400',
   };
+
+  // Calculate paginated orders
+  const startIdx = (currentPage - 1) * itemsPerPage;
+  const recentOrders = allOrders.slice(startIdx, startIdx + itemsPerPage);
 
   return (
     <div className="px-6 py-8 max-w-5xl mx-auto">
@@ -286,57 +297,78 @@ export default function VendorDashboard() {
         {/* Recent Orders */}
         <div className="lg:col-span-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-800">Recent Orders</h2>
-            <Link
-              href="/vendor/sales"
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-            >
-              View all <ArrowUpRight className="w-3 h-3" />
-            </Link>
+            <h2 className="text-sm font-semibold text-gray-800">Order History</h2>
           </div>
 
           {recentOrders.length === 0 ? (
             <div className="py-14 text-center text-sm text-gray-400">No orders yet</div>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {order.productName}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        orderStatusColor[order.order_status] ?? 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {order.order_status}
-                    </span>
+            <>
+              <div className="divide-y divide-gray-50">
+                {/* Table header */}
+                <div className="grid grid-cols-4 gap-4 px-5 py-3.5 text-xs text-gray-500 border-b border-gray-100">
+                  <div>Product</div>
+                  <div>Price</div>
+                  <div className="text-right">Your Payout</div>
+                  <div className="text-right">Date</div>
+                </div>
+
+                {recentOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="grid grid-cols-4 gap-4 items-center px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{order.productName}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-700">{formatCurrency(order.basePrice ?? 0)}</p>
+                    </div>
+
                     <div className="text-right">
-                      <p
-                        className={`text-sm font-bold ${
-                          commissionColor[order.commission_status] ?? 'text-gray-700'
-                        }`}
-                      >
+                      <p className={`text-sm font-bold ${commissionColor[order.commission_status] ?? 'text-gray-700'}`}>
                         {formatCurrency(order.vendorPayout)}
                       </p>
-                      <p className="text-xs text-gray-400">{order.commission_status}</p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500">
+                        {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
                     </div>
                   </div>
+                ))}
+              </div>
+              
+              {/* Pagination */}
+              {allOrders.length > itemsPerPage && (
+                <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 bg-gray-50">
+                  <p className="text-xs text-gray-500">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, allOrders.length)} of {allOrders.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-600" />
+                    </button>
+                    <span className="text-xs text-gray-600 font-medium">
+                      Page {currentPage} of {Math.ceil(allOrders.length / itemsPerPage)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(allOrders.length / itemsPerPage), p + 1))}
+                      disabled={currentPage === Math.ceil(allOrders.length / itemsPerPage)}
+                      className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 

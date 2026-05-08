@@ -192,7 +192,7 @@ export default function SellerDashboard() {
             {/* CTA Buttons */}
             <div className="flex flex-col gap-3 justify-center items-center mb-16">
               <Link
-                href="/auth/signup?role=seller"
+                href="/auth/login"
                 className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
               >
                 Get Started
@@ -431,6 +431,8 @@ export default function SellerDashboard() {
                         src={imgUrl}
                         alt={product.product_name}
                         className="w-full h-full object-cover rounded-lg"
+                        loading="eager"
+                        fetchPriority="high"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}

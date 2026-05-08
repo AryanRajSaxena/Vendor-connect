@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
       basePrice,
       images,
       specifications,
-      stock,
       courseDuration,
       prerequisites,
       learningOutcomes,
@@ -75,11 +74,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const computedMarkup = 0;
-    const platformMarkupPercentage = 0;
-    const computedCustomerPrice = parsedBasePrice;
-    const legacyPriceKey = ['final', 'price'].join('_');
-
     const { data: product, error } = await supabase
       .from('products')
       .insert([
@@ -89,12 +83,8 @@ export async function POST(request: NextRequest) {
           category,
           description,
           base_price: parsedBasePrice,
-          [legacyPriceKey]: computedCustomerPrice,
-          markup: computedMarkup,
-          markup_percentage: platformMarkupPercentage,
           images,
           specifications,
-          stock,
           is_active: true,
           course_duration: courseDuration || 'Self-paced',
           prerequisites: prerequisites || [],

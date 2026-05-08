@@ -210,6 +210,8 @@ export default function VendorCoursesPage() {
                       src={getImageUrl(course.coverImage)!}
                       alt={course.name}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      loading="eager"
+                      fetchPriority="high"
                       onError={() => {
                         setImageLoadErrors((prev) => ({ ...prev, [course.id]: true }));
                       }}
@@ -318,6 +320,8 @@ export default function VendorCoursesPage() {
                       src={getImageUrl(course.coverImage)!}
                       alt={course.name}
                       className="w-full h-full object-cover"
+                      loading="eager"
+                      fetchPriority="high"
                       onError={() => {
                         setImageLoadErrors((prev) => ({ ...prev, [course.id]: true }));
                       }}

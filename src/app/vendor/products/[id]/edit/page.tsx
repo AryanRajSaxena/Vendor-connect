@@ -138,14 +138,11 @@ export default function EditProductPage() {
           category: formData.category,
           description: formData.description.trim(),
           basePrice,
-          markup: 0,
-          markupPercentage: 0,
           images: formData.coverImage ? [formData.coverImage] : [],
           specifications: {
             accessUrl: formData.accessUrl.trim(),
             highlights: filledHighlights.join('|||'),
           },
-          stock: 999999,
         }),
       });
 
@@ -367,15 +364,15 @@ export default function EditProductPage() {
                   <span className="font-bold text-gray-900">{formatCurrency(commission.customerPrice)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Seller Commission (10%)</span>
+                  <span className="text-gray-500">Seller Commission</span>
                   <span className="text-red-500">-{formatCurrency(commission.sellerCommission)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Platform Commission (10%)</span>
+                  <span className="text-gray-500">Platform Commission</span>
                   <span className="text-red-500">-{formatCurrency(commission.platformCommission)}</span>
                 </div>
                 <div className="flex justify-between pt-3 border-t border-gray-200">
-                  <span className="font-bold text-gray-900">You Receive (80%)</span>
+                  <span className="font-bold text-gray-900">You Receive (before tax)</span>
                   <span className="font-bold text-green-600 text-base">
                     {formatCurrency(commission.vendorPayout)}
                   </span>

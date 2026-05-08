@@ -198,8 +198,6 @@ export default function AddProductPage() {
           category: formData.category,
           description: formData.description.trim(),
           basePrice,
-          markup: 0,
-          markupPercentage: 0,
           images: formData.coverImage ? [formData.coverImage] : [],
           courseDuration: formData.courseDuration.trim() || 'Self-paced',
           prerequisites: filledPrerequisites,
@@ -214,7 +212,6 @@ export default function AddProductPage() {
             accessUrl: formData.accessUrl.trim(),
             highlights: filledHighlights.join('|||'),
           },
-          stock: 999999,
         }),
       });
 
@@ -609,13 +606,13 @@ export default function AddProductPage() {
                   </span>
                 </div>
                 <div className="flex justify-between pb-3 border-b border-gray-100">
-                  <span className="text-gray-500">Platform Cut (20%)</span>
+                  <span className="text-gray-500">Platform Cut </span>
                   <span className="font-semibold text-red-500">
                     -{formatCurrency(commission.platformCommission)}
                   </span>
                 </div>
                 <div className="flex justify-between pt-3 border-t border-gray-200">
-                  <span className="font-bold text-gray-900">You Receive (80%)</span>
+                  <span className="font-bold text-gray-900">You Receive (before tax)</span>
                   <span className="font-bold text-green-600 text-base">
                     {formatCurrency(commission.vendorPayout)}
                   </span>

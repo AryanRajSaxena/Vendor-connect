@@ -203,6 +203,8 @@ function ProductsContent() {
                             src={courseImage}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            loading="eager"
+                            fetchPriority="high"
                             onError={() => {
                               setImageLoadErrors((prev) => ({ ...prev, [product.id]: true }));
                             }}

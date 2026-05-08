@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, name, role, businessName, gstNumber, panNumber, phone } = body;
+    const { email, password, name, role, businessName, ifscCode, phone } = body;
 
     // Validate input
     if (!email || !password || !name || !role) {
@@ -46,8 +46,7 @@ export async function POST(request: NextRequest) {
           role,
           phone,
           business_name: businessName,
-          gst_number: gstNumber,
-          pan_number: panNumber,
+          ifsc_code: ifscCode,
           is_verified: false,
         },
       ])
