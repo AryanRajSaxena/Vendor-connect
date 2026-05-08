@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Lock, Edit2, ShieldCheck, LogOut, BadgeInfo, CalendarDays, Hash, BadgeCheck } from 'lucide-react';
+import { AlertCircle, Lock, Edit2, ShieldCheck, LogOut, CalendarDays, Hash, BadgeCheck } from 'lucide-react';
 
 export default function VendorSettings() {
   const router = useRouter();
@@ -73,7 +73,6 @@ export default function VendorSettings() {
         phone: formData.phone,
         businessName: formData.businessName,
         ifscCode: formData.ifscCode,
-        accountNumber: formData.accountNumber,
       });
       setSuccess(true);
       setLocked(true);
@@ -158,14 +157,31 @@ export default function VendorSettings() {
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-900">Account</h2>
             <p className="mt-1 text-sm text-gray-500">Log out when you are done managing your store.</p>
-            <div className="mt-4">
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign out
-              </button>
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              {summaryFields.map((s) => {
+                const Icon = s.icon as any;
+                return (
+                  <div key={s.label} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-xs text-gray-500">{s.label}</p>
+                        <p className="text-sm font-semibold text-gray-900">{s.value}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div>
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
             </div>
           </div>
         </aside>

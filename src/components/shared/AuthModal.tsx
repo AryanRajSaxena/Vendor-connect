@@ -15,7 +15,7 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }: AuthModalProps) {
   const router = useRouter();
   const { login, signup } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin] = useState(true);
   const [role, setRole] = useState<'vendor' | 'seller' | 'customer'>(defaultRole);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
