@@ -37,8 +37,10 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+        'Cache-Control': 'private, no-store', // Disable public/CDN caching for correctness
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'x-proxied-url',
+        'x-proxied-url': decodedUrl,
       },
     });
   } catch (error) {
