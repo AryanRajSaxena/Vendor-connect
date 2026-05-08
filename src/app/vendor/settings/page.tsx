@@ -25,16 +25,38 @@ export default function VendorSettings() {
     if (!isLoading && user?.role !== 'vendor') router.push('/');
     if (user) {
       const u = user as any;
-      const data = {
+      const base = {
         name: u.name ?? '',
         email: u.email ?? '',
         phone: u.phone ?? '',
         businessName: u.businessName ?? u.business_name ?? '',
         ifscCode: u.ifscCode ?? u.ifsc_code ?? '',
         accountNumber: u.accountNumber ?? u.account_number ?? '',
-      };
-      setFormData(data);
-      if (data.name && data.businessName && data.phone) setLocked(true);
+      } as any;
+
+      // Try to fetch the freshest user record from the API to include fields
+      // that may not be present on the client `user` object (e.g. account_number).
+      (async () => {
+        try {
+          const res = await fetch(`/api/users/${user.id}`);
+          if (res.ok) {
+            const remote = await res.json();
+            const merged = {
+              ...base,
+              ifscCode: base.ifscCode || remote.ifsc_code || remote.ifscCode || '',
+              accountNumber: base.accountNumber || remote.account_number || remote.accountNumber || (remote.bank_details && remote.bank_details.accountNumber) || '',
+            };
+            setFormData(merged);
+            if (merged.name && merged.businessName && merged.phone) setLocked(true);
+            return;
+          }
+        } catch (e) {
+          // ignore fetch errors and fall back to local user object
+        }
+
+        setFormData(base);
+        if (base.name && base.businessName && base.phone) setLocked(true);
+      })();
     }
   }, [user, isLoading, router]);
 
