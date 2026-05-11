@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
           final_price: parsedBasePrice,
           images,
           specifications,
-          stock,
+          stock: stock || 999999,
           is_active: true,
           course_duration: courseDuration || 'Self-paced',
           prerequisites: prerequisites || [],
