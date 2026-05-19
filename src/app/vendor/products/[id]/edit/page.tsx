@@ -110,7 +110,7 @@ export default function EditProductPage() {
   };
 
   const addHighlight = () => {
-    if (highlights.length < 6) setHighlights((prev) => [...prev, '']);
+    setHighlights((prev) => [...prev, '']);
   };
 
   const removeHighlight = (index: number) => {
@@ -283,7 +283,7 @@ export default function EditProductPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-700">Key Highlights</h2>
-              <span className="text-xs text-gray-400">{highlights.length} / 6</span>
+              <span className="text-xs text-gray-400">{highlights.length} highlight{highlights.length === 1 ? '' : 's'}</span>
             </div>
             <p className="text-xs text-gray-500">
               List what makes this product valuable (shown as bullet points on the listing page)
@@ -313,16 +313,14 @@ export default function EditProductPage() {
               ))}
             </div>
 
-            {highlights.length < 6 && (
-              <button
-                type="button"
-                onClick={addHighlight}
-                className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-600 font-medium"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add highlight
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={addHighlight}
+              className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-600 font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add highlight
+            </button>
           </div>
 
           {/* Actions */}
