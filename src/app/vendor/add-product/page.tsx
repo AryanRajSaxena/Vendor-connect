@@ -100,7 +100,7 @@ export default function AddProductPage() {
   };
 
   const addHighlight = () => {
-    if (highlights.length < 6) setHighlights((prev) => [...prev, '']);
+    setHighlights((prev) => [...prev, '']);
   };
 
   const removeHighlight = (index: number) => {
@@ -117,7 +117,7 @@ export default function AddProductPage() {
   };
 
   const addPrerequisite = () => {
-    if (prerequisites.length < 10) setPrerequisites((prev) => [...prev, '']);
+    setPrerequisites((prev) => [...prev, '']);
   };
 
   const removePrerequisite = (index: number) => {
@@ -134,7 +134,7 @@ export default function AddProductPage() {
   };
 
   const addLearningOutcome = () => {
-    if (learningOutcomes.length < 10) setLearningOutcomes((prev) => [...prev, '']);
+    setLearningOutcomes((prev) => [...prev, '']);
   };
 
   const removeLearningOutcome = (index: number) => {
@@ -151,17 +151,15 @@ export default function AddProductPage() {
   };
 
   const addCurriculumModule = () => {
-    if (curriculum.length < 20) {
-      setCurriculum((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          title: '',
-          lessons: '',
-          duration: '',
-        },
-      ]);
-    }
+    setCurriculum((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        title: '',
+        lessons: '',
+        duration: '',
+      },
+    ]);
   };
 
   const removeCurriculumModule = (id: string) => {
@@ -394,16 +392,14 @@ export default function AddProductPage() {
                   )}
                 </div>
               ))}
-              {highlights.length < 6 && (
-                <button
-                  type="button"
-                  onClick={addHighlight}
-                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add highlight
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={addHighlight}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add highlight
+              </button>
             </div>
           </SectionCard>
 
@@ -458,16 +454,14 @@ export default function AddProductPage() {
                   )}
                 </div>
               ))}
-              {prerequisites.length < 10 && (
-                <button
-                  type="button"
-                  onClick={addPrerequisite}
-                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add prerequisite
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={addPrerequisite}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add prerequisite
+              </button>
             </div>
           </SectionCard>
 
@@ -500,16 +494,14 @@ export default function AddProductPage() {
                   )}
                 </div>
               ))}
-              {learningOutcomes.length < 10 && (
-                <button
-                  type="button"
-                  onClick={addLearningOutcome}
-                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add outcome
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={addLearningOutcome}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add outcome
+              </button>
             </div>
           </SectionCard>
 
@@ -574,16 +566,14 @@ export default function AddProductPage() {
                 ))
               )}
 
-              {curriculum.length < 20 && (
-                <button
-                  type="button"
-                  onClick={addCurriculumModule}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-blue-600 hover:text-blue-700 hover:border-blue-300 font-medium transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add module
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={addCurriculumModule}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-blue-600 hover:text-blue-700 hover:border-blue-300 font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add module
+              </button>
             </div>
           </SectionCard>
         </div>
