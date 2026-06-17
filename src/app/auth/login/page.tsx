@@ -1,14 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidEmail } from '@/utils/auth';
 import { Mail, Lock, TrendingUp, Zap, Shield, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
