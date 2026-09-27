@@ -468,11 +468,21 @@ function SignupContent() {
           {/* Footer Text */}
           <p className="text-xs text-slate-500 text-center mt-8">
             By creating an account, you agree to our{' '}
-            <Link href="#" className="text-slate-400 hover:text-slate-300 transition-colors">
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-slate-300 underline transition-colors"
+            >
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link href="#" className="text-slate-400 hover:text-slate-300 transition-colors">
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-slate-300 underline transition-colors"
+            >
               Privacy Policy
             </Link>
           </p>

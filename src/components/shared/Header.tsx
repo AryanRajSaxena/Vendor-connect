@@ -171,76 +171,108 @@ export default function Header() {
         )}
 
         {/* Desktop Navigation */}
-        {isAuthenticated && (
-        <div className="hidden md:flex items-center gap-4">
-          <Link
-                href={getRoleBasedDashboardLink()}
-                className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
-              >
-                <Home className="w-4 h-4" />
-                <div className="leading-tight">
-                  <p className="text-[10px] uppercase tracking-wide text-gray-400">Workspace</p>
-                  <p className="text-sm font-semibold text-gray-800">{getDashboardLabel()}</p>
-                </div>
-              </Link>
-
-              {user?.role === 'customer' && (
-                <Link
-                  href="/cart"
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium relative"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center font-bold shadow-sm">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                </Link>
-              )}
-
-              <div className="relative" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                    {user?.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="text-left leading-tight">
-                    <p className="text-xs text-gray-400">{getRoleLabel()}</p>
-                    <p className="text-sm font-semibold text-gray-800 max-w-[110px] truncate">{user?.name}</p>
-                  </div>
-                </button>
-                {isProfileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-large border border-gray-100 z-50 animate-slide-down overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                      <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{user?.email}</p>
-                    </div>
-                    <Link 
-                      href={getRoleBasedSettingsLink()} 
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                      onClick={() => setIsProfileDropdownOpen(false)}
-                    >
-                      <Settings className="w-4 h-4 text-gray-400" />
-                      <span>Settings</span>
-                    </Link>
-                    <button
-                      onClick={() => {
-                        logout();
-                        setIsProfileDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                )}
+        {isAuthenticated ? (
+          <div className="hidden md:flex items-center gap-4">
+            <Link
+              href={getRoleBasedDashboardLink()}
+              className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
+            >
+              <Home className="w-4 h-4" />
+              <div className="leading-tight">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400">Workspace</p>
+                <p className="text-sm font-semibold text-gray-800">{getDashboardLabel()}</p>
               </div>
+            </Link>
+
+            {user?.role === 'customer' && (
+              <Link
+                href="/cart"
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium relative"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center font-bold shadow-sm">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              </Link>
+            )}
+
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </div>
+                <div className="text-left leading-tight">
+                  <p className="text-xs text-gray-400">{getRoleLabel()}</p>
+                  <p className="text-sm font-semibold text-gray-800 max-w-[110px] truncate">{user?.name}</p>
+                </div>
+              </button>
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-large border border-gray-100 z-50 animate-slide-down overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                    <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{user?.email}</p>
+                  </div>
+                  <Link 
+                    href={getRoleBasedSettingsLink()} 
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                  >
+                    <Settings className="w-4 h-4 text-gray-400" />
+                    <span>Settings</span>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+        ) : (
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              href="/auth/login"
+              className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href={`/auth/signup?role=${landingRole}`}
+              className="px-4 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-all shadow-sm shadow-primary-600/20"
+            >
+              Get Started
+            </Link>
+          </div>
         )}
 
-        {/* Mobile Menu Button */}
-        <div className="md:hidden flex items-center gap-1.5">
+        {/* Mobile Navigation */}
+        <div className="md:hidden flex items-center gap-2">
+          {!isAuthenticated && (
+            <>
+              <Link
+                href="/auth/login"
+                className="px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                href={`/auth/signup?role=${landingRole}`}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+
           {isAuthenticated && user?.role === 'customer' && (
             <Link
               href="/cart"
@@ -263,7 +295,6 @@ export default function Header() {
               <User className="w-5 h-5" />
             </Link>
           )}
-
         </div>
       </nav>
 
