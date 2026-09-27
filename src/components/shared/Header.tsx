@@ -245,32 +245,18 @@ export default function Header() {
             >
               Sign In
             </Link>
-            <Link
-              href={`/auth/signup?role=${landingRole}`}
-              className="px-4 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-all shadow-sm shadow-primary-600/20"
-            >
-              Get Started
-            </Link>
           </div>
         )}
 
         {/* Mobile Navigation */}
         <div className="md:hidden flex items-center gap-2">
           {!isAuthenticated && (
-            <>
-              <Link
-                href="/auth/login"
-                className="px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-primary-600 transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                href={`/auth/signup?role=${landingRole}`}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-              >
-                Get Started
-              </Link>
-            </>
+            <Link
+              href="/auth/login"
+              className="px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              Sign In
+            </Link>
           )}
 
           {isAuthenticated && user?.role === 'customer' && (
