@@ -1,14 +1,13 @@
 'use client';
 
 import { Suspense, useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidEmail } from '@/utils/auth';
 import { Mail, Lock, User, Phone, Building2, FileText, TrendingUp, Zap, Shield, ArrowRight } from 'lucide-react';
 
 function SignupContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { signup, signInWithGoogle } = useAuth();
 
@@ -107,10 +106,10 @@ function SignupContent() {
         panNumber: role === 'seller' ? formData.panNumber : undefined,
       });
       setSuccessMessage('Account created successfully! Redirecting...');
+      const redirectPath = role === 'vendor' ? '/vendor/dashboard' : '/seller/dashboard';
       setTimeout(() => {
-        const redirectPath = role === 'vendor' ? '/vendor/dashboard' : '/seller/dashboard';
-        router.push(redirectPath);
-      }, 500);
+        window.location.href = redirectPath;
+      }, 400);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {

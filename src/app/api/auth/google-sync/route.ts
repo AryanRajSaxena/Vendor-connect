@@ -44,30 +44,40 @@ export async function POST(request: NextRequest) {
       role: u.role || 'customer',
       phone: u.phone || '',
       isVerified: u.is_verified ?? true,
+      is_verified: u.is_verified ?? true,
       createdAt: u.created_at || new Date().toISOString(),
       updatedAt: u.updated_at || new Date().toISOString(),
       avatar: u.avatar || avatar,
       businessName: u.business_name,
+      business_name: u.business_name,
       gstNumber: u.gst_number,
+      gst_number: u.gst_number,
       panNumber: u.pan_number,
+      pan_number: u.pan_number,
     });
 
     if (existingUser) {
-      // Existing user found -> update last login
+      // If user exists as 'customer', but signs up with a specific role ('vendor' | 'seller'), upgrade role
+      let currentRole = existingUser.role;
+      if (role && (role === 'vendor' || role === 'seller') && (!currentRole || currentRole === 'customer')) {
+        currentRole = role;
+      }
+
       try {
         await supabase
           .from('users')
           .update({
+            role: currentRole,
             last_login: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             ...(avatar && !existingUser.avatar ? { avatar } : {}),
           })
           .eq('id', existingUser.id);
       } catch (err) {
-        console.warn('Failed to update last_login for existing user:', err);
+        console.warn('Failed to update user for existing user:', err);
       }
 
-      return NextResponse.json(formatUserResponse(existingUser), { status: 200 });
+      return NextResponse.json(formatUserResponse({ ...existingUser, role: currentRole }), { status: 200 });
     }
 
     // New user -> provision in public.users

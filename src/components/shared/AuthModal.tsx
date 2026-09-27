@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidEmail } from '@/utils/auth';
 import { X, Mail, Lock, User, Phone, Building2, FileText } from 'lucide-react';
@@ -13,7 +12,6 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }: AuthModalProps) {
-  const router = useRouter();
   const { login, signup, signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState<'vendor' | 'seller' | 'customer'>(defaultRole);
@@ -111,7 +109,7 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
                 const user = JSON.parse(storedAuth);
                 const redirectPath = getRolePath(user.role);
                 onClose();
-                router.push(redirectPath);
+                window.location.href = redirectPath;
               } catch {
                 onClose();
                 window.location.reload();
@@ -134,9 +132,9 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
         setSuccessMessage('Account created successfully! Redirecting...');
         setTimeout(() => {
           onClose();
-          // For signup, we know the role from the form
-          router.push(getRolePath(role));
-        }, 500);
+          // For signup, redirect to the role dashboard
+          window.location.href = getRolePath(role);
+        }, 400);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');

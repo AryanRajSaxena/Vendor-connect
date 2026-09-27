@@ -26,7 +26,18 @@ function CallbackContent() {
         }
 
         const code = searchParams.get('code');
-        const roleParam = searchParams.get('role');
+        const roleFromParams = searchParams.get('role');
+        const roleFromStorage = typeof window !== 'undefined' ? localStorage.getItem('pending_auth_role') : null;
+        const landingRole = typeof window !== 'undefined' ? localStorage.getItem('landingPage_selectedRole') : null;
+        const targetRole =
+          (roleFromParams && ['vendor', 'seller', 'customer'].includes(roleFromParams) ? roleFromParams : null) ||
+          (roleFromStorage && ['vendor', 'seller', 'customer'].includes(roleFromStorage) ? roleFromStorage : null) ||
+          (landingRole && ['vendor', 'seller'].includes(landingRole) ? landingRole : null) ||
+          undefined;
+
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pending_auth_role');
+        }
 
         // 2. Exchange code for session if PKCE code is present
         if (code) {
@@ -72,7 +83,7 @@ function CallbackContent() {
             email: authUser.email,
             name: fullName,
             avatar: avatarUrl,
-            role: roleParam || undefined,
+            role: targetRole,
             supabaseUid: authUser.id,
           }),
         });
