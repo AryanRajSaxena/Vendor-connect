@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
 import { getStoredAuth, saveAuth, clearAuth, isValidEmail, isValidPassword } from '@/utils/auth';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -19,8 +20,10 @@ interface AuthContextType {
     gstNumber?: string;
     panNumber?: string;
   }) => Promise<void>;
-  logout: () => void;
+  signInWithGoogle: (role?: UserRole) => Promise<void>;
+  logout: () => void | Promise<void>;
   updateUser: (user: Partial<User>) => void;
+  setAuthUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -120,9 +123,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    clearAuth();
-    setUser(null);
+  const signInWithGoogle = async (role?: UserRole) => {
+    setIsLoading(true);
+    try {
+      const redirectUrl = new URL('/auth/callback', window.location.origin);
+      if (role) {
+        redirectUrl.searchParams.set('role', role);
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl.toString(),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error('Error signing out from Supabase:', e);
+    } finally {
+      clearAuth();
+      setUser(null);
+    }
+  };
+
+  const setAuthUser = (user: User) => {
+    saveAuth(user);
+    setUser(user);
   };
 
   const updateUser = (updates: Partial<User>) => {
@@ -141,8 +183,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         login,
         signup,
+        signInWithGoogle,
         logout,
         updateUser,
+        setAuthUser,
       }}
     >
       {children}
