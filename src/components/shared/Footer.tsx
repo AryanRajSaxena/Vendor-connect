@@ -61,23 +61,40 @@ export default function Footer() {
         {/* Policies Links */}
         <div className="border-t border-gray-800 pt-4 pb-4">
           <div className="flex items-center justify-center flex-wrap gap-4 text-sm">
-            <a 
-              href="/policies/privacy-policy.pdf" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <Link
+              href="/support"
+              className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+            >
+              Help Center
+            </Link>
+            <span className="text-gray-600">•</span>
+            <Link
+              href="/track-order"
+              className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+            >
+              Track Order
+            </Link>
+            <span className="text-gray-600">•</span>
+            <Link
+              href="/terms"
+              className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+            >
+              Terms of Service
+            </Link>
+            <span className="text-gray-600">•</span>
+            <Link
+              href="/privacy"
               className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
             >
               Privacy Policy
-            </a>
+            </Link>
             <span className="text-gray-600">•</span>
-            <a 
-              href="/policies/refund-policy.pdf" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <Link
+              href="/refund-policy"
               className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
             >
               Refund & Cancellation
-            </a>
+            </Link>
           </div>
         </div>
 

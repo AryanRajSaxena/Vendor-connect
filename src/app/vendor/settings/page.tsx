@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle, Lock, Edit2, ShieldCheck, LogOut, CalendarDays, Hash, BadgeCheck } from 'lucide-react';
+import { AlertCircle, Lock, Edit2 } from 'lucide-react';
 
 export default function VendorSettings() {
   const router = useRouter();
@@ -17,46 +17,24 @@ export default function VendorSettings() {
     email: '',
     phone: '',
     businessName: '',
-    ifscCode: '',
-    accountNumber: '',
+    gstNumber: '',
+    panNumber: '',
   });
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') router.push('/');
     if (user) {
       const u = user as any;
-      const base = {
+      const data = {
         name: u.name ?? '',
         email: u.email ?? '',
         phone: u.phone ?? '',
         businessName: u.businessName ?? u.business_name ?? '',
-        ifscCode: u.ifscCode ?? u.ifsc_code ?? '',
-        accountNumber: u.accountNumber ?? u.account_number ?? '',
-      } as any;
-
-      // Try to fetch the freshest user record from the API to include fields
-      // that may not be present on the client `user` object (e.g. account_number).
-      (async () => {
-        try {
-          const res = await fetch(`/api/users/${user.id}`);
-          if (res.ok) {
-            const remote = await res.json();
-            const merged = {
-              ...base,
-              ifscCode: base.ifscCode || remote.ifsc_code || remote.ifscCode || '',
-              accountNumber: base.accountNumber || remote.account_number || remote.accountNumber || (remote.bank_details && remote.bank_details.accountNumber) || '',
-            };
-            setFormData(merged);
-            if (merged.name && merged.businessName && merged.phone) setLocked(true);
-            return;
-          }
-        } catch (e) {
-          // ignore fetch errors and fall back to local user object
-        }
-
-        setFormData(base);
-        if (base.name && base.businessName && base.phone) setLocked(true);
-      })();
+        gstNumber: u.gstNumber ?? u.gst_number ?? '',
+        panNumber: u.panNumber ?? u.pan_number ?? '',
+      };
+      setFormData(data);
+      if (data.name && data.businessName && data.phone) setLocked(true);
     }
   }, [user, isLoading, router]);
 
@@ -82,8 +60,8 @@ export default function VendorSettings() {
           name: formData.name,
           phone: formData.phone,
           business_name: formData.businessName,
-          ifsc_code: formData.ifscCode,
-          account_number: formData.accountNumber,
+          gst_number: formData.gstNumber,
+          pan_number: formData.panNumber,
         }),
       });
       if (!res.ok) {
@@ -94,7 +72,8 @@ export default function VendorSettings() {
         name: formData.name,
         phone: formData.phone,
         businessName: formData.businessName,
-        ifscCode: formData.ifscCode,
+        gstNumber: formData.gstNumber,
+        panNumber: formData.panNumber,
       });
       setSuccess(true);
       setLocked(true);
@@ -116,50 +95,11 @@ export default function VendorSettings() {
   if (isLoading) return null;
   if (!user || user.role !== 'vendor') return null;
 
-  const requiredFilled = [formData.name, formData.email, formData.phone, formData.businessName].filter(Boolean).length;
-  const profileCompletion = Math.round((requiredFilled / 4) * 100);
-  const joinedAt = user?.createdAt ? new Date(user.createdAt) : null;
-  const summaryFields = [
-    { label: 'Verification', value: user.isVerified ? 'Verified' : 'Not verified', icon: BadgeCheck },
-    { label: 'Profile complete', value: `${profileCompletion}%`, icon: ShieldCheck },
-    { label: 'Joined', value: joinedAt && !Number.isNaN(joinedAt.getTime()) ? joinedAt.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—', icon: CalendarDays },
-    { label: 'Vendor ID', value: user.id.slice(0, 8).toUpperCase(), icon: Hash },
-  ];
-
-  const detailFields = [
-    { label: 'IFSC Code', value: formData.ifscCode || '—' },
-    { label: 'Account Number', value: formData.accountNumber || '—' },
-  ];
-
-  const generalFields = [
-    { label: 'Business Name', name: 'businessName', placeholder: 'Your business name', hint: 'Used for invoicing and marketplace display' },
-    { label: 'Owner / Manager Name', name: 'name', placeholder: 'Your full name' },
-    { label: 'Phone', name: 'phone', placeholder: 'Phone number', hint: 'For order notifications and support', type: 'tel' },
-  ];
-
-  const payoutFields = [
-    { label: 'IFSC Code', name: 'ifscCode', placeholder: 'SBIN0001234', hint: 'Bank IFSC code for payouts (optional)' },
-    { label: 'Account Number', name: 'accountNumber', placeholder: 'e.g., 1234567890', hint: 'Bank account number for payouts (optional)' },
-  ];
-
   return (
-    <div className="px-4 sm:px-6 py-8 max-w-5xl mx-auto">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 shadow-sm">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Vendor account
-          </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900">Settings</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your business profile, tax details, and account access.</p>
-        </div>
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-2 rounded-full px-0 py-0">
-            <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
-            <h1 className="ml-2 text-2xl font-semibold tracking-tight text-gray-900">Settings</h1>
-          </div>
-          <p className="mt-2 text-sm text-gray-500">Manage your business profile and account access.</p>
-        </div>
+    <div className="px-6 py-8 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage your account and business details</p>
       </div>
 
       {error && (
@@ -174,137 +114,107 @@ export default function VendorSettings() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <aside className="space-y-5 md:sticky md:top-28">
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">Account</h2>
-            <p className="mt-1 text-sm text-gray-500">Log out when you are done managing your store.</p>
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              {summaryFields.map((s) => {
-                const Icon = s.icon as any;
-                return (
-                  <div key={s.label} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Icon className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-xs text-gray-500">{s.label}</p>
-                        <p className="text-sm font-semibold text-gray-900">{s.value}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div>
-                <button
-                  onClick={handleLogout}
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Business information</h2>
-              <p className="mt-1 text-sm text-gray-500">Keep your business details accurate for payouts, invoicing, and support.</p>
-            </div>
+      {/* Business info */}
+      {locked ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-5">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-gray-700">Business Information</h2>
             <button
-              onClick={() => setLocked((prev) => !prev)}
-              aria-label={locked ? 'Edit details' : 'Lock view'}
-              className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+              onClick={() => setLocked(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
             >
-              <Edit2 className="w-4 h-4" />
+              <Edit2 className="w-3.5 h-3.5" />
+              Edit
             </button>
           </div>
-
-          {locked ? (
-            <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {[
-                ...generalFields.map((f) => ({ label: f.label, value: (formData as any)[f.name] })),
-                ...detailFields,
-                { label: 'Email', value: formData.email },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
-                  <dt className="text-sm text-gray-500">{label}</dt>
-                  <dd className={`text-right text-sm font-medium text-gray-900 break-all ${label === 'Account Number' ? 'font-mono' : ''}`}>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <form onSubmit={handleSave} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {generalFields.map(({ label, name, placeholder, hint, type }) => (
-                <div key={name} className="min-w-0">
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">{label}</label>
-                  <input
-                    type={type ?? 'text'}
-                    name={name}
-                    value={(formData as any)[name]}
-                    onChange={handleChange}
-                    placeholder={placeholder}
-                    className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
-                </div>
-              ))}
-
-              <div className="md:col-span-2 mt-1 pt-1 border-t border-gray-100">
-                <h3 className="mt-4 mb-2 text-sm font-semibold text-gray-800">Payout details</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {payoutFields.map(({ label, name, placeholder, hint }) => (
-                    <div key={name}>
-                      <label className="mb-1.5 block text-sm font-semibold text-gray-700">{label}</label>
-                      <input
-                        name={name}
-                        value={(formData as any)[name]}
-                        onChange={handleChange}
-                        placeholder={placeholder}
-                        className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
-                    </div>
-                  ))}
-                </div>
+          <dl className="space-y-4">
+            {[
+              { label: 'Business Name', value: formData.businessName },
+              { label: 'Owner / Manager Name', value: formData.name },
+              { label: 'Phone', value: formData.phone },
+              { label: 'GST Number', value: formData.gstNumber || '—' },
+              { label: 'PAN Number', value: formData.panNumber || '—' },
+              { label: 'Email', value: formData.email },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-start justify-between">
+                <dt className="text-sm text-gray-500 w-40 flex-shrink-0">{label}</dt>
+                <dd className="text-sm font-medium text-gray-900 text-right">{value}</dd>
               </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1.5 block text-sm font-semibold text-gray-700">Email</label>
+            ))}
+          </dl>
+        </div>
+      ) : (
+        <form onSubmit={handleSave}>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4 mb-5">
+            <h2 className="text-sm font-semibold text-gray-700">Business Information</h2>
+            {[
+              { label: 'Business Name', name: 'businessName', placeholder: 'Your business name', hint: 'Used for invoicing and marketplace display' },
+              { label: 'Owner / Manager Name', name: 'name', placeholder: 'Your full name' },
+              { label: 'Phone', name: 'phone', placeholder: 'Phone number', hint: 'For order notifications and support', type: 'tel' },
+              { label: 'GST Number', name: 'gstNumber', placeholder: '27AABCT1234H1Z0', hint: 'GST registration number (optional)' },
+              { label: 'PAN Number', name: 'panNumber', placeholder: 'AAAPA1234P', hint: 'For tax reporting (optional)' },
+            ].map(({ label, name, placeholder, hint, type }) => (
+              <div key={name}>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
                 <input
-                  type="email"
-                  value={formData.email}
-                  disabled
-                  className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-400"
+                  type={type ?? 'text'}
+                  name={name}
+                  value={(formData as any)[name]}
+                  onChange={handleChange}
+                  placeholder={placeholder}
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
-                <p className="mt-1 text-xs text-gray-400">Email cannot be changed</p>
+                {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
               </div>
+            ))}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                disabled
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+            >
+              <Lock className="w-4 h-4" />
+              {loading ? 'Saving...' : 'Save & Lock'}
+            </button>
+            {formData.name && formData.businessName && formData.phone && (
+              <button
+                type="button"
+                onClick={() => setLocked(true)}
+                className="px-4 py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      )}
 
-              <div className="md:col-span-2 flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
-                >
-                  <Lock className="w-4 h-4" />
-                  {loading ? 'Saving...' : 'Save & Lock'}
-                </button>
-                {formData.name && formData.businessName && formData.phone && (
-                  <button
-                    type="button"
-                    onClick={() => setLocked(true)}
-                    className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
-          )}
-        </section>
+      {/* Danger zone */}
+      <div className="mt-8 bg-white rounded-lg border border-red-100 p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Sign out</p>
+            <p className="text-xs text-gray-400 mt-0.5">Log out from your vendor account</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   );

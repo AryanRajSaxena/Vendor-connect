@@ -74,7 +74,7 @@ export function generateReferralCode(sellerId: string): string {
 
 /**
  * Convert a cover image URL to a directly embeddable src.
- * Handles Google Drive share links → proxy URL for browser compatibility.
+ * Handles Google Drive share links → direct view URL.
  * Returns null if the value is empty or an emoji (non-http string).
  */
 export function getImageUrl(url: string | undefined | null): string | null {
@@ -109,18 +109,13 @@ export function getImageUrl(url: string | undefined | null): string | null {
   // Google Drive: https://drive.google.com/file/d/FILE_ID/view...
   const driveFile = raw.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
   if (driveFile) {
-    return `/api/images/proxy/drive/${driveFile[1]}?sz=w800`;
+    return `https://drive.google.com/thumbnail?id=${driveFile[1]}&sz=w800`;
   }
 
   // Google Drive: https://drive.google.com/open?id=FILE_ID
   const driveOpen = raw.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
   if (driveOpen) {
-    return `/api/images/proxy/drive/${driveOpen[1]}?sz=w800`;
-  }
-
-  // If it's a Google Drive lh3 URL, also proxy it via query fallback
-  if (raw.includes('lh3.googleusercontent.com')) {
-    return `/api/images/proxy?url=${encodeURIComponent(raw)}`;
+    return `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w800`;
   }
 
   return raw;
