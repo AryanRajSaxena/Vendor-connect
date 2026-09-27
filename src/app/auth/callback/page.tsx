@@ -13,12 +13,12 @@ function CallbackContent() {
   const { setAuthUser } = useAuth();
   const [statusMessage, setStatusMessage] = useState('Verifying your Google account...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const callbackExecutedRef = useRef(false);
 
   useEffect(() => {
     if (callbackExecutedRef.current) return;
     callbackExecutedRef.current = true;
-    let isMounted = true;
 
     async function handleAuthCallback() {
       try {
@@ -93,34 +93,31 @@ function CallbackContent() {
         // 5. Clean up pending role and store user in auth context and localStorage
         if (typeof window !== 'undefined') {
           localStorage.removeItem('pending_auth_role');
+          localStorage.setItem('auth_user', JSON.stringify(appUser));
         }
         setAuthUser(appUser);
         setStatusMessage('Success! Redirecting to your dashboard...');
 
         // 6. Redirect to role dashboard
-        const redirectPath = getRolePath(appUser.role);
-        setTimeout(() => {
-          if (isMounted) {
-            window.location.href = redirectPath;
-          }
-        }, 300);
+        const redirectPath = getRolePath(appUser.role, targetRole);
+        setRedirectUrl(redirectPath);
+
+        // Immediate navigation without relying on unmounted/mounted state
+        if (typeof window !== 'undefined') {
+          window.location.replace(redirectPath);
+        }
       } catch (err: any) {
         console.error('OAuth callback error:', err);
-        if (isMounted) {
-          setErrorMessage(err.message || 'An unexpected error occurred during Google sign in.');
-        }
+        setErrorMessage(err.message || 'An unexpected error occurred during Google sign in.');
       }
     }
 
     handleAuthCallback();
-
-    return () => {
-      isMounted = false;
-    };
   }, [searchParams, router, setAuthUser]);
 
-  const getRolePath = (userRole: string): string => {
-    switch (userRole) {
+  const getRolePath = (userRole?: string, preferredRole?: string): string => {
+    const effectiveRole = userRole && userRole !== 'customer' ? userRole : (preferredRole || userRole);
+    switch (effectiveRole) {
       case 'vendor':
         return '/vendor/dashboard';
       case 'seller':
@@ -128,7 +125,7 @@ function CallbackContent() {
       case 'admin':
         return '/admin/dashboard';
       default:
-        return '/products';
+        return '/vendor/dashboard';
     }
   };
 
@@ -181,6 +178,16 @@ function CallbackContent() {
               <h2 className="text-xl font-bold text-white mb-2">Connecting Account</h2>
               <p className="text-sm text-slate-400">{statusMessage}</p>
             </div>
+            {redirectUrl && (
+              <div className="pt-2">
+                <a
+                  href={redirectUrl}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20"
+                >
+                  Go to Dashboard &rarr;
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>
