@@ -26,7 +26,10 @@ function CallbackContent() {
         }
 
         const code = searchParams.get('code');
-        const roleParam = searchParams.get('role');
+        const rawRole = searchParams.get('role');
+        const storedRole = typeof window !== 'undefined' ? localStorage.getItem('pending_auth_role') : null;
+        const landingRole = typeof window !== 'undefined' ? localStorage.getItem('landingPage_selectedRole') : null;
+        const targetRole = rawRole || storedRole || landingRole || undefined;
 
         // 2. Exchange code for session if PKCE code is present
         if (code) {
@@ -72,7 +75,7 @@ function CallbackContent() {
             email: authUser.email,
             name: fullName,
             avatar: avatarUrl,
-            role: roleParam || undefined,
+            role: targetRole,
             supabaseUid: authUser.id,
           }),
         });
@@ -84,7 +87,10 @@ function CallbackContent() {
 
         const appUser = await syncResponse.json();
 
-        // 5. Store user in auth context and localStorage
+        // 5. Clean up pending role and store user in auth context and localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pending_auth_role');
+        }
         setAuthUser(appUser);
         setStatusMessage('Success! Redirecting to your dashboard...');
 

@@ -126,6 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async (role?: UserRole) => {
     setIsLoading(true);
     try {
+      if (typeof window !== 'undefined' && role) {
+        localStorage.setItem('pending_auth_role', role);
+      }
+
       const redirectUrl = new URL('/auth/callback', window.location.origin);
       if (role) {
         redirectUrl.searchParams.set('role', role);

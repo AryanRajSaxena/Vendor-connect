@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (queryError) {
       console.error('Database query error during google-sync:', queryError);
       return NextResponse.json(
-        { error: 'Failed to query database user' },
+        { error: `Database query failed: ${queryError.message}` },
         { status: 500 }
       );
     }
@@ -46,54 +46,71 @@ export async function POST(request: NextRequest) {
       isVerified: u.is_verified ?? true,
       createdAt: u.created_at || new Date().toISOString(),
       updatedAt: u.updated_at || new Date().toISOString(),
-      avatar: u.avatar || avatar,
+      avatar: avatar || undefined,
       businessName: u.business_name,
-      gstNumber: u.gst_number,
-      panNumber: u.pan_number,
     });
 
     if (existingUser) {
-      // Existing user found -> update last login
+      // If user exists as 'customer', but signs up with a specific role ('vendor' | 'seller'), upgrade role
+      let currentRole = existingUser.role;
+      if (role && (role === 'vendor' || role === 'seller') && (!currentRole || currentRole === 'customer')) {
+        currentRole = role;
+      }
+
       try {
         await supabase
           .from('users')
           .update({
-            last_login: new Date().toISOString(),
+            role: currentRole,
             updated_at: new Date().toISOString(),
-            ...(avatar && !existingUser.avatar ? { avatar } : {}),
           })
           .eq('id', existingUser.id);
       } catch (err) {
-        console.warn('Failed to update last_login for existing user:', err);
+        console.warn('Failed to update user for existing user:', err);
       }
 
-      return NextResponse.json(formatUserResponse(existingUser), { status: 200 });
+      // If user is seller, ensure seller_accounts row exists
+      if (currentRole === 'seller') {
+        try {
+          await supabase
+            .from('seller_accounts')
+            .insert([
+              {
+                seller_id: existingUser.id,
+                total_earnings: 0,
+                available_balance: 0,
+                locked_balance: 0,
+              },
+            ]);
+        } catch {
+          // ignore if already exists
+        }
+      }
+
+      return NextResponse.json(formatUserResponse({ ...existingUser, role: currentRole }), { status: 200 });
     }
 
-    // New user -> provision in public.users
+    // New user -> provision in public.users matching exact table schema:
+    // id (uuid), email (varchar NOT NULL), password_hash (varchar NOT NULL), name (varchar NOT NULL),
+    // role (varchar NOT NULL), phone (varchar), business_name (varchar), is_verified (boolean)
     const validRoles = ['vendor', 'seller', 'customer'];
     const assignedRole = validRoles.includes(role) ? role : 'customer';
     const displayName = (name || cleanEmail.split('@')[0]).trim();
 
     const insertPayload: Record<string, any> = {
       email: cleanEmail,
+      password_hash: `OAUTH_GOOGLE_${supabaseUid || Date.now()}`,
       name: displayName,
       role: assignedRole,
-      phone: '',
+      phone: null,
+      business_name: null,
       is_verified: true,
-      last_login: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
 
-    if (avatar) {
-      insertPayload.avatar = avatar;
-    }
-
-    // Attempt insertion with supabaseUid if provided
     let insertResult = null;
     let insertError = null;
 
+    // First attempt: insert with supabaseUid as id (if valid UUID from Supabase)
     if (supabaseUid) {
       const { data, error } = await supabase
         .from('users')
@@ -104,7 +121,7 @@ export async function POST(request: NextRequest) {
       insertError = error;
     }
 
-    // If no supabaseUid or if inserting with custom ID failed (e.g. integer id sequence), insert without custom ID
+    // Fallback: insert without custom id (allows database gen_random_uuid() to assign id)
     if (!insertResult) {
       const { data, error } = await supabase
         .from('users')
@@ -118,9 +135,27 @@ export async function POST(request: NextRequest) {
     if (insertError || !insertResult) {
       console.error('Failed to create new user record in google-sync:', insertError);
       return NextResponse.json(
-        { error: 'Failed to create user record. Please try again.' },
+        { error: `Failed to create user record: ${insertError?.message || 'Database error'}` },
         { status: 500 }
       );
+    }
+
+    // If new user is a seller, initialize seller_accounts row
+    if (assignedRole === 'seller' && insertResult.id) {
+      try {
+        await supabase
+          .from('seller_accounts')
+          .insert([
+            {
+              seller_id: insertResult.id,
+              total_earnings: 0,
+              available_balance: 0,
+              locked_balance: 0,
+            },
+          ]);
+      } catch (err) {
+        console.warn('Failed to initialize seller_accounts:', err);
+      }
     }
 
     logSecurityEvent('google_signup_success', { email: cleanEmail, role: assignedRole }, request);
