@@ -130,7 +130,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('pending_auth_role', role);
       }
 
-      const redirectUrl = new URL('/auth/callback', window.location.origin);
+      // Guarantee production domain when deployed
+      let origin = window.location.origin;
+      if (typeof window !== 'undefined' && window.location.hostname.includes('agentcroww.com')) {
+        origin = 'https://agentcroww.com';
+      }
+
+      const redirectUrl = new URL('/auth/callback', origin);
       if (role) {
         redirectUrl.searchParams.set('role', role);
       }

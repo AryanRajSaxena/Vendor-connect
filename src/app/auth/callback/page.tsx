@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { TrendingUp, AlertCircle, ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 function CallbackContent() {
@@ -131,11 +131,11 @@ function CallbackContent() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-      <Link href="/" className="inline-flex items-center gap-2 mb-8">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-          <TrendingUp className="w-7 h-7 text-white" />
+      <Link href="/" className="inline-flex items-center gap-3 mb-8">
+        <div className="w-12 h-12 rounded-xl overflow-hidden ring-1 ring-primary-200/60 flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <img src="/images/icon.jpeg" alt="Agent Croww" className="w-12 h-12 object-cover" />
         </div>
-        <span className="text-2xl font-bold text-white">Agent Croww</span>
+        <span className="brand-text text-2xl text-white">Agent Croww</span>
       </Link>
 
       <div className="w-full max-w-md bg-slate-900/80 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">

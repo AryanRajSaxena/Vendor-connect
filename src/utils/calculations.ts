@@ -77,13 +77,48 @@ export function generateReferralCode(sellerId: string): string {
  * Handles Google Drive share links → direct view URL.
  * Returns null if the value is empty or an emoji (non-http string).
  */
+/**
+ * Convert any Google Drive sharing link to a direct public image thumbnail
+ */
+export function convertGoogleDriveUrl(url: string | undefined | null): string | null {
+  if (!url) return null;
+  let raw = url.trim();
+  if (!raw) return null;
+
+  if (raw.startsWith('drive.google.com') || raw.startsWith('www.drive.google.com') || raw.startsWith('docs.google.com')) {
+    raw = `https://${raw}`;
+  }
+
+  if (raw.includes('drive.google.com') || raw.includes('docs.google.com')) {
+    // 1. Match /file/d/FILE_ID
+    const fileMatch = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileMatch && fileMatch[1]) {
+      return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w1000`;
+    }
+
+    // 2. Match [?&]id=FILE_ID
+    const idMatch = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+      return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`;
+    }
+  }
+
+  return raw;
+}
+
 export function getImageUrl(url: string | undefined | null): string | null {
   if (!url) return null;
 
-  const raw = url.trim();
+  let raw = url.trim();
   if (!raw) return null;
 
   if (raw.startsWith('data:image/')) return raw;
+
+  // Convert Google Drive links (even without http)
+  const asDrive = convertGoogleDriveUrl(raw);
+  if (asDrive && asDrive.includes('drive.google.com/thumbnail')) {
+    return asDrive;
+  }
 
   // Normalize local/relative paths (including Windows-style backslashes)
   const normalizedPath = raw.replace(/\\/g, '/').replace(/^\.\//, '');
@@ -105,18 +140,6 @@ export function getImageUrl(url: string | undefined | null): string | null {
   }
 
   if (!raw.startsWith('http')) return null;
-
-  // Google Drive: https://drive.google.com/file/d/FILE_ID/view...
-  const driveFile = raw.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
-  if (driveFile) {
-    return `https://drive.google.com/thumbnail?id=${driveFile[1]}&sz=w800`;
-  }
-
-  // Google Drive: https://drive.google.com/open?id=FILE_ID
-  const driveOpen = raw.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
-  if (driveOpen) {
-    return `https://drive.google.com/thumbnail?id=${driveOpen[1]}&sz=w800`;
-  }
 
   return raw;
 }

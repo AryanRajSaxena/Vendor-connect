@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { X, Plus, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { calculateCommissions, formatCurrency } from '@/utils/calculations';
+import { calculateCommissions, formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface FormData {
   name: string;
@@ -253,32 +253,45 @@ export default function EditProductPage() {
             </div>
           </div>
 
-          {/* Media & Access */}
+          {/* Cover Image */}
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-            <h2 className="text-sm font-semibold text-gray-700">Media &amp; Access</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Course Cover Image</h2>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cover Image URL</label>
               <input
-                type="url"
+                type="text"
                 value={formData.coverImage}
                 onChange={(e) => handleChange('coverImage', e.target.value)}
-                placeholder="https://example.com/cover.jpg"
+                placeholder="https://example.com/cover.jpg or Google Drive public link"
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
-              <p className="text-xs text-gray-400 mt-1">Recommended: 1200×630px, JPEG or PNG</p>
-            </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Enter a direct image URL or a Google Drive sharing link (set to &quot;Anyone with the link can view&quot;)
+              </p>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Access / Download Link</label>
-              <input
-                type="url"
-                value={formData.accessUrl}
-                onChange={(e) => handleChange('accessUrl', e.target.value)}
-                placeholder="https://example.com/course or Google Drive link"
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <p className="text-xs text-gray-400 mt-1">This link will be shared with the buyer after purchase</p>
+              {formData.coverImage.trim() && (
+                <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-medium text-slate-600 mb-2">Image Preview:</p>
+                  <div className="relative w-full max-w-sm h-48 rounded-lg overflow-hidden border border-slate-300 bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={getImageUrl(formData.coverImage) || formData.coverImage}
+                      alt="Cover Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const parent = (e.target as HTMLElement).parentElement;
+                        if (parent && !parent.querySelector('.preview-error')) {
+                          const errDiv = document.createElement('div');
+                          errDiv.className = 'preview-error text-center p-3 text-xs text-amber-600';
+                          errDiv.innerText = 'Unable to load preview. If using Google Drive, make sure the link access is set to "Anyone with the link can view".';
+                          parent.appendChild(errDiv);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

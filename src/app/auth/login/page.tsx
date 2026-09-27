@@ -103,11 +103,11 @@ export default function LoginPage() {
 
         {/* Logo/Branding */}
         <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-2 mb-12">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-emerald-500 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
+          <Link href="/" className="inline-flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-primary-200/60 shadow-sm flex items-center justify-center">
+              <img src="/images/icon.jpeg" alt="Agent Croww" className="w-10 h-10 object-cover" />
             </div>
-            <span className="text-2xl font-bold text-white">Agent Croww</span>
+            <span className="brand-text text-2xl text-white">Agent Croww</span>
           </Link>
 
           <div className="space-y-8">
@@ -163,11 +163,11 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile Header */}
           <div className="lg:hidden mb-8">
-            <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-emerald-500 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
+            <Link href="/" className="inline-flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-primary-200/60 shadow-sm flex items-center justify-center">
+                <img src="/images/icon.jpeg" alt="Agent Croww" className="w-10 h-10 object-cover" />
               </div>
-              <span className="text-2xl font-bold text-white">Agent Croww</span>
+              <span className="brand-text text-2xl text-white">Agent Croww</span>
             </Link>
             <h1 className="text-3xl font-bold text-white">Welcome Back</h1>
             <p className="text-slate-400 mt-2">Sign in to your account</p>
