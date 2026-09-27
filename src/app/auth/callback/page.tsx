@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,8 +13,11 @@ function CallbackContent() {
   const { setAuthUser } = useAuth();
   const [statusMessage, setStatusMessage] = useState('Verifying your Google account...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const callbackExecutedRef = useRef(false);
 
   useEffect(() => {
+    if (callbackExecutedRef.current) return;
+    callbackExecutedRef.current = true;
     let isMounted = true;
 
     async function handleAuthCallback() {

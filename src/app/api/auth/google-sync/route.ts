@@ -4,7 +4,7 @@ import { isValidEmail } from '@/utils/auth';
 import { withRateLimit, logSecurityEvent } from '@/lib/middleware';
 
 export async function POST(request: NextRequest) {
-  const rateLimitResponse = withRateLimit('auth')(request);
+  const rateLimitResponse = withRateLimit('oauth')(request);
   if (rateLimitResponse) {
     return rateLimitResponse;
   }

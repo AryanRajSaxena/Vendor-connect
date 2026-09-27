@@ -8,11 +8,14 @@ interface RateLimitEntry {
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const RATE_LIMIT_CONFIGS = {
-  auth: { windowMs: 15 * 60 * 1000, max: 5 },
-  api: { windowMs: 60 * 1000, max: 100 },
-  checkout: { windowMs: 60 * 60 * 1000, max: 10 },
-  password: { windowMs: 60 * 60 * 1000, max: 3 },
+  auth: { windowMs: 15 * 60 * 1000, max: isDev ? 1000 : 60 },
+  api: { windowMs: 60 * 1000, max: isDev ? 5000 : 120 },
+  checkout: { windowMs: 60 * 60 * 1000, max: isDev ? 500 : 30 },
+  password: { windowMs: 60 * 60 * 1000, max: isDev ? 100 : 15 },
+  oauth: { windowMs: 15 * 60 * 1000, max: isDev ? 1000 : 120 },
 };
 
 function cleanupExpiredEntries() {
@@ -38,7 +41,17 @@ export function checkRateLimit(
   identifier: string,
   type: keyof typeof RATE_LIMIT_CONFIGS = 'api'
 ): RateLimitResult {
-  const config = RATE_LIMIT_CONFIGS[type];
+  // Never throttle localhost / local development environment
+  if (isDev && (identifier === 'unknown' || identifier === '127.0.0.1' || identifier === '::1' || identifier === 'localhost')) {
+    return {
+      allowed: true,
+      limit: 99999,
+      remaining: 99999,
+      resetTime: Date.now() + 60000,
+    };
+  }
+
+  const config = RATE_LIMIT_CONFIGS[type] || RATE_LIMIT_CONFIGS.api;
   const now = Date.now();
   const key = `${type}:${identifier}`;
 
