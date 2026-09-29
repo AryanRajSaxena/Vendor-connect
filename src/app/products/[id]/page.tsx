@@ -14,6 +14,13 @@ import {
   ShieldCheck,
   BadgeCheck,
   Sparkles,
+  Copy,
+  Download,
+  X,
+  Lock,
+  Phone,
+  Mail,
+  User,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
@@ -40,6 +47,8 @@ interface Product {
   }>;
   vendor_id: string;
   created_at: string;
+  brochure_url?: string;
+  syllabus_url?: string;
 }
 
 function ProductDetailContent() {
@@ -54,6 +63,23 @@ function ProductDetailContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isBuying, setIsBuying] = useState(false);
+  const [hasReferral, setHasReferral] = useState(false);
+  const [referralId, setReferralId] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+  const [guestName, setGuestName] = useState(user?.name || '');
+  const [guestEmail, setGuestEmail] = useState(user?.email || '');
+  const [guestPhone, setGuestPhone] = useState(user?.phone || '');
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const [guestSubmitting, setGuestSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (user.name && !guestName) setGuestName(user.name);
+      if (user.email && !guestEmail) setGuestEmail(user.email);
+      if (user.phone && !guestPhone) setGuestPhone(user.phone);
+    }
+  }, [user]);
 
   const backHref = (() => {
     if (user?.role === 'seller') {
@@ -85,17 +111,174 @@ function ProductDetailContent() {
   };
 
   useEffect(() => {
-    const code =
+    const rawRef =
       searchParams.get('ref') ||
       searchParams.get('referral') ||
       searchParams.get('code') ||
       '';
 
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
+    const normalizedParam = rawRef.trim();
 
-    localStorage.setItem('referralCode', normalized);
+    if (normalizedParam) {
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      const attributionData = {
+        ref: normalizedParam,
+        expiresAt: Date.now() + thirtyDaysMs,
+        savedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem('referral_attribution', JSON.stringify(attributionData));
+        localStorage.setItem('referralCode', normalizedParam.toUpperCase());
+      } catch (e) {
+        console.warn('Failed to store referral in localStorage:', e);
+      }
+      setHasReferral(true);
+      setReferralId(normalizedParam);
+    } else {
+      try {
+        const stored = localStorage.getItem('referral_attribution');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.expiresAt && parsed.expiresAt > Date.now() && parsed.ref) {
+            setHasReferral(true);
+            setReferralId(parsed.ref);
+          } else if (parsed?.expiresAt && parsed.expiresAt <= Date.now()) {
+            localStorage.removeItem('referral_attribution');
+            localStorage.removeItem('referralCode');
+            setHasReferral(false);
+            setReferralId(null);
+          }
+        } else {
+          const legacyCode = localStorage.getItem('referralCode');
+          if (legacyCode) {
+            setHasReferral(true);
+            setReferralId(legacyCode);
+          }
+        }
+      } catch (err) {
+        console.warn('Error reading referral attribution:', err);
+      }
+    }
   }, [searchParams]);
+
+  const handleCopyReferralLink = async () => {
+    if (!product || !user?.id) return;
+    const url = `${window.location.origin}/products/${product.id}?ref=${user.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      showCartToast('Referral link copied to clipboard!');
+      setTimeout(() => setIsCopied(false), 3000);
+    } catch (e) {
+      console.error('Failed to copy referral link', e);
+      showCartToast('Referral link: ' + url);
+    }
+  };
+
+  const handleDownloadBrochure = () => {
+    const specs = (product?.specifications || {}) as Record<string, any>;
+    const brochureUrl =
+      product?.brochure_url ||
+      product?.syllabus_url ||
+      specs.brochure_url ||
+      specs.syllabus_url ||
+      specs.brochureUrl ||
+      specs.syllabusUrl ||
+      specs.pdf_url;
+
+    if (brochureUrl && typeof brochureUrl === 'string' && brochureUrl.startsWith('http')) {
+      window.open(brochureUrl, '_blank');
+    } else {
+      showCartToast('Brochure / Syllabus PDF will be uploaded soon by the creator.');
+    }
+  };
+
+  const handleSubmitGuestCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product) return;
+
+    const trimmedName = guestName.trim();
+    const trimmedEmail = guestEmail.trim().toLowerCase();
+    const cleanPhone = guestPhone.replace(/\D/g, '').slice(-10);
+
+    if (!trimmedName) {
+      setGuestError('Full name is required');
+      return;
+    }
+
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setGuestError('Please enter a valid email address');
+      return;
+    }
+
+    if (cleanPhone.length !== 10 || !/^[6-9]/.test(cleanPhone)) {
+      setGuestError('Please enter a valid 10-digit Indian WhatsApp mobile number');
+      return;
+    }
+
+    setGuestSubmitting(true);
+    setGuestError(null);
+
+    try {
+      let activeRef = referralId;
+      if (!activeRef) {
+        try {
+          const stored = localStorage.getItem('referral_attribution');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.expiresAt && parsed.expiresAt > Date.now() && parsed.ref) {
+              activeRef = parsed.ref;
+            }
+          }
+        } catch {}
+      }
+      if (!activeRef) {
+        activeRef = localStorage.getItem('referralCode');
+      }
+
+      const orderId = `ORD-${Date.now()}`;
+      const payload = {
+        id: orderId,
+        customerId: user?.id || null,
+        vendorId: product.vendor_id,
+        productId: product.id,
+        quantity: 1,
+        sellerId: activeRef || null,
+        referralCode: activeRef || null,
+        customerDetails: {
+          name: trimmedName,
+          email: trimmedEmail,
+          phone: cleanPhone,
+        },
+        deliveryAddress: {
+          address: 'Digital Access',
+          city: 'Online',
+          state: 'Online',
+          pincode: '000000',
+        },
+        paymentMethod: 'upi',
+        orderStatus: 'pending',
+      };
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to complete order. Please try again.');
+      }
+
+      const order = await res.json();
+      window.location.href = `/order-confirmation?orderId=${order.id}`;
+    } catch (err: any) {
+      console.error('Guest enrollment error:', err);
+      setGuestError(err.message || 'Failed to enroll. Please try again.');
+      setGuestSubmitting(false);
+    }
+  };
 
   // Fetch product details
   useEffect(() => {
@@ -201,23 +384,6 @@ function ProductDetailContent() {
     })();
   };
 
-  const handleBuyNow = () => {
-    if (isGuestVendorOrSeller) {
-      alert('Checkout is disabled in guest seller/vendor browsing mode.');
-      return;
-    }
-
-    if (!user?.id) {
-      alert('Please login to continue');
-      return;
-    }
-    handleAddToCart();
-    // Redirect to checkout after adding to cart
-    setTimeout(() => {
-      window.location.href = '/checkout';
-    }, 500);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -316,6 +482,14 @@ function ProductDetailContent() {
 
           <div className="order-1 lg:order-1 lg:col-span-8 space-y-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
+              {/* Subtle Trust Badge when Referral is Present */}
+              {hasReferral && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mb-3">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>Verified Partner Referral • Backed by 7-Day Guarantee</span>
+                </div>
+              )}
+
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 {product.category}
               </p>
@@ -326,8 +500,12 @@ function ProductDetailContent() {
                 <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
                   {'★★★★★'}
                 </span>
-                <span className="text-slate-400">{product.sold_count}+ enrolled learners</span>
-                <span className="text-slate-700">•</span>
+                {(product.sold_count || 0) >= 10 && (
+                  <>
+                    <span className="text-slate-400">{product.sold_count}+ enrolled learners</span>
+                    <span className="text-slate-700">•</span>
+                  </>
+                )}
                 <span className="inline-flex items-center gap-1 text-slate-300">
                   <Clock3 className="w-4 h-4 text-slate-500" />
                   {courseDuration}
@@ -356,27 +534,55 @@ function ProductDetailContent() {
               )}
 
               {isAuthenticatedSeller ? (
-                <div className="mt-6 rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-3">
-                  <p className="text-sm text-slate-300">
-                    Purchase actions are available for customers only.
-                  </p>
+                <div className="mt-6 p-4 rounded-xl border border-violet-500/30 bg-violet-950/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-violet-400 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Seller Partner Tools
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Earn on Every Enrollment
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={handleCopyReferralLink}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-all shadow-lg shadow-violet-600/20"
+                    >
+                      {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {isCopied ? 'Link Copied!' : 'Copy Referral Link'}
+                    </button>
+                    <button
+                      onClick={handleDownloadBrochure}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-3 px-4 rounded-lg text-sm transition-all"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Brochure PDF
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                   <button
-                    onClick={handleBuyNow}
+                    onClick={() => {
+                      if (isGuestVendorOrSeller) {
+                        alert('Checkout is disabled in guest seller/vendor browsing mode.');
+                        return;
+                      }
+                      setIsGuestModalOpen(true);
+                    }}
                     disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {isGuestVendorOrSeller ? 'Buy Now' : 'Buy Now'}
+                    <span>Enroll Now — {formatCurrency(product.base_price)}</span>
                   </button>
                   <button
                     onClick={handleAddToCart}
                     disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 flex items-center justify-center gap-2"
                   >
-                    <ShoppingCart className="w-5 h-5 inline mr-2" />
-                    {isGuestVendorOrSeller ? 'Add to Cart' : 'Add to Cart'}
+                    <ShoppingCart className="w-5 h-5 inline mr-1" />
+                    <span>Add to Cart</span>
                   </button>
                 </div>
               )}
@@ -509,6 +715,137 @@ function ProductDetailContent() {
           </div>
         </div>
       </div>
+      {/* 3-Field Guest Checkout Modal */}
+      {isGuestModalOpen && product && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950/70">
+              <div>
+                <h3 className="text-lg font-bold text-white">Instant Course Enrollment</h3>
+                <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{product.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsGuestModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSubmitGuestCheckout} className="p-6 space-y-4">
+              {guestError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+                  {guestError}
+                </div>
+              )}
+
+              {/* Course & Price Summary Bar */}
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400 block">Total Due</span>
+                  <span className="text-2xl font-bold text-emerald-400">
+                    {formatCurrency(product.base_price)}
+                  </span>
+                </div>
+                <div className="text-right text-xs text-slate-400">
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Instant Activation
+                  </span>
+                  <p className="mt-0.5">7-Day Refund Guarantee</p>
+                </div>
+              </div>
+
+              {/* Field 1: Full Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Full Name <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    required
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="e.g. Rahul Sharma"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Field 2: Email Address */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Email Address <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="email"
+                    required
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Use the exact email where you want your course access unlocked
+                </p>
+              </div>
+
+              {/* Field 3: WhatsApp Phone Number */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  WhatsApp Phone Number <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative flex">
+                  <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-800 bg-slate-950/80 text-slate-400 text-sm font-medium">
+                    +91
+                  </span>
+                  <div className="relative flex-1">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="tel"
+                      required
+                      maxLength={10}
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="9876543210"
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-r-lg bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  10-digit Indian WhatsApp mobile number for instant course access links
+                </p>
+              </div>
+
+              {/* Submit CTA */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={guestSubmitting}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  {guestSubmitting
+                    ? 'Securing Enrollment...'
+                    : `Complete Enrollment • ${formatCurrency(product.base_price)}`}
+                </button>
+              </div>
+
+              <div className="text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5 pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>256-Bit SSL Encrypted Checkout • Verified Partner Attribution</span>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

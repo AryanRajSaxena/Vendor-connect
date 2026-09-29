@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { hashPassword } from '@/utils/password';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const legacyPriceKey = ['final', 'price'].join('_');
@@ -8,6 +9,7 @@ async function resolveSellerFromReferral(productId: string, referralCode?: strin
   const normalized = (referralCode || '').trim();
   if (!normalized) return null;
 
+  // 1. Exact match by referral_code
   const { data: exactMatch } = await supabase
     .from('seller_products')
     .select('id, seller_id, sales, earnings, referral_code')
@@ -19,6 +21,7 @@ async function resolveSellerFromReferral(productId: string, referralCode?: strin
     return exactMatch;
   }
 
+  // 2. Case-insensitive referral code match
   const { data: ciMatch } = await supabase
     .from('seller_products')
     .select('id, seller_id, sales, earnings, referral_code')
@@ -26,7 +29,37 @@ async function resolveSellerFromReferral(productId: string, referralCode?: strin
     .ilike('referral_code', normalized)
     .maybeSingle();
 
-  return ciMatch || null;
+  if (ciMatch?.seller_id) {
+    return ciMatch;
+  }
+
+  // 3. Match if normalized is a UUID (sellerId)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalized);
+  if (isUuid) {
+    const { data: bySellerId } = await supabase
+      .from('seller_products')
+      .select('id, seller_id, sales, earnings, referral_code')
+      .eq('product_id', productId)
+      .eq('seller_id', normalized)
+      .maybeSingle();
+
+    if (bySellerId?.seller_id) {
+      return bySellerId;
+    }
+
+    const { data: sellerUser } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('id', normalized)
+      .eq('role', 'seller')
+      .maybeSingle();
+
+    if (sellerUser?.id) {
+      return { id: null, seller_id: sellerUser.id, sales: 0, earnings: 0, referral_code: normalized };
+    }
+  }
+
+  return null;
 }
 
 async function creditSellerAccount(sellerId: string, sellerCommission: number) {
@@ -112,7 +145,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
+    let {
       id,
       customerId,
       sellerId,
@@ -129,6 +162,42 @@ export async function POST(request: NextRequest) {
 
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const resolvedPaymentStatus = normalizedPaymentMethod === 'cod' ? 'pending' : 'completed';
+
+    // Auto-resolve or create customer record for guest checkout if customerId is not provided
+    if (!customerId && customerDetails?.email) {
+      const email = String(customerDetails.email).trim().toLowerCase();
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingUser?.id) {
+        customerId = existingUser.id;
+      } else {
+        const dummyPassword = await hashPassword(Math.random().toString(36).slice(-10) + 'A1!guestPass');
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert([
+            {
+              email,
+              name: customerDetails.name || 'Student',
+              phone: customerDetails.phone || null,
+              role: 'customer',
+              password_hash: dummyPassword,
+              is_verified: true,
+            },
+          ])
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('[API] Failed to create guest customer record:', createError);
+        } else if (newUser?.id) {
+          customerId = newUser.id;
+        }
+      }
+    }
 
     if (
       !id ||
