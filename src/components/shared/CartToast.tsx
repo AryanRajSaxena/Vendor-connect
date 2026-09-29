@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingCart, X } from 'lucide-react';
 
 interface CartToastEvent {
@@ -27,6 +28,7 @@ function getCartCount(): number {
 }
 
 export default function CartToast() {
+  const pathname = usePathname();
   const [toast, setToast] = useState<CartToastEvent | null>(null);
   const [cartCount, setCartCount] = useState(0);
 
@@ -57,7 +59,13 @@ export default function CartToast() {
     if (cartCount === 0) setToast(null);
   }, [cartCount]);
 
-  const isVisible = toast !== null && cartCount > 0;
+  // Only appear inside the buyer catalog (/products, /products/*)
+  const isBuyerCatalog = pathname === '/products' || pathname.startsWith('/products/');
+  const isVisible = isBuyerCatalog && toast !== null && cartCount > 0;
+
+  if (!isBuyerCatalog || cartCount <= 0) {
+    return null;
+  }
 
   return (
     <div

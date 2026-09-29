@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Store, BarChart3, Percent, Lightbulb, CreditCard, Users, TrendingUp, Package } from 'lucide-react';
+import { CheckCircle, Store, BarChart3, CreditCard, TrendingUp, Sparkles, Wallet, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { RoleSelectorModal, UserRole } from '@/components/shared/RoleSelectorModal';
@@ -72,46 +72,83 @@ export default function HomePage() {
       cta: 'Join as Vendor'
     },
     benefits: [
-      { icon: Users, title: '50k+ Active Buyers', desc: 'Reach verified customers across India' },
+      { icon: CheckCircle, title: '₹0 Upfront Listing Cost', desc: 'List your courses and digital products with zero upfront fees' },
       { icon: BarChart3, title: 'Real-Time Analytics', desc: 'Track sales, views, and customer behavior' },
       { icon: TrendingUp, title: 'Boost Your Sales', desc: 'Integrated marketplace with built-in buyers' },
       { icon: CreditCard, title: 'Easy Payouts', desc: 'Fast and secure payment processing' },
     ],
     features: [
       { step: '01', title: 'Create Account', desc: 'Sign up in 2 minutes with basic information' },
-      { step: '02', title: 'Upload Products', desc: 'Add unlimited products with photos and details' },
-      { step: '03', title: 'Start Selling', desc: 'Receive orders and manage shipments easily' },
+      { step: '02', title: 'Upload Digital Products', desc: 'List your courses, e-books, workshops, or templates in minutes for ₹0 upfront.' },
+      { step: '03', title: 'Automated Delivery', desc: 'Buyers get instant access to your files or course links the moment an order completes.' },
       { step: '04', title: 'Earn & Grow', desc: 'Get paid on time and track your growth' },
     ],
     stats: [
-      { value: '200+', label: 'Active Sellers', icon: Users },
-      { value: '5x', label: 'Sales Boosted', icon: TrendingUp },
-      { value: 'Instant', label: 'Money Credited', icon: CreditCard },
-      { value: '96%', label: 'Satisfaction Rate', icon: CheckCircle },
+      { value: '₹0', label: 'Upfront Listing Cost', icon: CheckCircle },
+      { value: '80%', label: 'Direct Revenue Retention', icon: TrendingUp },
+      { value: 'Instant', label: 'Wallet Crediting', icon: CreditCard },
+      { value: '100%', label: 'Automated Delivery', icon: CheckCircle },
     ]
   };
 
   // SELLER VIEW
   const sellerData = {
     hero: {
-      title: 'Earn Commissions Without Inventory',
-      subtitle: 'Become a seller and earn commissions on sales',
-      cta: 'Join as Seller'
+      badge: '₹0 Joining Fee • Instant Wallet Tracking',
+      title: 'Monetize Your Network & Sales Skills. Earn Commissions on Every Digital Sale.',
+      subtitle: 'Pick vetted digital courses, e-books, and templates from top Indian creators. Share your custom tracking link, close leads on WhatsApp or social media, and withdraw your commissions directly to your bank account.',
+      cta: 'Start Earning as a Seller',
+      secondaryCta: 'Explore High-Commission Products'
     },
+    trustBar: [
+      { title: '₹0 Capital Needed', desc: 'Instant access to the full product catalog' },
+      { title: 'Ready-to-Pitch Kits', desc: 'Scripts, reels & assets included per product' },
+      { title: '₹500+ Free Payouts', desc: 'Zero withdrawal fees above ₹500' },
+    ],
     benefits: [
-      { icon: Percent, title: '10% Commission', desc: 'Earn commission on every product you sell' },
-      { icon: Lightbulb, title: 'Zero Risk Model', desc: 'No inventory hassles, no stock management' },
+      { 
+        icon: FileText, 
+        title: 'No More Guessing What to Say', 
+        desc: 'Every top listing includes buyer persona notes, WhatsApp pitch templates, and promotional graphics so you can start closing on Day 1.' 
+      },
+      { 
+        icon: Wallet, 
+        title: 'Real-Time In-App Wallet', 
+        desc: 'No 60-day lock-in periods or opaque spreadsheets. Every verified sale credits your seller wallet immediately with full transaction transparency.' 
+      },
+      { 
+        icon: TrendingUp, 
+        title: 'Built for Outbound Closers & Creators', 
+        desc: 'Whether you run an Instagram theme page, manage a college community, or close B2C sales over WhatsApp and calls, you earn uncapped commissions on every conversion.' 
+      },
     ],
     features: [
-      { step: '01', title: 'Sign up on Platform', desc: 'Register as a seller in just 2 minutes' },
-      { step: '02', title: 'Choose Products', desc: 'Select products to sell from our catalog' },
-      { step: '03', title: 'Track Earnings', desc: 'Monitor commissions and payouts in real-time' },
+      { step: '01', title: 'Create Seller Account', desc: 'Sign up in 60 seconds for free. Set up your profile and activate your in-app earnings wallet immediately.' },
+      { step: '02', title: 'Pick Products & Grab Links', desc: 'Browse vetted digital products and generate your unique tracking link in one click.' },
+      { step: '03', title: 'Share & Close Sales', desc: 'Pitch via WhatsApp, DMs, or content while our checkout handles payment and delivery.' },
+      { step: '04', title: 'Withdraw to Your Bank', desc: 'Watch commissions hit your Agent Croww wallet in real time. Withdraw directly to your bank account with ₹0 platform payout fees on withdrawals over ₹500.' },
     ],
-    stats: [
-      { value: '₹5Lakh+', label: 'Commission Potential per month', icon: TrendingUp },
-      { value: '150+', label: 'Products to sell', icon: Package },
-      { value: 'Instant', label: 'Commission Payout in Wallet', icon: CreditCard },
-    ]
+    commission: {
+      heading: 'Clear Commission Math. Fast Bank Withdrawals.',
+      subtext: 'Know exactly what you earn before you share a link—no hidden deductions.',
+      columns: [
+        {
+          title: 'Your Commission',
+          highlight: '10% – 40% per sale',
+          desc: 'Earn transparent commissions on every verified order (e.g., earn ₹200 to ₹800 on a single ₹2,000 course enrollment).'
+        },
+        {
+          title: 'In-App Wallet',
+          highlight: 'Instant Crediting',
+          desc: 'Track clicks, conversions, and pending balances live inside your Seller Dashboard the moment a customer checks out.'
+        },
+        {
+          title: 'Bank Withdrawals',
+          highlight: 'Free Above ₹500',
+          desc: 'Cash out your wallet balance anytime. Agent Croww covers 100% of the payout processing fee on all withdrawals over ₹500.'
+        }
+      ]
+    }
   };
 
   return (
@@ -154,16 +191,16 @@ export default function HomePage() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">200+</div>
-                  <div className="text-sm text-slate-400">Active Sellers</div>
+                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">₹0</div>
+                  <div className="text-sm text-slate-400">Upfront Listing Cost</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">5x</div>
-                  <div className="text-sm text-slate-400">Sales Boosted</div>
+                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">80%</div>
+                  <div className="text-sm text-slate-400">Direct Revenue Retention</div>
                 </div>
                 <div>
                   <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">Instant</div>
-                  <div className="text-sm text-slate-400">Money Credited</div>
+                  <div className="text-sm text-slate-400">Wallet Crediting</div>
                 </div>
               </div>
             </div>
@@ -181,6 +218,12 @@ export default function HomePage() {
 
           <div className="container-custom relative z-10">
             <div className="max-w-3xl mx-auto text-center">
+              {/* Top Pill Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs md:text-sm font-medium mb-6">
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                <span>{sellerData.hero.badge}</span>
+              </div>
+
               <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white">
                 {sellerData.hero.title}
               </h1>
@@ -198,24 +241,18 @@ export default function HomePage() {
                   {sellerData.hero.cta}
                 </Link>
                 <Link href="/seller/marketplace?guestRole=seller" className="inline-flex items-center justify-center gap-2 border border-violet-500/50 text-violet-200 hover:bg-violet-500/10 px-8 py-3 rounded-xl font-semibold transition-colors">
-                  Browse Products
+                  {sellerData.hero.secondaryCta}
                 </Link>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">₹5Lakh+</div>
-                  <div className="text-sm text-slate-400">Commission Potential per month</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">150+</div>
-                  <div className="text-sm text-slate-400">Products to sell</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-bold text-violet-400 mb-1">Instant</div>
-                  <div className="text-sm text-slate-400">Commission Payout in Wallet</div>
-                </div>
+              {/* Trust Bar (Replaces the 3 stat counters below the Hero) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800 text-center">
+                {sellerData.trustBar.map((item, idx) => (
+                  <div key={idx} className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4">
+                    <div className="text-base md:text-lg font-bold text-violet-400 mb-1">{item.title}</div>
+                    <div className="text-xs md:text-sm text-slate-400 leading-snug">{item.desc}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -255,8 +292,8 @@ export default function HomePage() {
         <section className="section-sm">
           <div className="container-custom">
             <div className="text-center mb-8 md:mb-10">
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Why Choose Agent Croww</h2>
-              <p className="text-slate-400 text-base md:text-lg">Start earning with zero risk and investment</p>
+              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Why Sell on Agent Croww?</h2>
+              <p className="text-slate-400 text-base md:text-lg">Built to help you convert leads and scale your affiliate income</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -265,13 +302,13 @@ export default function HomePage() {
                 return (
                   <div
                     key={index}
-                    className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-violet-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-violet-600/10"
+                    className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-5 md:p-6 hover:border-violet-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-violet-600/10 flex flex-col"
                   >
-                    <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl bg-violet-600/20 text-violet-400 mb-3 md:mb-4">
+                    <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl bg-violet-600/20 text-violet-400 mb-4">
                       <Icon className="w-6 h-6 md:w-7 md:h-7" />
                     </div>
                     <h3 className="font-bold text-white mb-2 text-base md:text-lg">{benefit.title}</h3>
-                    <p className="text-slate-400 text-sm">{benefit.desc}</p>
+                    <p className="text-slate-400 text-sm leading-relaxed">{benefit.desc}</p>
                   </div>
                 );
               })}
@@ -289,10 +326,10 @@ export default function HomePage() {
               <p className="text-slate-400 text-base md:text-base">Start selling in minutes</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {vendorData.features.map((item, index) => (
                 <div key={index} className="relative">
-                  <div className="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-4 md:p-5 hover:border-emerald-600/50 transition-all duration-300">
+                  <div className="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-4 md:p-5 hover:border-emerald-600/50 transition-all duration-300 h-full flex flex-col">
                     <div className="text-3xl md:text-4xl font-bold text-emerald-400 mb-2">{item.step}</div>
                     <h3 className="font-bold text-sm md:text-base text-emerald-100 mb-1">{item.title}</h3>
                     <p className="text-slate-400 text-xs md:text-sm leading-relaxed">{item.desc}</p>
@@ -308,18 +345,18 @@ export default function HomePage() {
       {selectedRole === 'seller' && (
         <section className="section-sm bg-slate-900/50 border-b border-slate-800">
           <div className="container-custom">
-            <div className="text-center mb-8 md:mb-10">
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">Get Started in 3 Simple Steps</h2>
+            <div className="text-center mb-6 md:mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Get Started in 4 Simple Steps</h2>
               <p className="text-slate-400">Start earning within 24 hours</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {sellerData.features.map((item, index) => (
                 <div key={index} className="relative">
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-5 md:p-6 hover:border-violet-600/50 transition-all duration-300">
-                    <div className="text-4xl md:text-5xl font-bold text-violet-400 mb-3">{item.step}</div>
-                    <h3 className="font-bold text-lg md:text-xl text-violet-100 mb-2">{item.title}</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
+                  <div className="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-4 md:p-5 hover:border-violet-600/50 transition-all duration-300 h-full flex flex-col">
+                    <div className="text-3xl md:text-4xl font-bold text-violet-400 mb-2">{item.step}</div>
+                    <h3 className="font-bold text-sm md:text-base text-violet-100 mb-1">{item.title}</h3>
+                    <p className="text-slate-400 text-xs md:text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               ))}
@@ -373,6 +410,46 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* SELLER: Commission & Pricing */}
+      {selectedRole === 'seller' && (
+        <section className="section-sm border-b border-slate-800">
+          <div className="container-custom">
+            <div className="text-center mb-10 md:mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                {sellerData.commission.heading}
+              </h2>
+              <p className="text-slate-400 max-w-2xl mx-auto">
+                {sellerData.commission.subtext}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {sellerData.commission.columns.map((col, idx) => (
+                <div
+                  key={idx}
+                  className={`bg-slate-900 border-2 rounded-2xl p-6 md:p-8 transition-all duration-300 flex flex-col justify-between ${
+                    idx === 1
+                      ? 'border-violet-600/50 relative'
+                      : 'border-slate-800 hover:border-violet-600/50'
+                  }`}
+                >
+                  {idx === 1 && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                      LIVE TRACKING
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-xl text-white mb-1">{col.title}</h3>
+                    <div className="text-2xl font-bold text-violet-400 mb-4">{col.highlight}</div>
+                    <p className="text-slate-400 text-sm leading-relaxed">{col.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA Section */}
       <section className="section-sm relative overflow-hidden border-t border-slate-800">
         <div className="absolute inset-0 opacity-10">
@@ -386,7 +463,7 @@ export default function HomePage() {
               <>
                 <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Start Growing Your Business Today</h2>
                 <p className="text-lg md:text-xl text-slate-300 mb-10">
-                  Join thousand of successful vendors and scale your sales
+                  Join successful digital creators scaling their sales without upfront ad spend.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
@@ -408,9 +485,9 @@ export default function HomePage() {
 
             {selectedRole === 'seller' && (
               <>
-                <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Start Earning This Week</h2>
+                <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Ready to Turn Your Reach into Real Income?</h2>
                 <p className="text-lg md:text-xl text-slate-300 mb-10">
-                  Join tens of thousands of sellers and build your passive income
+                  Join digital marketers and closers earning uncapped commissions across India.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
@@ -418,13 +495,13 @@ export default function HomePage() {
                     className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-violet-600/20"
                   >
                     <TrendingUp className="w-5 h-5" />
-                    Join As Seller
+                    Create Free Seller Account
                   </Link>
                   <Link
-                    href="/auth/login"
+                    href="/seller/marketplace?guestRole=seller"
                     className="inline-flex items-center justify-center gap-2 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white px-8 py-3 rounded-xl font-semibold transition-colors"
                   >
-                    Sign In
+                    View Live Products
                   </Link>
                 </div>
               </>

@@ -72,7 +72,7 @@ export default function Footer() {
               href="/track-order"
               className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
             >
-              Track Order
+              Access Purchases
             </Link>
             <span className="text-gray-600">•</span>
             <Link

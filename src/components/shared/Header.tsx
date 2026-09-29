@@ -184,7 +184,7 @@ export default function Header() {
               </div>
             </Link>
 
-            {user?.role === 'customer' && (
+            {user?.role === 'customer' && !isHomePage && (
               <Link
                 href="/cart"
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium relative"
@@ -259,7 +259,7 @@ export default function Header() {
             </Link>
           )}
 
-          {isAuthenticated && user?.role === 'customer' && (
+          {isAuthenticated && user?.role === 'customer' && !isHomePage && (
             <Link
               href="/cart"
               className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
