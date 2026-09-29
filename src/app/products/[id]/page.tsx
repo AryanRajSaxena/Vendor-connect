@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ShoppingCart,
   Check,
   ChevronLeft,
   Clock3,
@@ -62,7 +61,6 @@ function ProductDetailContent() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isBuying, setIsBuying] = useState(false);
   const [hasReferral, setHasReferral] = useState(false);
   const [referralId, setReferralId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -90,25 +88,6 @@ function ProductDetailContent() {
     }
     return '/products';
   })();
-
-  const getSafeCart = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Invalid cart in localStorage, resetting cart.', error);
-    }
-
-    localStorage.setItem('cart', '[]');
-    return [];
-  };
-
-  const syncLocalCart = (cart: any[]) => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('cart-updated'));
-  };
 
   useEffect(() => {
     const rawRef =
@@ -311,79 +290,6 @@ function ProductDetailContent() {
     }
   }, [params.id]);
 
-  const handleAddToCart = () => {
-    if (!product) return;
-
-    if (isGuestVendorOrSeller) {
-      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
-      return;
-    }
-
-    const addToLocalCart = () => {
-      const cart = getSafeCart();
-      const existingItem = cart.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity = 1; // Always 1 for digital products
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.base_price,
-          quantity: 1,
-          image: product.images?.[0] || '📦',
-          vendorId: product.vendor_id,
-        });
-      }
-
-      syncLocalCart(cart);
-    };
-
-    if (!user?.id) {
-      try {
-        addToLocalCart();
-        showCartToast(`Added to cart!`);
-      } catch (error) {
-        console.error('Failed to add to cart:', error);
-      }
-      return;
-    }
-
-    (async () => {
-      try {
-        setIsBuying(true);
-        const response = await fetch('/api/cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: user.id,
-            productId: product.id,
-            quantity: 1,
-          }),
-        });
-
-        if (!response.ok) {
-          const apiError = await response.json().catch(() => ({}));
-          throw new Error(apiError.error || 'Failed to add to database cart');
-        }
-
-        const data = await response.json();
-        syncLocalCart(data.items || []);
-        showCartToast(`Added to cart!`);
-      } catch (error) {
-        console.error('Failed to add to database cart, falling back to local cart:', error);
-        try {
-          addToLocalCart();
-          showCartToast(`Added to cart!`);
-        } catch (fallbackError) {
-          console.error('Failed to add to fallback local cart:', fallbackError);
-        }
-      } finally {
-        setIsBuying(false);
-      }
-    })();
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -562,7 +468,7 @@ function ProductDetailContent() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                <div className="mt-6">
                   <button
                     onClick={() => {
                       if (isGuestVendorOrSeller) {
@@ -571,18 +477,10 @@ function ProductDetailContent() {
                       }
                       setIsGuestModalOpen(true);
                     }}
-                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-lg text-base transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled={isGuestVendorOrSeller || isPausedCourse}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 px-6 rounded-xl text-base transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <span>Enroll Now — {formatCurrency(product.base_price)}</span>
-                  </button>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isBuying || isGuestVendorOrSeller || isPausedCourse}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-4 rounded-lg text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart className="w-5 h-5 inline mr-1" />
-                    <span>Add to Cart</span>
                   </button>
                 </div>
               )}
