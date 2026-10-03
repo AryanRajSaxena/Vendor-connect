@@ -13,8 +13,6 @@ import {
   CreditCard,
   Building2,
   CheckCircle2,
-  Copy,
-  Check,
   Bell,
   ShieldCheck,
 } from 'lucide-react';
@@ -25,11 +23,9 @@ export default function SellerSettings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
 
   // Form State
   const [storeName, setStoreName] = useState('');
-  const [customSlug, setCustomSlug] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [upiId, setUpiId] = useState('');
@@ -48,13 +44,14 @@ export default function SellerSettings() {
       setStoreName(u.businessName || u.business_name || '');
       setFullName(u.name || '');
       setPhone(u.phone || '');
+      if (u.account_number || u.accountNumber) setBankAccountNumber(u.account_number || u.accountNumber);
+      if (u.ifsc_code || u.ifscCode) setBankIfscCode(u.ifsc_code || u.ifscCode);
 
       // Load extended settings from localStorage
       try {
         const saved = localStorage.getItem(`seller_settings_${user.id}`);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.customSlug) setCustomSlug(parsed.customSlug);
           if (parsed.upiId) setUpiId(parsed.upiId);
           if (parsed.bankAccountHolder) setBankAccountHolder(parsed.bankAccountHolder);
           if (parsed.bankAccountNumber) setBankAccountNumber(parsed.bankAccountNumber);
@@ -72,21 +69,6 @@ export default function SellerSettings() {
     }
   }, [user, isLoading, router]);
 
-  const handleSlugChange = (val: string) => {
-    // Sanitize slug: lowercase alphanumeric and hyphens
-    const clean = val.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    setCustomSlug(clean);
-  };
-
-  const copyStoreLink = () => {
-    if (!customSlug && !user?.id) return;
-    const slugOrId = customSlug || user?.id?.substring(0, 8);
-    const link = `https://agentcroww.com/s/${slugOrId}`;
-    navigator.clipboard.writeText(link);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -98,7 +80,7 @@ export default function SellerSettings() {
       if (!fullName.trim()) throw new Error('Full Name is required');
       if (!phone.trim()) throw new Error('Phone Number is required for verification');
 
-      // Update core user in database
+      // Update core user in database (including bank account & IFSC on public.users)
       const res = await fetch(`/api/users/${user!.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -106,6 +88,8 @@ export default function SellerSettings() {
           name: fullName.trim(),
           phone: phone.trim(),
           business_name: storeName.trim(),
+          account_number: bankAccountNumber.trim(),
+          ifsc_code: bankIfscCode.trim().toUpperCase(),
         }),
       });
 
@@ -116,7 +100,6 @@ export default function SellerSettings() {
 
       // Persist extended seller settings locally
       const extendedSettings = {
-        customSlug: customSlug.trim(),
         upiId: upiId.trim(),
         bankAccountHolder: bankAccountHolder.trim(),
         bankAccountNumber: bankAccountNumber.trim(),
@@ -159,8 +142,6 @@ export default function SellerSettings() {
   }
 
   if (!user || user.role !== 'seller') return null;
-
-  const previewSlug = customSlug || user.id?.substring(0, 8) || 'closer';
 
   return (
     <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-6">
@@ -207,38 +188,7 @@ export default function SellerSettings() {
               required
             />
             <p className="text-xs text-gray-400 mt-1">
-              What buyers see when landing on your custom tracking link and course recommendations.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-              <span>Custom URL Slug (Optional)</span>
-              <span className="text-[11px] font-normal text-violet-600">Claim your branded link</span>
-            </label>
-            <div className="flex items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-transparent overflow-hidden">
-              <span className="px-3.5 py-2.5 bg-gray-50 text-gray-500 text-xs sm:text-sm font-mono border-r border-gray-300 select-none">
-                agentcroww.com/s/
-              </span>
-              <input
-                type="text"
-                value={customSlug}
-                onChange={(e) => handleSlugChange(e.target.value)}
-                placeholder="sahil"
-                className="w-full px-3 py-2.5 text-sm font-mono text-gray-900 focus:outline-none bg-white"
-              />
-              <button
-                type="button"
-                onClick={copyStoreLink}
-                className="px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900 border-l border-gray-200 flex items-center gap-1 hover:bg-gray-50 transition-colors flex-shrink-0"
-                title="Copy Store Link"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{copiedLink ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Live link: <span className="font-mono text-violet-600">https://agentcroww.com/s/{previewSlug}</span>
+              What buyers see when landing on your product recommendations and referral transactions.
             </p>
           </div>
         </div>
@@ -462,14 +412,14 @@ export default function SellerSettings() {
           </div>
         </div>
 
-        {/* Submit Button */}
-        <div className="flex items-center gap-3 pt-2">
+        {/* Submit Button - Highly Prominent */}
+        <div className="pt-2">
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2.5 px-8 py-3.5 bg-violet-600 hover:bg-violet-700 active:bg-violet-800 disabled:opacity-50 text-white text-base font-bold rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
           >
-            <Save className="w-4 h-4" />
+            <Save className="w-5 h-5" />
             {loading ? 'Saving Changes...' : 'Save Settings'}
           </button>
         </div>

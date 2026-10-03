@@ -59,6 +59,8 @@ export default function VendorSettings() {
       setBusinessName(u.businessName || u.business_name || '');
       setName(u.name || '');
       setPhone(u.phone || '');
+      if (u.account_number || u.accountNumber) setBankAccountNumber(u.account_number || u.accountNumber);
+      if (u.ifsc_code || u.ifscCode) setBankIfscCode(u.ifsc_code || u.ifscCode);
       setGstNumber(u.gstNumber || u.gst_number || '');
       setPanNumber(u.panNumber || u.pan_number || '');
 
@@ -131,7 +133,7 @@ export default function VendorSettings() {
       if (!name.trim()) throw new Error('Owner / Contact Name is required');
       if (!phone.trim()) throw new Error('Phone Number is required for order coordination');
 
-      // Update core user in database
+      // Update core user in database (including bank account & IFSC on public.users)
       const res = await fetch(`/api/users/${user!.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -139,8 +141,8 @@ export default function VendorSettings() {
           name: name.trim(),
           phone: phone.trim(),
           business_name: businessName.trim(),
-          gst_number: gstNumber.trim().toUpperCase(),
-          pan_number: panNumber.trim().toUpperCase(),
+          account_number: bankAccountNumber.trim(),
+          ifsc_code: bankIfscCode.trim().toUpperCase(),
         }),
       });
 
@@ -658,15 +660,15 @@ export default function VendorSettings() {
           </div>
         </section>
 
-        {/* Form Action Controls */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {/* Form Action Controls - Highly Prominent */}
+        <div className="pt-2 flex items-center justify-end">
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50"
+            className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2.5 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-base font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
           >
-            <Save className="w-4 h-4" />
-            {loading ? 'Saving Settings...' : 'Save Changes'}
+            <Save className="w-5 h-5" />
+            {loading ? 'Saving Settings...' : 'Save All Changes'}
           </button>
         </div>
       </form>

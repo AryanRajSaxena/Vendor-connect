@@ -12,6 +12,11 @@ export interface User {
   updatedAt: string;
   avatar?: string;
   businessName?: string;
+  business_name?: string;
+  accountNumber?: string;
+  account_number?: string;
+  ifscCode?: string;
+  ifsc_code?: string;
   gstNumber?: string;
   panNumber?: string;
 }

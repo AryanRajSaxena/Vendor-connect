@@ -41,16 +41,28 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    // Don't allow updating password or email without verification
-    delete body.password_hash;
-    delete body.email;
+    // Map and filter updates to actual public.users columns
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.business_name !== undefined) updates.business_name = body.business_name;
+    else if (body.businessName !== undefined) updates.business_name = body.businessName;
+
+    if (body.account_number !== undefined) updates.account_number = body.account_number;
+    else if (body.accountNumber !== undefined) updates.account_number = body.accountNumber;
+
+    if (body.ifsc_code !== undefined) updates.ifsc_code = body.ifsc_code;
+    else if (body.ifscCode !== undefined) updates.ifsc_code = body.ifscCode;
+
+    if (body.is_verified !== undefined) updates.is_verified = body.is_verified;
+    else if (body.isVerified !== undefined) updates.is_verified = body.isVerified;
 
     const { data: user, error } = await supabase
       .from('users')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
