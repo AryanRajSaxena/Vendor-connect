@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Store, BarChart3, CreditCard, TrendingUp, Sparkles, Wallet, FileText, Percent, CheckCircle2, Share2 } from 'lucide-react';
+import { CheckCircle, Store, CreditCard, TrendingUp, Sparkles, Wallet, FileText, Percent, CheckCircle2, Share2, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { RoleSelectorModal, UserRole } from '@/components/shared/RoleSelectorModal';
@@ -67,28 +67,60 @@ export default function HomePage() {
   // VENDOR VIEW
   const vendorData = {
     hero: {
-      title: 'Grow Your Business on Agent Croww',
-      subtitle: 'List your products to reach thousands of buyers instantly',
-      cta: 'Join as Vendor'
+      title: 'Get an Army of Commission-Only Sellers for Your Digital Course.',
+      subtitle:
+        'List your course for ₹0. Our network of outbound closers pitches your product on WhatsApp and calls. You keep a flat 80% of every sale—we only make money when you do.',
+      cta: 'Join as Vendor',
     },
     benefits: [
-      { icon: CheckCircle, title: '₹0 Upfront Listing Cost', desc: 'List your courses and digital products with zero upfront fees' },
-      { icon: BarChart3, title: 'Real-Time Analytics', desc: 'Track sales, views, and customer behavior' },
-      { icon: TrendingUp, title: 'Boost Your Sales', desc: 'Integrated marketplace with built-in buyers' },
-      { icon: CreditCard, title: 'Easy Payouts', desc: 'Fast and secure payment processing' },
+      {
+        icon: CheckCircle,
+        title: '₹0 Upfront Fees or Retainers',
+        desc: 'Stop paying marketing agencies huge monthly retainers. You only pay a 20% platform/seller split after a verified sale lands in your dashboard.',
+      },
+      {
+        icon: CreditCard,
+        title: 'We Handle the Checkout',
+        desc: 'We process the UPI/Card payment and handle the affiliate tracking. You just grant the student access to your LMS when the sale clears.',
+      },
+      {
+        icon: TrendingUp,
+        title: 'High-Ticket Friendly',
+        desc: 'Have a ₹10,000+ cohort? Our sellers are trained to close high-ticket deals over the phone using your syllabus and brochures.',
+      },
+      {
+        icon: Users,
+        title: 'Complete Audience Ownership',
+        desc: "We pass the buyer's Name, Email, and WhatsApp directly to you upon purchase so you own your customer data forever.",
+      },
     ],
     features: [
-      { step: '01', title: 'Create Account', desc: 'Sign up in 2 minutes with basic information' },
-      { step: '02', title: 'Upload Digital Products', desc: 'List your courses, e-books, workshops, or templates in minutes for ₹0 upfront.' },
-      { step: '03', title: 'Automated Delivery', desc: 'Buyers get instant access to your files or course links the moment an order completes.' },
-      { step: '04', title: 'Earn & Grow', desc: 'Get paid on time and track your growth' },
+      {
+        step: '01',
+        title: 'Create Account',
+        desc: 'Sign up in 60 seconds and connect your payout bank account.',
+      },
+      {
+        step: '02',
+        title: 'Upload Course Details',
+        desc: 'Add your syllabus, pricing, and a 100% discount coupon code (or webhook) so we can auto-enroll buyers on your site.',
+      },
+      {
+        step: '03',
+        title: 'Sellers Start Pitching',
+        desc: 'Our outbound network grabs your referral link and pitches your course to their audience.',
+      },
+      {
+        step: '04',
+        title: 'You Keep 80%',
+        desc: 'The buyer pays via our secure checkout. You get 80% deposited directly into your bank, hassle-free.',
+      },
     ],
     stats: [
-      { value: '₹0', label: 'Upfront Listing Cost', icon: CheckCircle },
-      { value: '80%', label: 'Direct Revenue Retention', icon: TrendingUp },
-      { value: 'Instant', label: 'Wallet Crediting', icon: CreditCard },
-      { value: '100%', label: 'Automated Delivery', icon: CheckCircle },
-    ]
+      { value: '₹0', label: 'Upfront Listing Cost' },
+      { value: '80%', label: 'Direct Revenue Retention' },
+      { value: 'Zero', label: 'Ad Spend Required' },
+    ],
   };
 
   // SELLER VIEW
@@ -182,19 +214,19 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              {/* Stats */}
+              {/* 3 Trust Pills */}
               <div className="grid grid-cols-3 gap-4 mt-12 pt-12 border-t border-slate-800">
                 <div>
                   <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">₹0</div>
-                  <div className="text-sm text-slate-400">Upfront Listing Cost</div>
+                  <div className="text-xs md:text-sm text-slate-400">Upfront Listing Cost</div>
                 </div>
                 <div>
                   <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">80%</div>
-                  <div className="text-sm text-slate-400">Direct Revenue Retention</div>
+                  <div className="text-xs md:text-sm text-slate-400">Direct Revenue Retention</div>
                 </div>
                 <div>
-                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">Instant</div>
-                  <div className="text-sm text-slate-400">Wallet Crediting</div>
+                  <div className="text-2xl md:text-3xl font-bold text-emerald-400 mb-1">Zero</div>
+                  <div className="text-xs md:text-sm text-slate-400">Ad Spend Required</div>
                 </div>
               </div>
             </div>
@@ -391,22 +423,24 @@ export default function HomePage() {
       {selectedRole === 'vendor' && (
         <section className="section-sm">
           <div className="container-custom">
-            <div className="text-center mb-6">
+            <div className="text-center mb-8 md:mb-10">
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Why Vendors Trust Agent Croww</h2>
+              <p className="text-slate-400 text-sm md:text-base">Built specifically for digital creators and course founders</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {vendorData.benefits.map((benefit, index) => {
                 const Icon = benefit.icon;
                 return (
                   <div
                     key={index}
-                    className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-4 md:p-5 hover:border-emerald-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-600/10"
+                    className="bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl p-5 md:p-6 hover:border-emerald-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-600/10 flex flex-col"
                   >
-                    <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl bg-emerald-600/20 text-emerald-400 mb-3">
+                    <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-lg md:rounded-xl bg-emerald-600/20 text-emerald-400 mb-4">
                       <Icon className="w-6 h-6 md:w-7 md:h-7" />
                     </div>
-                    <h3 className="font-bold text-white text-base md:text-lg">{benefit.title}</h3>
+                    <h3 className="font-bold text-white text-lg md:text-xl mb-2">{benefit.title}</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">{benefit.desc}</p>
                   </div>
                 );
               })}
@@ -507,18 +541,20 @@ export default function HomePage() {
       {selectedRole === 'vendor' && (
         <section className="section-sm border-b border-slate-800">
           <div className="container-custom">
-            <div className="text-center mb-12">
+            <div className="text-center mb-10 md:mb-12">
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Transparent Commission Structure</h2>
-              <p className="text-slate-400">No hidden charges, just simple pricing</p>
+              <p className="text-slate-400 text-sm md:text-base">No hidden charges, just simple pricing</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-8 hover:border-emerald-600/50 transition-all duration-300">
-                <h3 className="font-bold text-2xl text-white mb-2">Vendor Commission</h3>
-                <p className="text-slate-400 text-sm mb-4">Earn on every sale</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl p-8 hover:border-emerald-600/50 transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <h3 className="font-bold text-2xl text-white mb-2">Vendor Commission</h3>
+                  <p className="text-slate-400 text-sm mb-6">Earn on every sale</p>
+                </div>
                 <div className="inline-flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-emerald-400">80%</span>
-                  <span className="text-slate-400">you keep</span>
+                  <span className="text-5xl font-black text-emerald-400">80%</span>
+                  <span className="text-slate-400 text-base font-medium">you keep</span>
                 </div>
               </div>
 
@@ -528,12 +564,12 @@ export default function HomePage() {
                 </div>
                 <h3 className="font-bold text-2xl text-white mb-2">Commission Split</h3>
                 <p className="text-slate-400 text-sm mb-4">Transparent for all products</p>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-300">Vendor (You)</span>
-                    <span className="font-bold text-emerald-400">80%</span>
+                    <span className="text-slate-300 font-medium">Vendor (You)</span>
+                    <span className="font-bold text-emerald-400 text-lg">80%</span>
                   </div>
-                  <div className="flex justify-between items-center border-t border-slate-700 pt-2">
+                  <div className="flex justify-between items-center border-t border-slate-800 pt-2.5">
                     <span className="text-slate-400 text-sm">Platform</span>
                     <span className="font-bold text-slate-300 text-sm">10%</span>
                   </div>
@@ -544,46 +580,31 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+
+            {/* Green Join as Vendor CTA button placed directly under the Commission Split box */}
+            <div className="mt-8 text-center">
+              <Link
+                href="/auth/signup?role=vendor"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-9 py-3.5 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/25 text-base"
+              >
+                <Store className="w-5 h-5" />
+                Join as Vendor
+              </Link>
+            </div>
           </div>
         </section>
       )}
 
+      {/* CTA Section (Seller Only) */}
+      {selectedRole === 'seller' && (
+        <section className="section-sm relative overflow-hidden border-t border-slate-800">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-sky-600 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-sky-600 rounded-full blur-3xl"></div>
+          </div>
 
-      {/* CTA Section */}
-      <section className="section-sm relative overflow-hidden border-t border-slate-800">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-sky-600 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-sky-600 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="container-custom relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            {selectedRole === 'vendor' && (
-              <>
-                <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Start Growing Your Business Today</h2>
-                <p className="text-lg md:text-xl text-slate-300 mb-10">
-                  Join successful digital creators scaling their sales without upfront ad spend.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/auth/signup?role=vendor"
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-emerald-600/20"
-                  >
-                    <Store className="w-5 h-5" />
-                    Join as Vendor
-                  </Link>
-                  <Link
-                    href="/auth/login"
-                    className="inline-flex items-center justify-center gap-2 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white px-8 py-3 rounded-xl font-semibold transition-colors"
-                  >
-                    Sign In
-                  </Link>
-                </div>
-              </>
-            )}
-
-            {selectedRole === 'seller' && (
-              <>
+          <div className="container-custom relative z-10">
+            <div className="max-w-3xl mx-auto text-center">
                 <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Ready to Turn Your Reach into Real Income?</h2>
                 <p className="text-lg md:text-xl text-slate-300 mb-10">
                   Join digital marketers and closers earning uncapped commissions across India.
@@ -603,11 +624,10 @@ export default function HomePage() {
                     View Live Products
                   </Link>
                 </div>
-              </>
-            )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
     </div>
   );
