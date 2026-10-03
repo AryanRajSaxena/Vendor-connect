@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
     let {
       id,
       customerId,
+      guestCustomerId,
       sellerId,
       vendorId,
       productId,
@@ -159,20 +160,47 @@ export async function POST(request: NextRequest) {
       deliveryAddress,
       paymentMethod,
       orderStatus,
+      paymentGatewayOrderId,
+      paymentGatewayPaymentId,
       commissionReleaseDate,
     } = body;
 
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const resolvedPaymentStatus = normalizedPaymentMethod === 'cod' ? 'pending' : 'completed';
 
-    // Auto-resolve customer record for guest checkout if customerId is not provided
-    if (!customerId) {
-      customerId = crypto.randomUUID();
+    // Auto-resolve guest customer in guest_customers table if guestCustomerId is not yet provided
+    let resolvedGuestCustomerId: string | null = guestCustomerId || null;
+    if (!customerId && !resolvedGuestCustomerId && customerDetails?.email) {
+      const guestEmail = String(customerDetails.email).trim().toLowerCase();
+      const guestName = String(customerDetails.name || 'Guest Buyer').trim();
+      const guestPhone = customerDetails.phone ? String(customerDetails.phone).trim() : null;
+
+      try {
+        const { data: existingGuest } = await supabase
+          .from('guest_customers')
+          .select('id')
+          .eq('email', guestEmail)
+          .maybeSingle();
+
+        if (existingGuest?.id) {
+          resolvedGuestCustomerId = existingGuest.id;
+        } else {
+          const { data: newGuest } = await supabase
+            .from('guest_customers')
+            .insert([{ email: guestEmail, name: guestName, phone: guestPhone }])
+            .select('id')
+            .maybeSingle();
+          if (newGuest?.id) {
+            resolvedGuestCustomerId = newGuest.id;
+          }
+        }
+      } catch {
+        // Fallback gracefully if guest_customers table is pending creation
+      }
     }
 
     if (
       !id ||
-      !customerId ||
       !vendorId ||
       !productId ||
       !quantity
@@ -252,32 +280,55 @@ export async function POST(request: NextRequest) {
     const resolvedCommissionStatus = autoCommissionAvailable ? 'available' : 'pending';
 
     // Create order
-    const { data: order, error } = await supabase
+    const orderPayload: Record<string, any> = {
+      id,
+      customer_id: customerId || null,
+      guest_customer_id: resolvedGuestCustomerId || null,
+      seller_id: resolvedSellerId,
+      vendor_id: vendorId,
+      product_id: productId,
+      quantity: parsedQuantity,
+      [legacyPriceKey]: roundMoney(baseLineTotal),
+      seller_commission: sellerCommissionCalculated,
+      platform_commission: platformCommissionCalculated,
+      vendor_payout: vendorPayoutCalculated,
+      referral_code: referralCode,
+      customer_details: customerDetails,
+      delivery_address: deliveryAddress,
+      payment_method: paymentMethod,
+      payment_status: resolvedPaymentStatus,
+      order_status: orderStatus || 'pending',
+      commission_status: resolvedCommissionStatus,
+      commission_release_date: commissionReleaseDate || computedCommissionReleaseDate.toISOString(),
+      payment_gateway_order_id: paymentGatewayOrderId || null,
+      payment_gateway_payment_id: paymentGatewayPaymentId || null,
+    };
+
+    let { data: order, error } = await supabase
       .from('orders')
-      .insert([
-        {
-          id,
-          customer_id: customerId,
-          seller_id: resolvedSellerId,
-          vendor_id: vendorId,
-          product_id: productId,
-          quantity: parsedQuantity,
-          [legacyPriceKey]: roundMoney(baseLineTotal),
-          seller_commission: sellerCommissionCalculated,
-          platform_commission: platformCommissionCalculated,
-          vendor_payout: vendorPayoutCalculated,
-          referral_code: referralCode,
-          customer_details: customerDetails,
-          delivery_address: deliveryAddress,
-          payment_method: paymentMethod,
-          payment_status: resolvedPaymentStatus,
-          order_status: orderStatus || 'pending',
-          commission_status: resolvedCommissionStatus,
-          commission_release_date: commissionReleaseDate || computedCommissionReleaseDate.toISOString(),
-        },
-      ])
+      .insert([orderPayload])
       .select()
-      .single();
+      .maybeSingle();
+
+    // Resilient fallback if payment_gateway_* or guest_customer_id columns are pending creation in Postgres
+    while (error && error.message) {
+      const colMatch =
+        error.message.match(/Could not find the '([^']+)' column of 'orders'/i) ||
+        error.message.match(/column "([^"]+)" of relation "orders" does not exist/i);
+
+      if (colMatch && colMatch[1] && colMatch[1] in orderPayload) {
+        delete orderPayload[colMatch[1]];
+        const retry = await supabase
+          .from('orders')
+          .insert([orderPayload])
+          .select()
+          .maybeSingle();
+        order = retry.data;
+        error = retry.error;
+      } else {
+        break;
+      }
+    }
 
     if (error) {
       console.error('Create order error:', error);

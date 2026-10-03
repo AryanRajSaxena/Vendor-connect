@@ -138,10 +138,20 @@ export type ProductCategory =
   | 'Healthcare' 
   | 'Other';
 
+export interface GuestCustomer {
+  id: string;
+  email: string;
+  name: string;
+  phone?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Order types
 export interface Order {
   id: string;
-  customerId: string;
+  customerId?: string;
+  guestCustomerId?: string;
   sellerId?: string;
   vendorId: string;
   productId: string;
@@ -151,21 +161,23 @@ export interface Order {
   platformCommission: number;
   vendorPayout: number;
   referralCode?: string;
+  paymentGatewayOrderId?: string;
+  paymentGatewayPaymentId?: string;
   customerDetails: {
     name: string;
     phone: string;
     email: string;
-    address: string;
-    city: string;
-    state: string;
-    pincode: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
   };
   paymentMethod: PaymentMethodType;
   paymentStatus: 'pending' | 'completed' | 'failed';
   orderStatus: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   commissionStatus: 'pending' | 'available' | 'paid';
   commissionReleaseDate?: string;
-  timestamps: {
+  timestamps?: {
     placed: string;
     confirmed?: string;
     shipped?: string;
