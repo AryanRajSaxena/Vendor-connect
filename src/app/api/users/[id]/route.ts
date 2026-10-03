@@ -74,8 +74,6 @@ export async function PUT(
 
     if (body.name !== undefined) updates.name = body.name;
     if (body.phone !== undefined) updates.phone = body.phone;
-    if (body.business_name !== undefined) updates.business_name = body.business_name;
-    else if (body.businessName !== undefined) updates.business_name = body.businessName;
 
     if (body.account_number !== undefined) updates.account_number = body.account_number;
     else if (body.accountNumber !== undefined) updates.account_number = body.accountNumber;
@@ -99,18 +97,25 @@ export async function PUT(
       .select()
       .single();
 
-    // If upi_id or is_locked columns are not yet added in PostgreSQL, retry without them
-    if (error && (error.message?.toLowerCase().includes('upi_id') || error.message?.toLowerCase().includes('is_locked'))) {
-      delete updates.upi_id;
-      delete updates.is_locked;
-      const retry = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      user = retry.data;
-      error = retry.error;
+    // Resilient schema fallback: If any column is not in public.users, strip it and retry
+    while (error && error.message) {
+      const colMatch =
+        error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
+        error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
+
+      if (colMatch && colMatch[1] && colMatch[1] in updates) {
+        delete updates[colMatch[1]];
+        const retry = await supabase
+          .from('users')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+        user = retry.data;
+        error = retry.error;
+      } else {
+        break;
+      }
     }
 
     if (error) {
@@ -164,17 +169,18 @@ export async function PUT(
         if (body.is_locked !== undefined) vendorUpdates.is_locked = body.is_locked;
         else if (body.isLocked !== undefined) vendorUpdates.is_locked = body.isLocked;
 
-        const { data: vendorData } = await supabase
+        const { data: vendorData, error: vErr } = await supabase
           .from('vendors')
           .upsert(vendorUpdates, { onConflict: 'user_id' })
           .select()
           .maybeSingle();
 
-        if (vendorData) {
+        if (vErr) {
+          console.warn('Upsert to vendors table warning:', vErr.message);
+        } else if (vendorData) {
           Object.assign(user, vendorData);
         }
       } catch (vErr) {
-        // If vendors table has not been created yet in Postgres, ignore and continue
         console.warn('Upsert to vendors table skipped (table might not exist yet):', vErr);
       }
     }
