@@ -20,7 +20,31 @@ export interface User {
   upiId?: string;
   upi_id?: string;
   gstNumber?: string;
+  gst_number?: string;
   panNumber?: string;
+  pan_number?: string;
+  supportEmail?: string;
+  support_email?: string;
+  bankAccountHolder?: string;
+  bank_account_holder?: string;
+  isLocked?: boolean;
+  is_locked?: boolean;
+}
+
+export interface Vendor {
+  id: string;
+  userId: string;
+  businessName: string;
+  supportEmail?: string;
+  phone?: string;
+  gstNumber?: string;
+  panNumber?: string;
+  bankAccountHolder?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  isLocked: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface VendorProfile extends User {
