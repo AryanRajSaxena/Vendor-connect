@@ -133,6 +133,8 @@ export default function VendorSettings() {
 
     try {
       const payload = {
+        email: user?.email,
+        role: 'vendor',
         name: name.trim(),
         phone: phone.trim(),
         business_name: businessName.trim(),

@@ -129,12 +129,15 @@ export default function SellerSettings() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          email: user?.email,
+          role: 'seller',
           name: fullName.trim(),
           phone: phone.trim(),
           business_name: storeName.trim(),
           account_number: bankAccountNumber.trim(),
           ifsc_code: bankIfscCode.trim().toUpperCase(),
           upi_id: upiId.trim(),
+          is_locked: true,
         }),
       });
 

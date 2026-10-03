@@ -85,33 +85,54 @@ export async function POST(request: NextRequest) {
       name: displayName,
       role: assignedRole,
       phone: null,
-      business_name: null,
       is_verified: true,
     };
 
     let insertResult = null;
     let insertError = null;
 
+    // Helper for resilient insert
+    const executeInsert = async (payload: Record<string, any>) => {
+      const workingPayload = { ...payload };
+      let { data, error } = await supabase
+        .from('users')
+        .insert([workingPayload])
+        .select()
+        .maybeSingle();
+
+      while (error && error.message) {
+        const colMatch =
+          error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
+          error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
+
+        if (colMatch && colMatch[1] && colMatch[1] in workingPayload) {
+          delete workingPayload[colMatch[1]];
+          const retry = await supabase
+            .from('users')
+            .insert([workingPayload])
+            .select()
+            .maybeSingle();
+          data = retry.data;
+          error = retry.error;
+        } else {
+          break;
+        }
+      }
+      return { data, error };
+    };
+
     // First attempt: insert with supabaseUid as id (if valid UUID from Supabase)
     if (supabaseUid) {
-      const { data, error } = await supabase
-        .from('users')
-        .insert([{ ...insertPayload, id: supabaseUid }])
-        .select()
-        .single();
-      insertResult = data;
-      insertError = error;
+      const res = await executeInsert({ ...insertPayload, id: supabaseUid });
+      insertResult = res.data;
+      insertError = res.error;
     }
 
     // Fallback: insert without custom id (allows database gen_random_uuid() to assign id)
     if (!insertResult) {
-      const { data, error } = await supabase
-        .from('users')
-        .insert([insertPayload])
-        .select()
-        .single();
-      insertResult = data;
-      insertError = error;
+      const res = await executeInsert(insertPayload);
+      insertResult = res.data;
+      insertError = res.error;
     }
 
     if (insertError || !insertResult) {

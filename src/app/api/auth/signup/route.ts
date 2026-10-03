@@ -118,31 +118,65 @@ export async function POST(request: NextRequest) {
     // Hash password with bcrypt
     const passwordHash = await hashPassword(password);
 
-    // Create user
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert([
-        {
-          email: email.toLowerCase().trim(),
-          password_hash: passwordHash,
-          name: name.trim(),
-          role,
-          phone: phone?.trim() || null,
-          business_name: businessName?.trim() || null,
-          gst_number: gstNumber?.toUpperCase().trim() || null,
-          pan_number: panNumber?.toUpperCase().trim() || null,
-          is_verified: false,
-        },
-      ])
-      .select()
-      .single();
+    // Create user in public.users
+    const userPayload: Record<string, any> = {
+      email: email.toLowerCase().trim(),
+      password_hash: passwordHash,
+      name: name.trim(),
+      role,
+      phone: phone?.trim() || null,
+      is_verified: false,
+    };
 
-    if (error) {
+    let { data: newUser, error } = await supabase
+      .from('users')
+      .insert([userPayload])
+      .select()
+      .maybeSingle();
+
+    while (error && error.message) {
+      const colMatch =
+        error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
+        error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
+
+      if (colMatch && colMatch[1] && colMatch[1] in userPayload) {
+        delete userPayload[colMatch[1]];
+        const retry = await supabase
+          .from('users')
+          .insert([userPayload])
+          .select()
+          .maybeSingle();
+        newUser = retry.data;
+        error = retry.error;
+      } else {
+        break;
+      }
+    }
+
+    if (error || !newUser) {
       console.error('Signup error:', error);
       return NextResponse.json(
-        { error: 'Failed to create account. Please try again.' },
+        { error: 'Failed to create account: ' + (error?.message || 'Database error') },
         { status: 500 }
       );
+    }
+
+    // If vendor, sync to public.vendors
+    if (role === 'vendor' && newUser.id) {
+      try {
+        await supabase
+          .from('vendors')
+          .upsert({
+            user_id: newUser.id,
+            business_name: businessName?.trim() || name.trim(),
+            phone: phone?.trim() || null,
+            gst_number: gstNumber?.toUpperCase().trim() || null,
+            pan_number: panNumber?.toUpperCase().trim() || null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+      } catch (vErr) {
+        console.warn('Vendor table sync warning:', vErr);
+      }
     }
 
     // Return user without password
