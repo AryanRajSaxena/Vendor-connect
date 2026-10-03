@@ -16,10 +16,12 @@ import {
   Check,
   Bell,
   Webhook,
-  Zap,
   Send,
   ShieldCheck,
   Info,
+  Lock,
+  AlertTriangle,
+  HelpCircle,
 } from 'lucide-react';
 
 export default function VendorSettings() {
@@ -30,6 +32,8 @@ export default function VendorSettings() {
   const [success, setSuccess] = useState(false);
   const [copiedPayload, setCopiedPayload] = useState(false);
   const [testWebhookSuccess, setTestWebhookSuccess] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Business Profile
   const [businessName, setBusinessName] = useState('');
@@ -63,6 +67,12 @@ export default function VendorSettings() {
       if (u.ifsc_code || u.ifscCode) setBankIfscCode(u.ifsc_code || u.ifscCode);
       setGstNumber(u.gstNumber || u.gst_number || '');
       setPanNumber(u.panNumber || u.pan_number || '');
+
+      // Check if previously locked
+      const lockedStatus = localStorage.getItem(`vendor_settings_locked_${user.id}`);
+      if (lockedStatus === 'true' || (u.account_number && u.name && u.phone && (u.businessName || u.business_name))) {
+        setIsLocked(true);
+      }
 
       // Load extended vendor settings from localStorage
       try {
@@ -122,17 +132,36 @@ export default function VendorSettings() {
     setTimeout(() => setTestWebhookSuccess(false), 3000);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (isLocked) return;
+
+    if (!businessName.trim()) {
+      setError('Creator / Company Name is required');
+      return;
+    }
+    if (!name.trim()) {
+      setError('Owner / Contact Name is required');
+      return;
+    }
+    if (!phone.trim()) {
+      setError('Phone Number is required for order coordination');
+      return;
+    }
+
+    // Trigger irreversible warning confirmation modal before saving
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAndSave = async () => {
+    setShowConfirmModal(false);
     setLoading(true);
     setError(null);
     setSuccess(false);
 
     try {
-      if (!businessName.trim()) throw new Error('Creator / Company Name is required');
-      if (!name.trim()) throw new Error('Owner / Contact Name is required');
-      if (!phone.trim()) throw new Error('Phone Number is required for order coordination');
-
       // Update core user in database (including bank account & IFSC on public.users)
       const res = await fetch(`/api/users/${user!.id}`, {
         method: 'PUT',
@@ -164,18 +193,20 @@ export default function VendorSettings() {
       };
 
       localStorage.setItem(`vendor_settings_${user!.id}`, JSON.stringify(extendedSettings));
+      localStorage.setItem(`vendor_settings_locked_${user!.id}`, 'true');
 
       updateUser({
         name: name.trim(),
         phone: phone.trim(),
         businessName: businessName.trim(),
-        gstNumber: gstNumber.trim().toUpperCase(),
-        panNumber: panNumber.trim().toUpperCase(),
+        account_number: bankAccountNumber.trim(),
+        ifsc_code: bankIfscCode.trim().toUpperCase(),
         ...extendedSettings,
       });
 
+      setIsLocked(true);
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 4000);
+      setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
       setError(err.message || 'Failed to save settings');
     } finally {
@@ -207,24 +238,57 @@ export default function VendorSettings() {
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
             <Building2 className="w-3.5 h-3.5" />
-            Vendor & Creator Portal
+            Vendor &amp; Creator Portal
+            {isLocked && (
+              <span className="ml-1 inline-flex items-center gap-1 text-emerald-800 font-bold">
+                • <Lock className="w-3 h-3" /> Locked &amp; Verified
+              </span>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            Settings & Business Profile
+            Settings &amp; Business Profile
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Manage your creator brand details, 80% revenue bank remittances, and automated LMS fulfillment.
           </p>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100/70 border border-red-200 rounded-lg transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Sign Out
-        </button>
+        <div className="flex items-center gap-2.5">
+          {isLocked && (
+            <a
+              href="mailto:support@agentcroww.com?subject=Request%20to%20Update%20Vendor%20Business%20Details"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-gray-500" />
+              Request Edit
+            </a>
+          )}
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100/70 border border-red-200 rounded-lg transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign Out
+          </button>
+        </div>
       </div>
+
+      {/* Lock Notice Banner */}
+      {isLocked && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 text-xs sm:text-sm">
+          <Lock className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-950">Creator &amp; Payout Details are Locked</p>
+            <p className="text-amber-800 leading-relaxed text-xs">
+              To safeguard your 80% revenue share bank remittances and protect your creator storefront against unauthorized changes, these fields are permanently locked. If you need to update bank account or company registration details, contact{' '}
+              <a href="mailto:support@agentcroww.com" className="font-semibold underline hover:text-amber-950">
+                support@agentcroww.com
+              </a>{' '}
+              with entity verification.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Notifications / Alerts */}
       {error && (
@@ -237,11 +301,11 @@ export default function VendorSettings() {
       {success && (
         <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-600" />
-          <span>Vendor business profile and payout settings successfully updated!</span>
+          <span>Vendor business profile and payout settings saved and locked successfully!</span>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-8">
+      <form onSubmit={handleFormSubmit} className="space-y-8">
         {/* SECTION 1: BUSINESS PROFILE */}
         <section className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 shadow-sm">
           <div className="flex items-start justify-between mb-6">
@@ -256,6 +320,7 @@ export default function VendorSettings() {
                 </p>
               </div>
             </div>
+            {isLocked && <Lock className="w-4 h-4 text-gray-400" />}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -267,8 +332,13 @@ export default function VendorSettings() {
                 type="text"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
+                disabled={isLocked}
                 placeholder="e.g., CodeSprint Academy or Vikram Verma"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
                 required
               />
               <p className="text-[11px] text-gray-400 mt-1">
@@ -285,8 +355,13 @@ export default function VendorSettings() {
                   type="email"
                   value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
+                  disabled={isLocked}
                   placeholder="support@youracademy.com"
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400"
+                  className={`w-full pl-9 pr-3.5 py-2.5 border rounded-xl text-sm transition-all ${
+                    isLocked
+                      ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                      : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                  }`}
                 />
                 <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
@@ -303,8 +378,13 @@ export default function VendorSettings() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={isLocked}
                 placeholder="Your legal full name"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
                 required
               />
             </div>
@@ -318,8 +398,13 @@ export default function VendorSettings() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  disabled={isLocked}
                   placeholder="e.g., 9876543210"
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400"
+                  className={`w-full pl-9 pr-3.5 py-2.5 border rounded-xl text-sm transition-all ${
+                    isLocked
+                      ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                      : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                  }`}
                   required
                 />
                 <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
@@ -337,8 +422,13 @@ export default function VendorSettings() {
                 type="text"
                 value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                disabled={isLocked}
                 placeholder="e.g., 27ABCDE1234F1Z5"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400 font-mono"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
               />
               <p className="text-[11px] text-gray-400 mt-1">
                 For Indian GST compliance and B2B invoice generation as your sales scale.
@@ -353,8 +443,13 @@ export default function VendorSettings() {
                 type="text"
                 value={panNumber}
                 onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                disabled={isLocked}
                 placeholder="e.g., ABCDE1234F"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400 font-mono"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
               />
               <p className="text-[11px] text-gray-400 mt-1">
                 Required for annual TDS reporting on marketplace sales disbursements.
@@ -395,10 +490,17 @@ export default function VendorSettings() {
                 </p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100/70 text-emerald-800">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              80% Creator Cut
-            </span>
+            <div className="flex items-center gap-2">
+              {isLocked && (
+                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-gray-500" /> Locked
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100/70 text-emerald-800">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                80% Creator Cut
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -410,8 +512,13 @@ export default function VendorSettings() {
                 type="text"
                 value={bankAccountHolder}
                 onChange={(e) => setBankAccountHolder(e.target.value)}
+                disabled={isLocked}
                 placeholder="Full Name as registered with your bank"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
               />
               <p className="text-[11px] text-gray-400 mt-1">
                 Must match your GST registration or business entity PAN to avoid bank remittance delays.
@@ -426,8 +533,13 @@ export default function VendorSettings() {
                 type="text"
                 value={bankAccountNumber}
                 onChange={(e) => setBankAccountNumber(e.target.value.replace(/\s+/g, ''))}
+                disabled={isLocked}
                 placeholder="e.g., 912010045678912"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400 font-mono"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
               />
             </div>
 
@@ -439,8 +551,13 @@ export default function VendorSettings() {
                 type="text"
                 value={bankIfscCode}
                 onChange={(e) => setBankIfscCode(e.target.value.toUpperCase())}
+                disabled={isLocked}
                 placeholder="e.g., HDFC0000123"
-                className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400 font-mono"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono uppercase transition-all ${
+                  isLocked
+                    ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                    : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+                }`}
               />
               <p className="text-[11px] text-gray-400 mt-1">11-character Indian Financial System Code.</p>
             </div>
@@ -465,16 +582,13 @@ export default function VendorSettings() {
                 <Webhook className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Fulfillment & Integrations</h2>
+                <h2 className="text-base font-semibold text-gray-900">Fulfillment &amp; Integrations</h2>
                 <p className="text-xs text-gray-500">
                   Connect your LMS, Zapier, Pabbly, or custom API to automate student enrollments upon checkout.
                 </p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-violet-100 text-violet-800">
-              <Zap className="w-3.5 h-3.5" />
-              Auto-Provisioning
-            </span>
+            {isLocked && <Lock className="w-4 h-4 text-gray-400" />}
           </div>
 
           {/* Fulfillment Method Selector */}
@@ -485,12 +599,13 @@ export default function VendorSettings() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 type="button"
+                disabled={isLocked}
                 onClick={() => setFulfillmentMethod('manual')}
                 className={`p-4 rounded-xl border text-left transition-all relative ${
                   fulfillmentMethod === 'manual'
                     ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
                     : 'border-gray-200 hover:border-gray-300 bg-gray-50/40'
-                }`}
+                } ${isLocked ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-semibold text-gray-900">Manual Email / Portal Access</span>
@@ -511,12 +626,13 @@ export default function VendorSettings() {
 
               <button
                 type="button"
+                disabled={isLocked}
                 onClick={() => setFulfillmentMethod('webhook')}
                 className={`p-4 rounded-xl border text-left transition-all relative ${
                   fulfillmentMethod === 'webhook'
                     ? 'border-violet-600 bg-violet-50/40 ring-2 ring-violet-500/20'
                     : 'border-gray-200 hover:border-gray-300 bg-gray-50/40'
-                }`}
+                } ${isLocked ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-semibold text-gray-900">Automated Webhook / LMS</span>
@@ -544,7 +660,7 @@ export default function VendorSettings() {
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Global Webhook URL (Zapier / Pabbly / LMS Endpoint)
                 </label>
-                {webhookUrl && (
+                {webhookUrl && !isLocked && (
                   <button
                     type="button"
                     onClick={handleTestWebhook}
@@ -560,8 +676,13 @@ export default function VendorSettings() {
                   type="url"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
+                  disabled={isLocked}
                   placeholder="https://hooks.zapier.com/hooks/catch/12345/abcde/"
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all font-mono text-xs placeholder:text-gray-400 placeholder:font-sans"
+                  className={`w-full pl-9 pr-3.5 py-2.5 border rounded-xl font-mono text-xs transition-all ${
+                    isLocked
+                      ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
+                      : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500'
+                  }`}
                 />
                 <Webhook className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
@@ -621,10 +742,10 @@ export default function VendorSettings() {
             <div className="py-4 flex items-center justify-between first:pt-0">
               <div className="pr-4">
                 <p className="text-sm font-semibold text-gray-900">
-                  Instant Payment & Sale Alerts
+                  Instant Payment &amp; Sale Alerts
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Receive an immediate email with student contact info & enrollment details when a sale closes.
+                  Receive an immediate email with student contact info &amp; enrollment details when a sale closes.
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
@@ -641,7 +762,7 @@ export default function VendorSettings() {
             <div className="py-4 flex items-center justify-between last:pb-0">
               <div className="pr-4">
                 <p className="text-sm font-semibold text-gray-900">
-                  Daily Sales & Revenue Summary
+                  Daily Sales &amp; Revenue Summary
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Get a consolidated evening digest of total student signups, revenue generated, and seller activity.
@@ -660,18 +781,109 @@ export default function VendorSettings() {
           </div>
         </section>
 
-        {/* Form Action Controls - Highly Prominent */}
-        <div className="pt-2 flex items-center justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2.5 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-base font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
-          >
-            <Save className="w-5 h-5" />
-            {loading ? 'Saving Settings...' : 'Save All Changes'}
-          </button>
+        {/* Form Action Controls */}
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+          {isLocked ? (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl border border-gray-200 select-none">
+                <Lock className="w-5 h-5 text-gray-400" />
+                Settings Locked &amp; Saved
+              </div>
+              <a
+                href="mailto:support@agentcroww.com?subject=Request%20to%20Update%20Vendor%20Business%20Details"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white text-gray-700 hover:text-gray-900 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                <HelpCircle className="w-4 h-4 text-gray-500" />
+                Contact Support to Request Edit
+              </a>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2.5 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-base font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="w-5 h-5" />
+              {loading ? 'Saving Settings...' : 'Save All Changes'}
+            </button>
+          )}
         </div>
       </form>
+
+      {/* Warning Confirmation Modal Before Permanent Lock */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-5">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-amber-100 text-amber-700 rounded-xl flex-shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Warning: Permanent Lock</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Please review your credentials carefully.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-900 leading-relaxed">
+              <strong>You will not be able to edit these fields after saving.</strong>
+              <p className="mt-1 text-amber-800">
+                To safeguard your 80% revenue remittances and protect your creator storefront against unauthorized modification, your business name and bank payout details will be permanently locked upon confirmation.
+              </p>
+            </div>
+
+            {/* Snapshot of details being locked */}
+            <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-200 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Creator / Brand:</span>
+                <span className="font-semibold text-gray-800">{businessName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Owner Name:</span>
+                <span className="font-semibold text-gray-800">{name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Phone Number:</span>
+                <span className="font-semibold text-gray-800">{phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Bank Account:</span>
+                <span className="font-mono font-semibold text-gray-800">
+                  {bankAccountNumber ? `•••• ${bankAccountNumber.slice(-4)}` : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">IFSC Code:</span>
+                <span className="font-mono font-semibold text-gray-800">{bankIfscCode || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Fulfillment Method:</span>
+                <span className="font-semibold text-gray-800 capitalize">
+                  {fulfillmentMethod === 'webhook' ? 'Automated Webhook' : 'Manual Access'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Go Back &amp; Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAndSave}
+                disabled={loading}
+                className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                {loading ? 'Locking & Saving...' : 'Confirm & Lock Details'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

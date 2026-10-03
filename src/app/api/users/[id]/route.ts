@@ -57,15 +57,31 @@ export async function PUT(
     if (body.ifsc_code !== undefined) updates.ifsc_code = body.ifsc_code;
     else if (body.ifscCode !== undefined) updates.ifsc_code = body.ifscCode;
 
+    if (body.upi_id !== undefined) updates.upi_id = body.upi_id;
+    else if (body.upiId !== undefined) updates.upi_id = body.upiId;
+
     if (body.is_verified !== undefined) updates.is_verified = body.is_verified;
     else if (body.isVerified !== undefined) updates.is_verified = body.isVerified;
 
-    const { data: user, error } = await supabase
+    let { data: user, error } = await supabase
       .from('users')
       .update(updates)
       .eq('id', id)
       .select()
       .single();
+
+    // If upi_id column is not yet added in PostgreSQL, retry without it so other updates succeed
+    if (error && error.message?.toLowerCase().includes('upi_id')) {
+      delete updates.upi_id;
+      const retry = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      user = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       return NextResponse.json(

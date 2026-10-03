@@ -17,6 +17,8 @@ export interface User {
   account_number?: string;
   ifscCode?: string;
   ifsc_code?: string;
+  upiId?: string;
+  upi_id?: string;
   gstNumber?: string;
   panNumber?: string;
 }
