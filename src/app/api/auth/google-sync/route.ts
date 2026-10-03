@@ -22,129 +22,99 @@ export async function POST(request: NextRequest) {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Check if user already exists in public.users
-    const { data: existingUser, error: queryError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', cleanEmail)
-      .maybeSingle();
-
-    if (queryError) {
-      console.error('Database query error during google-sync:', queryError);
-      return NextResponse.json(
-        { error: `Database query failed: ${queryError.message}` },
-        { status: 500 }
-      );
-    }
-
-    const formatUserResponse = (u: any) => ({
+    const formatUserResponse = (u: any, accountRole: 'vendor' | 'seller') => ({
       id: String(u.id),
       email: u.email,
       name: u.name || name || u.email.split('@')[0],
-      role: u.role || 'customer',
+      role: accountRole,
       phone: u.phone || '',
       isVerified: u.is_verified ?? true,
       createdAt: u.created_at || new Date().toISOString(),
       updatedAt: u.updated_at || new Date().toISOString(),
       avatar: avatar || undefined,
-      businessName: u.business_name,
+      businessName: u.business_name || u.store_name,
+      business_name: u.business_name || u.store_name,
+      storeName: u.store_name || u.business_name,
+      is_locked: u.is_locked ?? false,
+      isLocked: u.is_locked ?? false,
     });
 
-    if (existingUser) {
-      // If user exists as 'customer', but signs up with a specific role ('vendor' | 'seller'), upgrade role
-      let currentRole = existingUser.role;
-      if (role && (role === 'vendor' || role === 'seller') && (!currentRole || currentRole === 'customer')) {
-        currentRole = role;
-      }
+    // Check if user already exists in vendors or sellers
+    const { data: existingVendor } = await supabase
+      .from('vendors')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
 
-      try {
-        await supabase
-          .from('users')
-          .update({
-            role: currentRole,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingUser.id);
-      } catch (err) {
-        console.warn('Failed to update user for existing user:', err);
-      }
-
-      return NextResponse.json(formatUserResponse({ ...existingUser, role: currentRole }), { status: 200 });
+    if (existingVendor) {
+      return NextResponse.json(formatUserResponse(existingVendor, 'vendor'), { status: 200 });
     }
 
-    // New user -> provision in public.users matching exact table schema:
-    // id (uuid), email (varchar NOT NULL), password_hash (varchar NOT NULL), name (varchar NOT NULL),
-    // role (varchar NOT NULL), phone (varchar), business_name (varchar), is_verified (boolean)
-    const validRoles = ['vendor', 'seller', 'customer'];
-    const assignedRole = validRoles.includes(role) ? role : 'customer';
+    const { data: existingSeller } = await supabase
+      .from('sellers')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (existingSeller) {
+      return NextResponse.json(formatUserResponse(existingSeller, 'seller'), { status: 200 });
+    }
+
+    // New user -> provision in dedicated vendors or sellers table
+    const targetRole: 'vendor' | 'seller' = role === 'seller' ? 'seller' : 'vendor';
     const displayName = (name || cleanEmail.split('@')[0]).trim();
+    const table = targetRole === 'vendor' ? 'vendors' : 'sellers';
 
     const insertPayload: Record<string, any> = {
       email: cleanEmail,
       password_hash: `OAUTH_GOOGLE_${supabaseUid || Date.now()}`,
       name: displayName,
-      role: assignedRole,
+      role: targetRole,
       phone: null,
       is_verified: true,
+      is_locked: false,
     };
+
+    if (targetRole === 'vendor') {
+      insertPayload.business_name = displayName;
+    } else {
+      insertPayload.store_name = displayName;
+      insertPayload.business_name = displayName;
+    }
 
     let insertResult = null;
     let insertError = null;
 
-    // Helper for resilient insert
-    const executeInsert = async (payload: Record<string, any>) => {
-      const workingPayload = { ...payload };
-      let { data, error } = await supabase
-        .from('users')
-        .insert([workingPayload])
+    if (supabaseUid) {
+      const { data, error } = await supabase
+        .from(table)
+        .insert([{ ...insertPayload, id: supabaseUid }])
         .select()
         .maybeSingle();
-
-      while (error && error.message) {
-        const colMatch =
-          error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
-          error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
-
-        if (colMatch && colMatch[1] && colMatch[1] in workingPayload) {
-          delete workingPayload[colMatch[1]];
-          const retry = await supabase
-            .from('users')
-            .insert([workingPayload])
-            .select()
-            .maybeSingle();
-          data = retry.data;
-          error = retry.error;
-        } else {
-          break;
-        }
-      }
-      return { data, error };
-    };
-
-    // First attempt: insert with supabaseUid as id (if valid UUID from Supabase)
-    if (supabaseUid) {
-      const res = await executeInsert({ ...insertPayload, id: supabaseUid });
-      insertResult = res.data;
-      insertError = res.error;
+      insertResult = data;
+      insertError = error;
     }
 
-    // Fallback: insert without custom id (allows database gen_random_uuid() to assign id)
     if (!insertResult) {
-      const res = await executeInsert(insertPayload);
-      insertResult = res.data;
-      insertError = res.error;
+      const { data, error } = await supabase
+        .from(table)
+        .insert([insertPayload])
+        .select()
+        .maybeSingle();
+      insertResult = data;
+      insertError = error;
     }
 
     if (insertError || !insertResult) {
-      console.error('Failed to create new user record in google-sync:', insertError);
+      console.error(`Failed to create new ${targetRole} record in google-sync:`, insertError);
       return NextResponse.json(
-        { error: `Failed to create user record: ${insertError?.message || 'Database error'}` },
+        { error: `Failed to create account record: ${insertError?.message || 'Database error'}` },
         { status: 500 }
       );
     }
 
-    logSecurityEvent('google_signup_success', { email: cleanEmail, role: assignedRole }, request);
-    return NextResponse.json(formatUserResponse(insertResult), { status: 201 });
+    logSecurityEvent('google_signup_success', { email: cleanEmail, role: targetRole }, request);
+    return NextResponse.json(formatUserResponse(insertResult, targetRole), { status: 201 });
   } catch (error) {
     console.error('Google sync error:', error);
     return NextResponse.json(

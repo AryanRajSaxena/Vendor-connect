@@ -33,18 +33,56 @@ export interface User {
 
 export interface Vendor {
   id: string;
-  userId: string;
-  businessName: string;
+  email?: string;
+  name?: string;
+  role?: 'vendor';
+  businessName?: string;
+  business_name?: string;
   supportEmail?: string;
+  support_email?: string;
   phone?: string;
   gstNumber?: string;
+  gst_number?: string;
   panNumber?: string;
+  pan_number?: string;
   bankAccountHolder?: string;
+  bank_account_holder?: string;
   accountNumber?: string;
+  account_number?: string;
   ifscCode?: string;
-  isLocked: boolean;
-  createdAt: string;
-  updatedAt: string;
+  ifsc_code?: string;
+  isLocked?: boolean;
+  is_locked?: boolean;
+  isVerified?: boolean;
+  is_verified?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Seller {
+  id: string;
+  email?: string;
+  name?: string;
+  role?: 'seller';
+  phone?: string;
+  businessName?: string;
+  business_name?: string;
+  storeName?: string;
+  store_name?: string;
+  upiId?: string;
+  upi_id?: string;
+  bankAccountHolder?: string;
+  bank_account_holder?: string;
+  accountNumber?: string;
+  account_number?: string;
+  ifscCode?: string;
+  ifsc_code?: string;
+  isLocked?: boolean;
+  is_locked?: boolean;
+  isVerified?: boolean;
+  is_verified?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface VendorProfile extends User {

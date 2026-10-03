@@ -8,58 +8,48 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { data: user, error } = await supabase
-      .from('users')
+    // 1. Check vendors table
+    const { data: vendor, error: vErr } = await supabase
+      .from('vendors')
       .select('*')
       .eq('id', id)
       .maybeSingle();
 
-    if (error) {
-      console.error('Get user error:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch user: ' + error.message },
-        { status: 500 }
-      );
+    if (vErr) {
+      console.warn('Error querying vendors table:', vErr.message);
     }
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+    if (vendor) {
+      vendor.role = 'vendor';
+      const { password_hash, ...vendorWithoutPassword } = vendor;
+      return NextResponse.json(vendorWithoutPassword, { status: 200 });
     }
 
-    // If role is vendor, merge data from dedicated vendors table if it exists
-    if (user.role === 'vendor') {
-      try {
-        const { data: vendor } = await supabase
-          .from('vendors')
-          .select('*')
-          .eq('user_id', id)
-          .maybeSingle();
+    // 2. Check sellers table
+    const { data: seller, error: sErr } = await supabase
+      .from('sellers')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
-        if (vendor) {
-          user.business_name = vendor.business_name || user.business_name;
-          user.support_email = vendor.support_email;
-          user.gst_number = vendor.gst_number;
-          user.pan_number = vendor.pan_number;
-          user.bank_account_holder = vendor.bank_account_holder;
-          user.account_number = vendor.account_number || user.account_number;
-          user.ifsc_code = vendor.ifsc_code || user.ifsc_code;
-          if (typeof vendor.is_locked === 'boolean') {
-            user.is_locked = vendor.is_locked;
-          }
-        }
-      } catch {
-        // vendors table may not be created yet, fallback gracefully
-      }
+    if (sErr) {
+      console.warn('Error querying sellers table:', sErr.message);
     }
 
-    // Don't return password hash
-    const { password_hash, ...userWithoutPassword } = user;
-    return NextResponse.json(userWithoutPassword, { status: 200 });
+    if (seller) {
+      seller.role = 'seller';
+      seller.business_name = seller.business_name || seller.store_name;
+      seller.store_name = seller.store_name || seller.business_name;
+      const { password_hash, ...sellerWithoutPassword } = seller;
+      return NextResponse.json(sellerWithoutPassword, { status: 200 });
+    }
+
+    return NextResponse.json(
+      { error: 'Account not found' },
+      { status: 404 }
+    );
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('Get account error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -75,196 +65,210 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    // Map and filter updates to actual public.users columns
-    const updates: Record<string, any> = {
+    // Determine target role: check payload role or look up in tables
+    let isVendor = body.role === 'vendor';
+    let isSeller = body.role === 'seller';
+
+    if (!isVendor && !isSeller) {
+      const { data: v } = await supabase.from('vendors').select('id').eq('id', id).maybeSingle();
+      if (v) {
+        isVendor = true;
+      } else {
+        const { data: s } = await supabase.from('sellers').select('id').eq('id', id).maybeSingle();
+        if (s) isSeller = true;
+      }
+    }
+
+    // If still undecided, check vendor-specific vs seller-specific fields
+    if (!isVendor && !isSeller) {
+      if (body.gst_number || body.gstNumber || body.support_email || body.supportEmail) {
+        isVendor = true;
+      } else if (body.upi_id || body.upiId || body.store_name || body.storeName) {
+        isSeller = true;
+      } else {
+        isVendor = true; // Default fallback
+      }
+    }
+
+    if (isVendor) {
+      // ----------------------------------------------------
+      // UPDATE VENDORS TABLE
+      // ----------------------------------------------------
+      const vendorUpdates: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (body.name !== undefined) vendorUpdates.name = body.name;
+      if (body.phone !== undefined) vendorUpdates.phone = body.phone;
+
+      if (body.business_name !== undefined) vendorUpdates.business_name = body.business_name;
+      else if (body.businessName !== undefined) vendorUpdates.business_name = body.businessName;
+
+      if (body.support_email !== undefined) vendorUpdates.support_email = body.support_email;
+      else if (body.supportEmail !== undefined) vendorUpdates.support_email = body.supportEmail;
+
+      if (body.gst_number !== undefined) vendorUpdates.gst_number = body.gst_number;
+      else if (body.gstNumber !== undefined) vendorUpdates.gst_number = body.gstNumber;
+
+      if (body.pan_number !== undefined) vendorUpdates.pan_number = body.pan_number;
+      else if (body.panNumber !== undefined) vendorUpdates.pan_number = body.panNumber;
+
+      if (body.bank_account_holder !== undefined) vendorUpdates.bank_account_holder = body.bank_account_holder;
+      else if (body.bankAccountHolder !== undefined) vendorUpdates.bank_account_holder = body.bankAccountHolder;
+
+      if (body.account_number !== undefined) vendorUpdates.account_number = body.account_number;
+      else if (body.accountNumber !== undefined) vendorUpdates.account_number = body.accountNumber;
+
+      if (body.ifsc_code !== undefined) vendorUpdates.ifsc_code = body.ifsc_code;
+      else if (body.ifscCode !== undefined) vendorUpdates.ifsc_code = body.ifscCode;
+
+      if (body.is_locked !== undefined) vendorUpdates.is_locked = body.is_locked;
+      else if (body.isLocked !== undefined) vendorUpdates.is_locked = body.isLocked;
+
+      const { data: existingVendor } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      let resultVendor: any = null;
+
+      if (existingVendor) {
+        const { data, error } = await supabase
+          .from('vendors')
+          .update(vendorUpdates)
+          .eq('id', id)
+          .select()
+          .maybeSingle();
+
+        if (error) {
+          return NextResponse.json(
+            { error: 'Failed to update vendor settings: ' + error.message },
+            { status: 500 }
+          );
+        }
+        resultVendor = data || { ...existingVendor, ...vendorUpdates };
+      } else {
+        // Auto-provision in vendors table if row does not exist yet
+        const insertPayload = {
+          id,
+          email: body.email || `vendor_${id.slice(0, 8)}@agentcroww.com`,
+          password_hash: `AUTH_${Date.now()}`,
+          name: body.name || 'Vendor',
+          role: 'vendor',
+          business_name: vendorUpdates.business_name || body.name || 'Vendor',
+          is_verified: true,
+          ...vendorUpdates,
+        };
+
+        const { data, error } = await supabase
+          .from('vendors')
+          .insert([insertPayload])
+          .select()
+          .maybeSingle();
+
+        if (error) {
+          return NextResponse.json(
+            { error: 'Failed to create vendor account: ' + error.message },
+            { status: 500 }
+          );
+        }
+        resultVendor = data || insertPayload;
+      }
+
+      resultVendor.role = 'vendor';
+      const { password_hash, ...cleanVendor } = resultVendor;
+      return NextResponse.json(cleanVendor, { status: 200 });
+    }
+
+    // ----------------------------------------------------
+    // UPDATE SELLERS TABLE
+    // ----------------------------------------------------
+    const sellerUpdates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
-    if (body.name !== undefined) updates.name = body.name;
-    if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.name !== undefined) sellerUpdates.name = body.name;
+    if (body.phone !== undefined) sellerUpdates.phone = body.phone;
 
-    if (body.account_number !== undefined) updates.account_number = body.account_number;
-    else if (body.accountNumber !== undefined) updates.account_number = body.accountNumber;
+    const sName = body.store_name || body.storeName || body.business_name || body.businessName;
+    if (sName !== undefined) {
+      sellerUpdates.store_name = sName;
+      sellerUpdates.business_name = sName;
+    }
 
-    if (body.ifsc_code !== undefined) updates.ifsc_code = body.ifsc_code;
-    else if (body.ifscCode !== undefined) updates.ifsc_code = body.ifscCode;
+    if (body.upi_id !== undefined) sellerUpdates.upi_id = body.upi_id;
+    else if (body.upiId !== undefined) sellerUpdates.upi_id = body.upiId;
 
-    if (body.upi_id !== undefined) updates.upi_id = body.upi_id;
-    else if (body.upiId !== undefined) updates.upi_id = body.upiId;
+    if (body.bank_account_holder !== undefined) sellerUpdates.bank_account_holder = body.bank_account_holder;
+    else if (body.bankAccountHolder !== undefined) sellerUpdates.bank_account_holder = body.bankAccountHolder;
 
-    if (body.is_verified !== undefined) updates.is_verified = body.is_verified;
-    else if (body.isVerified !== undefined) updates.is_verified = body.isVerified;
+    if (body.account_number !== undefined) sellerUpdates.account_number = body.account_number;
+    else if (body.accountNumber !== undefined) sellerUpdates.account_number = body.accountNumber;
 
-    if (body.is_locked !== undefined) updates.is_locked = body.is_locked;
-    else if (body.isLocked !== undefined) updates.is_locked = body.isLocked;
+    if (body.ifsc_code !== undefined) sellerUpdates.ifsc_code = body.ifsc_code;
+    else if (body.ifscCode !== undefined) sellerUpdates.ifsc_code = body.ifscCode;
 
-    // First check if user exists in public.users
-    const { data: existingUser } = await supabase
-      .from('users')
+    if (body.is_locked !== undefined) sellerUpdates.is_locked = body.is_locked;
+    else if (body.isLocked !== undefined) sellerUpdates.is_locked = body.isLocked;
+
+    const { data: existingSeller } = await supabase
+      .from('sellers')
       .select('*')
       .eq('id', id)
       .maybeSingle();
 
-    let user: Record<string, any> | null = existingUser;
+    let resultSeller: any = null;
 
-    if (existingUser) {
-      // User exists -> update
-      let { data: updatedUser, error } = await supabase
-        .from('users')
-        .update(updates)
+    if (existingSeller) {
+      const { data, error } = await supabase
+        .from('sellers')
+        .update(sellerUpdates)
         .eq('id', id)
         .select()
         .maybeSingle();
 
-      // Resilient schema fallback: If any column is not in public.users, strip it and retry
-      while (error && error.message) {
-        const colMatch =
-          error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
-          error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
-
-        if (colMatch && colMatch[1] && colMatch[1] in updates) {
-          delete updates[colMatch[1]];
-          const retry = await supabase
-            .from('users')
-            .update(updates)
-            .eq('id', id)
-            .select()
-            .maybeSingle();
-          updatedUser = retry.data;
-          error = retry.error;
-        } else {
-          break;
-        }
-      }
-
       if (error) {
         return NextResponse.json(
-          { error: 'Failed to update user: ' + error.message },
+          { error: 'Failed to update seller settings: ' + error.message },
           { status: 500 }
         );
       }
-
-      user = updatedUser || existingUser;
+      resultSeller = data || { ...existingSeller, ...sellerUpdates };
     } else {
-      // User row does NOT exist in public.users -> auto-provision/insert
-      const insertPayload: Record<string, any> = {
+      // Auto-provision in sellers table
+      const insertPayload = {
         id,
-        email: body.email || `user_${id.slice(0, 8)}@agentcroww.com`,
-        password_hash: body.password_hash || `AUTH_${Date.now()}`,
-        name: body.name || 'User',
-        role: body.role || 'vendor',
-        phone: updates.phone || null,
-        account_number: updates.account_number || null,
-        ifsc_code: updates.ifsc_code || null,
-        upi_id: updates.upi_id || null,
-        is_locked: updates.is_locked ?? false,
+        email: body.email || `seller_${id.slice(0, 8)}@agentcroww.com`,
+        password_hash: `AUTH_${Date.now()}`,
+        name: body.name || 'Seller',
+        role: 'seller',
+        store_name: sName || body.name || 'Seller Store',
+        business_name: sName || body.name || 'Seller Store',
         is_verified: true,
-        updated_at: new Date().toISOString(),
+        ...sellerUpdates,
       };
 
-      let { data: insertedUser, error } = await supabase
-        .from('users')
+      const { data, error } = await supabase
+        .from('sellers')
         .insert([insertPayload])
         .select()
         .maybeSingle();
 
-      // Resilient fallback for columns not existing in public.users
-      while (error && error.message) {
-        const colMatch =
-          error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
-          error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
-
-        if (colMatch && colMatch[1] && colMatch[1] in insertPayload) {
-          delete insertPayload[colMatch[1]];
-          const retry = await supabase
-            .from('users')
-            .insert([insertPayload])
-            .select()
-            .maybeSingle();
-          insertedUser = retry.data;
-          error = retry.error;
-        } else {
-          break;
-        }
-      }
-
       if (error) {
         return NextResponse.json(
-          { error: 'Failed to create user: ' + error.message },
+          { error: 'Failed to create seller account: ' + error.message },
           { status: 500 }
         );
       }
-
-      user = insertedUser || insertPayload;
+      resultSeller = data || insertPayload;
     }
 
-    const safeUser: Record<string, any> = user || {};
-
-    // Sync vendor-specific details to dedicated public.vendors table if applicable
-    const isVendorRole = safeUser.role === 'vendor' || body.role === 'vendor';
-    const hasVendorFields = Boolean(
-      body.business_name || body.businessName ||
-      body.gst_number || body.gstNumber ||
-      body.pan_number || body.panNumber ||
-      body.support_email || body.supportEmail ||
-      body.bank_account_holder || body.bankAccountHolder
-    );
-
-    if (isVendorRole || hasVendorFields) {
-      try {
-        const vendorUpdates: Record<string, any> = {
-          user_id: id,
-          business_name: body.business_name || body.businessName || safeUser.business_name || safeUser.name || 'Vendor',
-          updated_at: new Date().toISOString(),
-        };
-
-        if (body.support_email !== undefined) vendorUpdates.support_email = body.support_email;
-        else if (body.supportEmail !== undefined) vendorUpdates.support_email = body.supportEmail;
-
-        if (body.phone !== undefined) vendorUpdates.phone = body.phone;
-        else if (safeUser.phone) vendorUpdates.phone = safeUser.phone;
-
-        if (body.gst_number !== undefined) vendorUpdates.gst_number = body.gst_number;
-        else if (body.gstNumber !== undefined) vendorUpdates.gst_number = body.gstNumber;
-
-        if (body.pan_number !== undefined) vendorUpdates.pan_number = body.pan_number;
-        else if (body.panNumber !== undefined) vendorUpdates.pan_number = body.panNumber;
-
-        if (body.bank_account_holder !== undefined) vendorUpdates.bank_account_holder = body.bank_account_holder;
-        else if (body.bankAccountHolder !== undefined) vendorUpdates.bank_account_holder = body.bankAccountHolder;
-
-        if (body.account_number !== undefined) vendorUpdates.account_number = body.account_number;
-        else if (body.accountNumber !== undefined) vendorUpdates.account_number = body.accountNumber;
-        else if (safeUser.account_number) vendorUpdates.account_number = safeUser.account_number;
-
-        if (body.ifsc_code !== undefined) vendorUpdates.ifsc_code = body.ifsc_code;
-        else if (body.ifscCode !== undefined) vendorUpdates.ifsc_code = body.ifscCode;
-        else if (safeUser.ifsc_code) vendorUpdates.ifsc_code = safeUser.ifsc_code;
-
-        if (body.is_locked !== undefined) vendorUpdates.is_locked = body.is_locked;
-        else if (body.isLocked !== undefined) vendorUpdates.is_locked = body.isLocked;
-
-        const { data: vendorData, error: vErr } = await supabase
-          .from('vendors')
-          .upsert(vendorUpdates, { onConflict: 'user_id' })
-          .select()
-          .maybeSingle();
-
-        if (vErr) {
-          console.warn('Upsert to vendors table warning:', vErr.message);
-        } else if (vendorData) {
-          Object.assign(safeUser, vendorData);
-        }
-      } catch (vErr) {
-        console.warn('Upsert to vendors table skipped (table might not exist yet):', vErr);
-      }
-    }
-
-    // Don't return password hash
-    const { password_hash, ...userWithoutPassword } = safeUser;
-    return NextResponse.json(userWithoutPassword, { status: 200 });
+    resultSeller.role = 'seller';
+    const { password_hash, ...cleanSeller } = resultSeller;
+    return NextResponse.json(cleanSeller, { status: 200 });
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error('Update account error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

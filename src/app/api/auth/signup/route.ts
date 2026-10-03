@@ -49,14 +49,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
+    const cleanEmail = email.toLowerCase().trim();
 
-    if (existingUser) {
+    // Check if email is already registered in vendors or sellers
+    const [vendorCheck, sellerCheck] = await Promise.all([
+      supabase.from('vendors').select('id').eq('email', cleanEmail).maybeSingle(),
+      supabase.from('sellers').select('id').eq('email', cleanEmail).maybeSingle(),
+    ]);
+
+    if (vendorCheck.data || sellerCheck.data) {
       return NextResponse.json(
         { error: 'Email already registered' },
         { status: 409 }
@@ -118,70 +119,69 @@ export async function POST(request: NextRequest) {
     // Hash password with bcrypt
     const passwordHash = await hashPassword(password);
 
-    // Create user in public.users
-    const userPayload: Record<string, any> = {
-      email: email.toLowerCase().trim(),
-      password_hash: passwordHash,
-      name: name.trim(),
-      role,
-      phone: phone?.trim() || null,
-      is_verified: false,
-    };
+    let createdAccount: any = null;
 
-    let { data: newUser, error } = await supabase
-      .from('users')
-      .insert([userPayload])
-      .select()
-      .maybeSingle();
+    if (role === 'vendor') {
+      const vendorPayload = {
+        email: cleanEmail,
+        password_hash: passwordHash,
+        name: name.trim(),
+        role: 'vendor',
+        phone: phone?.trim() || null,
+        business_name: businessName?.trim() || name.trim(),
+        gst_number: gstNumber?.toUpperCase().trim() || null,
+        pan_number: panNumber?.toUpperCase().trim() || null,
+        is_verified: false,
+        is_locked: false,
+      };
 
-    while (error && error.message) {
-      const colMatch =
-        error.message.match(/Could not find the '([^']+)' column of 'users'/i) ||
-        error.message.match(/column "([^"]+)" of relation "users" does not exist/i);
+      const { data, error } = await supabase
+        .from('vendors')
+        .insert([vendorPayload])
+        .select()
+        .maybeSingle();
 
-      if (colMatch && colMatch[1] && colMatch[1] in userPayload) {
-        delete userPayload[colMatch[1]];
-        const retry = await supabase
-          .from('users')
-          .insert([userPayload])
-          .select()
-          .maybeSingle();
-        newUser = retry.data;
-        error = retry.error;
-      } else {
-        break;
+      if (error || !data) {
+        console.error('Vendor signup error:', error);
+        return NextResponse.json(
+          { error: 'Failed to create vendor account: ' + (error?.message || 'Database error') },
+          { status: 500 }
+        );
       }
-    }
+      createdAccount = data;
+    } else {
+      // role === 'seller'
+      const sellerPayload = {
+        email: cleanEmail,
+        password_hash: passwordHash,
+        name: name.trim(),
+        role: 'seller',
+        phone: phone?.trim() || null,
+        store_name: businessName?.trim() || name.trim(),
+        business_name: businessName?.trim() || name.trim(),
+        is_verified: false,
+        is_locked: false,
+      };
 
-    if (error || !newUser) {
-      console.error('Signup error:', error);
-      return NextResponse.json(
-        { error: 'Failed to create account: ' + (error?.message || 'Database error') },
-        { status: 500 }
-      );
-    }
+      const { data, error } = await supabase
+        .from('sellers')
+        .insert([sellerPayload])
+        .select()
+        .maybeSingle();
 
-    // If vendor, sync to public.vendors
-    if (role === 'vendor' && newUser.id) {
-      try {
-        await supabase
-          .from('vendors')
-          .upsert({
-            user_id: newUser.id,
-            business_name: businessName?.trim() || name.trim(),
-            phone: phone?.trim() || null,
-            gst_number: gstNumber?.toUpperCase().trim() || null,
-            pan_number: panNumber?.toUpperCase().trim() || null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' });
-      } catch (vErr) {
-        console.warn('Vendor table sync warning:', vErr);
+      if (error || !data) {
+        console.error('Seller signup error:', error);
+        return NextResponse.json(
+          { error: 'Failed to create seller account: ' + (error?.message || 'Database error') },
+          { status: 500 }
+        );
       }
+      createdAccount = data;
     }
 
-    // Return user without password
-    const { password_hash, ...userWithoutPassword } = newUser;
-    return NextResponse.json(userWithoutPassword, { status: 201 });
+    // Return account without password
+    const { password_hash, ...accountWithoutPassword } = createdAccount;
+    return NextResponse.json(accountWithoutPassword, { status: 201 });
   } catch (error) {
     console.error('Signup error:', error);
     return NextResponse.json(

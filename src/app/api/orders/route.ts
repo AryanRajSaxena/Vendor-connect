@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
-import { hashPassword } from '@/utils/password';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const legacyPriceKey = ['final', 'price'].join('_');
@@ -48,10 +47,9 @@ async function resolveSellerFromReferral(productId: string, referralCode?: strin
     }
 
     const { data: sellerUser } = await supabase
-      .from('users')
-      .select('id, role')
+      .from('sellers')
+      .select('id')
       .eq('id', normalized)
-      .eq('role', 'seller')
       .maybeSingle();
 
     if (sellerUser?.id) {
@@ -167,40 +165,9 @@ export async function POST(request: NextRequest) {
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
     const resolvedPaymentStatus = normalizedPaymentMethod === 'cod' ? 'pending' : 'completed';
 
-    // Auto-resolve or create customer record for guest checkout if customerId is not provided
-    if (!customerId && customerDetails?.email) {
-      const email = String(customerDetails.email).trim().toLowerCase();
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (existingUser?.id) {
-        customerId = existingUser.id;
-      } else {
-        const dummyPassword = await hashPassword(Math.random().toString(36).slice(-10) + 'A1!guestPass');
-        const { data: newUser, error: createError } = await supabase
-          .from('users')
-          .insert([
-            {
-              email,
-              name: customerDetails.name || 'Student',
-              phone: customerDetails.phone || null,
-              role: 'customer',
-              password_hash: dummyPassword,
-              is_verified: true,
-            },
-          ])
-          .select('id')
-          .single();
-
-        if (createError) {
-          console.error('[API] Failed to create guest customer record:', createError);
-        } else if (newUser?.id) {
-          customerId = newUser.id;
-        }
-      }
+    // Auto-resolve customer record for guest checkout if customerId is not provided
+    if (!customerId) {
+      customerId = crypto.randomUUID();
     }
 
     if (

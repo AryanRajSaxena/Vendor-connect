@@ -29,23 +29,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user
-    const { data: user, error } = await supabase
-      .from('users')
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check vendors table first
+    let account: any = null;
+    let accountType: 'vendor' | 'seller' | null = null;
+
+    const { data: vendorUser, error: vErr } = await supabase
+      .from('vendors')
       .select('*')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', cleanEmail)
       .maybeSingle();
 
-    if (error) {
-      console.error('Database error during login:', error);
-      return NextResponse.json(
-        { error: 'An error occurred. Please try again.' },
-        { status: 500 }
-      );
+    if (vErr) {
+      console.error('Database error checking vendors during login:', vErr);
     }
 
-    if (!user) {
-      logSecurityEvent('login_failed_user_not_found', { email: email.toLowerCase() }, request);
+    if (vendorUser) {
+      account = vendorUser;
+      accountType = 'vendor';
+    } else {
+      // Check sellers table
+      const { data: sellerUser, error: sErr } = await supabase
+        .from('sellers')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (sErr) {
+        console.error('Database error checking sellers during login:', sErr);
+      }
+
+      if (sellerUser) {
+        account = sellerUser;
+        accountType = 'seller';
+      }
+    }
+
+    if (!account) {
+      logSecurityEvent('login_failed_user_not_found', { email: cleanEmail }, request);
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -53,25 +75,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password using bcrypt
-    const isValidPassword = await verifyPassword(password, user.password_hash);
+    const isValidPassword = await verifyPassword(password, account.password_hash);
 
     if (!isValidPassword) {
-      logSecurityEvent('login_failed_invalid_password', { email: email.toLowerCase(), userId: user.id }, request);
+      logSecurityEvent('login_failed_invalid_password', { email: cleanEmail, userId: account.id }, request);
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    // Update last login timestamp
+    // Update last activity timestamp in corresponding table
+    const tableToUpdate = accountType === 'vendor' ? 'vendors' : 'sellers';
     await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', user.id);
+      .from(tableToUpdate)
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', account.id);
 
-    // Return user without password
-    const { password_hash, ...userWithoutPassword } = user;
-    return NextResponse.json(userWithoutPassword, { status: 200 });
+    // Ensure role property is set
+    account.role = accountType;
+
+    // Return account without password
+    const { password_hash, ...accountWithoutPassword } = account;
+    return NextResponse.json(accountWithoutPassword, { status: 200 });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
