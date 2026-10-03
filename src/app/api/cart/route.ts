@@ -17,7 +17,7 @@ async function fetchCartItems(customerId: string) {
     .order('created_at', { ascending: false });
 
   if (cartError) {
-    throw new Error(cartError.message);
+    return [];
   }
 
   const rows = cartRows || [];

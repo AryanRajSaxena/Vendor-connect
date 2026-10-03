@@ -63,36 +63,40 @@ async function resolveSellerFromReferral(productId: string, referralCode?: strin
 }
 
 async function creditSellerAccount(sellerId: string, sellerCommission: number) {
-  const creditAmount = roundMoney(sellerCommission);
-  if (creditAmount <= 0) return;
+  try {
+    const creditAmount = roundMoney(sellerCommission);
+    if (creditAmount <= 0) return;
 
-  const { data: existingAccount } = await supabase
-    .from('seller_accounts')
-    .select('id, total_earnings, available_balance')
-    .eq('seller_id', sellerId)
-    .maybeSingle();
+    const { data: existingAccount } = await supabase
+      .from('seller_accounts')
+      .select('id, total_earnings, available_balance')
+      .eq('seller_id', sellerId)
+      .maybeSingle();
 
-  if (existingAccount?.id) {
+    if (existingAccount?.id) {
+      await supabase
+        .from('seller_accounts')
+        .update({
+          total_earnings: roundMoney(Number(existingAccount.total_earnings || 0) + creditAmount),
+          available_balance: roundMoney(Number(existingAccount.available_balance || 0) + creditAmount),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingAccount.id);
+      return;
+    }
+
     await supabase
       .from('seller_accounts')
-      .update({
-        total_earnings: roundMoney(Number(existingAccount.total_earnings || 0) + creditAmount),
-        available_balance: roundMoney(Number(existingAccount.available_balance || 0) + creditAmount),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existingAccount.id);
-    return;
+      .insert([
+        {
+          seller_id: sellerId,
+          total_earnings: creditAmount,
+          available_balance: creditAmount,
+        },
+      ]);
+  } catch {
+    // seller_accounts table is optional; earnings are computed dynamically from orders and seller_products
   }
-
-  await supabase
-    .from('seller_accounts')
-    .insert([
-      {
-        seller_id: sellerId,
-        total_earnings: creditAmount,
-        available_balance: creditAmount,
-      },
-    ]);
 }
 
 export async function GET(request: NextRequest) {

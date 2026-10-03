@@ -69,24 +69,6 @@ export async function POST(request: NextRequest) {
         console.warn('Failed to update user for existing user:', err);
       }
 
-      // If user is seller, ensure seller_accounts row exists
-      if (currentRole === 'seller') {
-        try {
-          await supabase
-            .from('seller_accounts')
-            .insert([
-              {
-                seller_id: existingUser.id,
-                total_earnings: 0,
-                available_balance: 0,
-                locked_balance: 0,
-              },
-            ]);
-        } catch {
-          // ignore if already exists
-        }
-      }
-
       return NextResponse.json(formatUserResponse({ ...existingUser, role: currentRole }), { status: 200 });
     }
 
@@ -138,24 +120,6 @@ export async function POST(request: NextRequest) {
         { error: `Failed to create user record: ${insertError?.message || 'Database error'}` },
         { status: 500 }
       );
-    }
-
-    // If new user is a seller, initialize seller_accounts row
-    if (assignedRole === 'seller' && insertResult.id) {
-      try {
-        await supabase
-          .from('seller_accounts')
-          .insert([
-            {
-              seller_id: insertResult.id,
-              total_earnings: 0,
-              available_balance: 0,
-              locked_balance: 0,
-            },
-          ]);
-      } catch (err) {
-        console.warn('Failed to initialize seller_accounts:', err);
-      }
     }
 
     logSecurityEvent('google_signup_success', { email: cleanEmail, role: assignedRole }, request);
