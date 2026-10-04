@@ -22,6 +22,8 @@ import {
   ChevronDown,
   ChevronUp,
   Compass,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
@@ -57,6 +59,13 @@ interface SellerProduct {
     lessons?: number;
     duration?: string;
   }>;
+  pdf_path?: string | null;
+  sales_kit?: {
+    target_audience?: string;
+    where_to_find?: string;
+    whatsapp_scripts?: Array<{ title: string; body: string }>;
+    objections?: Array<{ question: string; answer: string }>;
+  } | null;
   created_at: string;
 }
 
@@ -72,6 +81,7 @@ export default function SellerProductDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Tabs & Interactive State
   const [activeTab, setActiveTab] = useState<'sales-kit' | 'curriculum'>('sales-kit');
@@ -113,6 +123,8 @@ export default function SellerProductDetailPage() {
           prerequisites: item.prerequisites || item.products?.prerequisites || [],
           learning_outcomes: item.learning_outcomes || item.products?.learning_outcomes || [],
           curriculum: item.curriculum || item.products?.curriculum || [],
+          pdf_path: item.pdf_path || item.products?.pdf_path || null,
+          sales_kit: item.sales_kit || item.products?.sales_kit || null,
           created_at: item.created_at || item.added_at || '',
         });
       } catch (err) {
@@ -167,6 +179,33 @@ export default function SellerProductDetailPage() {
     const link = `${window.location.origin}/products?ref=${product.referral_code}`;
     const text = `Hey! Check out this course: ${product.product_name} - ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!product) return;
+    try {
+      setDownloadingPdf(true);
+      const downloadEndpoint = `/api/products/${product.productId}/syllabus`;
+      const res = await fetch(downloadEndpoint);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No syllabus PDF has been uploaded for this course yet.');
+      }
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      const cleanName = product.product_name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+      a.download = `${cleanName}_Syllabus.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   if (isLoading || loading) {
@@ -227,35 +266,52 @@ export default function SellerProductDetailPage() {
   const sellerCommission = effectivePrice * 0.1;
   const totalLessons = curriculum.reduce((sum, module) => sum + (module.lessons > 0 ? module.lessons : 0), 0);
 
-  const pitchScripts = [
-    {
-      title: 'Script 1: The Cold Intro',
-      text: `Hey [Name]! Saw you were looking to master ${product.product_name}. This course offers a structured, step-by-step roadmap with hands-on projects. You can check the syllabus and enroll here: ${referralLink}`,
-    },
-    {
-      title: 'Script 2: The Value-First Recommendation',
-      text: `Hey [Name], if you are preparing for tech interviews or upgrading your skillset, ${product.product_name} is curated directly by industry practitioners. Inspect the module breakdown and outcomes here: ${referralLink}`,
-    },
-    {
-      title: 'Script 3: Limited Seats / High Demand',
-      text: `Quick heads up! Seats for ${product.product_name} are filling up fast for this cohort. If you want lifetime access to all learning materials, check out the direct link here: ${referralLink}`,
-    },
-  ];
+  // Dynamic Sales Kit content (using AI-generated sales_kit if available, or fallbacks)
+  const pitchScripts = (product.sales_kit?.whatsapp_scripts && product.sales_kit.whatsapp_scripts.length > 0)
+    ? product.sales_kit.whatsapp_scripts.map((s) => ({
+        title: s.title,
+        text: s.body.replace(/\[SELLER_REFERRAL_LINK\]/g, referralLink),
+      }))
+    : [
+        {
+          title: 'Script 1: The Cold Intro',
+          text: `Hey [Name]! Saw you were looking to master ${product.product_name}. This course offers a structured, step-by-step roadmap with hands-on projects. You can check the syllabus and enroll here: ${referralLink}`,
+        },
+        {
+          title: 'Script 2: The Value-First Recommendation',
+          text: `Hey [Name], if you are preparing for tech interviews or upgrading your skillset, ${product.product_name} is curated directly by industry practitioners. Inspect the module breakdown and outcomes here: ${referralLink}`,
+        },
+        {
+          title: 'Script 3: Limited Seats / High Demand',
+          text: `Quick heads up! Seats for ${product.product_name} are filling up fast for this cohort. If you want lifetime access to all learning materials, check out the direct link here: ${referralLink}`,
+        },
+      ];
 
-  const objectionFaqs = [
-    {
-      q: 'Q: Is there a job guarantee or placement support?',
-      a: 'A: While direct placement is not guaranteed unless explicitly indicated by the vendor, the program equips learners with production-grade portfolio projects and interview-ready skills that employers actively test for.',
-    },
-    {
-      q: 'Q: Is this course beginner-friendly?',
-      a: 'A: Yes! The course starts from foundational concepts and progresses into advanced topics. All course prerequisites are clearly outlined in the syllabus tab.',
-    },
-    {
-      q: 'Q: How long do I get access to the course content?',
-      a: 'A: Buyers receive lifetime access to all course modules, updates, and learning resources as soon as checkout is completed.',
-    },
-  ];
+  const targetAudienceText = product.sales_kit?.target_audience ||
+    'College students, CS/IT graduates, junior software engineers, and working professionals looking to upskill or transition into tech careers.';
+
+  const whereToFindText = product.sales_kit?.where_to_find ||
+    'WhatsApp & Telegram college batch channels, LinkedIn job-seeker threads, developer Discord servers, and campus career groups.';
+
+  const objectionFaqs = (product.sales_kit?.objections && product.sales_kit.objections.length > 0)
+    ? product.sales_kit.objections.map((o) => ({
+        q: o.question.startsWith('Q:') ? o.question : `Q: ${o.question}`,
+        a: o.answer.startsWith('A:') ? o.answer : `A: ${o.answer}`,
+      }))
+    : [
+        {
+          q: 'Q: Is there a job guarantee or placement support?',
+          a: 'A: While direct placement is not guaranteed unless explicitly indicated by the vendor, the program equips learners with production-grade portfolio projects and interview-ready skills that employers actively test for.',
+        },
+        {
+          q: 'Q: Is this course beginner-friendly?',
+          a: 'A: Yes! The course starts from foundational concepts and progresses into advanced topics. All course prerequisites are clearly outlined in the syllabus tab.',
+        },
+        {
+          q: 'Q: How long do I get access to the course content?',
+          a: 'A: Buyers receive lifetime access to all course modules, updates, and learning resources as soon as checkout is completed.',
+        },
+      ];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
@@ -284,14 +340,26 @@ export default function SellerProductDetailPage() {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="self-start sm:self-center flex items-center gap-1.5 px-3.5 py-2 text-sm text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 disabled:opacity-50 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {deleting ? 'Removing...' : 'Remove'}
-          </button>
+          <div className="flex items-center gap-2.5 self-start sm:self-center">
+            {/* Download Syllabus PDF Button */}
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
+              title="Download Course Syllabus PDF"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {downloadingPdf ? 'Downloading...' : 'Download PDF'}
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deleting ? 'Removing...' : 'Remove'}
+            </button>
+          </div>
         </div>
 
         {/* KPI Stats Bar */}
@@ -364,7 +432,7 @@ export default function SellerProductDetailPage() {
                         <span>Ideal Candidate</span>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        College students, CS/IT graduates, junior software engineers, and working professionals looking to upskill or transition into tech careers.
+                        {targetAudienceText}
                       </p>
                     </div>
 
@@ -374,7 +442,7 @@ export default function SellerProductDetailPage() {
                         <span>Where to Look</span>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        WhatsApp & Telegram college batch channels, LinkedIn job-seeker threads, developer Discord servers, and campus career groups.
+                        {whereToFindText}
                       </p>
                     </div>
                   </div>
@@ -495,6 +563,29 @@ export default function SellerProductDetailPage() {
                 </div>
 
                 <div className="p-6 space-y-6">
+                  {/* Dedicated Download PDF Banner */}
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">Course Syllabus Document</h3>
+                        <p className="text-xs text-slate-400">
+                          Download the vendor-provided PDF syllabus with detailed module breakdowns.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleDownloadPdf}
+                      disabled={downloadingPdf}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium text-xs transition-colors shadow-sm self-start sm:self-auto flex-shrink-0"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      {downloadingPdf ? 'Downloading...' : 'Download Syllabus PDF'}
+                    </button>
+                  </div>
+
                   <div>
                     <p className="text-xs font-medium text-slate-400 mb-1">Course Name</p>
                     <p className="text-base font-semibold text-white">{product.product_name}</p>
@@ -699,6 +790,18 @@ export default function SellerProductDetailPage() {
                       {copiedLink ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <ExternalLink className="w-4 h-4" />}
                     </button>
                   </div>
+                </div>
+
+                {/* Download Syllabus PDF Link in Sidebar */}
+                <div className="pt-1">
+                  <button
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-medium transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    {downloadingPdf ? 'Downloading Syllabus...' : 'Download Syllabus (PDF)'}
+                  </button>
                 </div>
 
                 <p className="text-xs text-slate-400 pt-1">

@@ -48,7 +48,7 @@ export async function GET(
     // Get product details
     const { data: product, error: prodError } = await supabase
       .from('products')
-      .select('id, name, description, base_price, stock, images, category, vendor_id, is_active, specifications, course_duration, prerequisites, learning_outcomes, curriculum')
+      .select('*')
       .eq('id', sellerProduct.product_id)
       .single();
 
@@ -117,6 +117,8 @@ export async function GET(
       curriculum: normalizedCurriculum,
       referral_code: sellerProduct.referral_code,
       vendor_id: product.vendor_id,
+      pdf_path: product.pdf_path || specifications.pdf_path || specifications.syllabus_url || null,
+      sales_kit: product.sales_kit || null,
       created_at: sellerProduct.added_at,
     };
 
