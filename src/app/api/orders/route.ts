@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidUuid } from '@/utils/auth';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const legacyPriceKey = ['final', 'price'].join('_');
@@ -102,20 +103,48 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const customerId = searchParams.get('customerId');
     const vendorId = searchParams.get('vendorId');
+    const vendorEmail = searchParams.get('vendorEmail');
     const sellerId = searchParams.get('sellerId');
+
+    let resolvedVendorId: string | null = isValidUuid(vendorId) ? vendorId!.trim() : null;
+
+    if (!resolvedVendorId && vendorEmail && vendorEmail.trim() !== 'undefined' && vendorEmail.trim() !== 'null') {
+      const cleanEmail = vendorEmail.toLowerCase().trim();
+      const { data: vendorRecord } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      if (vendorRecord?.id) {
+        resolvedVendorId = vendorRecord.id;
+      }
+    }
+
+    const isVendorQuery = Boolean(vendorId || vendorEmail);
+    if (isVendorQuery && !resolvedVendorId) {
+      return NextResponse.json([], { status: 200 });
+    }
+
+    if (customerId && !isValidUuid(customerId)) {
+      return NextResponse.json([], { status: 200 });
+    }
+
+    if (sellerId && !isValidUuid(sellerId)) {
+      return NextResponse.json([], { status: 200 });
+    }
 
     let query = supabase.from('orders').select(
       '*, product:products!product_id(name)'
     );
 
-    if (customerId) {
-      query = query.eq('customer_id', customerId);
+    if (customerId && isValidUuid(customerId)) {
+      query = query.eq('customer_id', customerId.trim());
     }
-    if (vendorId) {
-      query = query.eq('vendor_id', vendorId);
+    if (resolvedVendorId) {
+      query = query.eq('vendor_id', resolvedVendorId);
     }
-    if (sellerId) {
-      query = query.eq('seller_id', sellerId);
+    if (sellerId && isValidUuid(sellerId)) {
+      query = query.eq('seller_id', sellerId.trim());
     }
 
     const { data: orders, error } = await query.order('created_at', {
@@ -123,6 +152,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (error) {
+      console.error('Get orders database error:', error);
       return NextResponse.json(
         { error: error.message },
         { status: 500 }

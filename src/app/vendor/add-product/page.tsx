@@ -217,6 +217,7 @@ export default function AddProductPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vendorId: user.id,
+          vendorEmail: user.email,
           name: formData.name.trim(),
           category: formData.category,
           description: formData.description.trim(),

@@ -122,16 +122,25 @@ export default function VendorDashboard() {
   }, [user, isLoading, router]);
 
   const fetchData = useCallback(async (isSilent = false) => {
-    if (!user?.id) return;
+    if (!user || user.role !== 'vendor') return;
 
     try {
       if (!isSilent) setLoading(true);
       else setRefreshing(true);
       setError(null);
 
+      const params = new URLSearchParams();
+      if (user.id && user.id !== 'undefined' && user.id !== 'null') {
+        params.set('vendorId', user.id);
+      }
+      if (user.email) {
+        params.set('vendorEmail', user.email);
+      }
+
+      const queryString = params.toString();
       const [productsRes, ordersRes] = await Promise.all([
-        fetch(`/api/products?vendorId=${user.id}`),
-        fetch(`/api/orders?vendorId=${user.id}`),
+        fetch(queryString ? `/api/products?${queryString}` : '/api/products'),
+        fetch(queryString ? `/api/orders?${queryString}` : '/api/orders'),
       ]);
 
       if (!productsRes.ok) throw new Error('Failed to load products');
@@ -209,11 +218,13 @@ export default function VendorDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (user && user.role === 'vendor') {
+      fetchData();
+    }
+  }, [fetchData, user]);
 
   const copyToClipboard = (text: string, id: string) => {
     if (!text) return;

@@ -39,13 +39,25 @@ export default function VendorCoursesPage() {
     if (!isLoading && user?.role !== 'vendor') {
       router.push('/');
     }
-    if (user?.id) fetchCourses();
+    if (user && user.role === 'vendor') {
+      fetchCourses();
+    }
   }, [user, isLoading, router]);
 
   const fetchCourses = async () => {
+    if (!user || user.role !== 'vendor') return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/products?vendorId=${user?.id}`);
+      setError(null);
+      const params = new URLSearchParams();
+      if (user.id && user.id !== 'undefined' && user.id !== 'null') {
+        params.set('vendorId', user.id);
+      }
+      if (user.email) {
+        params.set('vendorEmail', user.email);
+      }
+      const queryString = params.toString();
+      const res = await fetch(queryString ? `/api/products?${queryString}` : '/api/products');
       if (!res.ok) throw new Error('Failed to fetch courses');
       const data = await res.json();
       const raw: any[] = Array.isArray(data) ? data : data.courses ?? [];

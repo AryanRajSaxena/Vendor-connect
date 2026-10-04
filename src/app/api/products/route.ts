@@ -1,13 +1,36 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSalesKitForProduct } from '@/lib/sales-kit-generator';
+import { isValidUuid } from '@/utils/auth';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const category = searchParams.get('category');
     const vendorId = searchParams.get('vendorId');
+    const vendorEmail = searchParams.get('vendorEmail');
     const isActive = searchParams.get('isActive') !== 'false';
+
+    let resolvedVendorId: string | null = isValidUuid(vendorId) ? vendorId!.trim() : null;
+
+    if (!resolvedVendorId && vendorEmail && vendorEmail.trim() !== 'undefined' && vendorEmail.trim() !== 'null') {
+      const cleanEmail = vendorEmail.toLowerCase().trim();
+      const { data: vendorRecord } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      if (vendorRecord?.id) {
+        resolvedVendorId = vendorRecord.id;
+      }
+    }
+
+    // If caller explicitly asked for a vendor's products, but the vendor cannot be resolved,
+    // return an empty array with 200 OK instead of throwing a Postgres UUID syntax error (500).
+    const isVendorQuery = Boolean(vendorId || vendorEmail);
+    if (isVendorQuery && !resolvedVendorId) {
+      return NextResponse.json([], { status: 200 });
+    }
 
     let query = supabase.from('products').select('*');
 
@@ -15,8 +38,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('category', category);
     }
 
-    if (vendorId) {
-      query = query.eq('vendor_id', vendorId);
+    if (resolvedVendorId) {
+      query = query.eq('vendor_id', resolvedVendorId);
     } else if (isActive) {
       // Only filter active products for public marketplace queries (no vendorId)
       query = query.eq('is_active', true);
@@ -27,13 +50,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (error) {
+      console.error('Get products database error:', error);
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(products, { status: 200 });
+    return NextResponse.json(products || [], { status: 200 });
   } catch (error) {
     console.error('Get products error:', error);
     return NextResponse.json(
@@ -48,6 +72,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       vendorId,
+      vendorEmail,
       name,
       category,
       description,
@@ -62,9 +87,23 @@ export async function POST(request: NextRequest) {
       pdfPath,
     } = body;
 
-    if (!vendorId || !name || !category || !basePrice) {
+    let finalVendorId = isValidUuid(vendorId) ? vendorId.trim() : null;
+
+    if (!finalVendorId && vendorEmail) {
+      const cleanEmail = String(vendorEmail).toLowerCase().trim();
+      const { data: vRecord } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      if (vRecord?.id) {
+        finalVendorId = vRecord.id;
+      }
+    }
+
+    if (!finalVendorId || !name || !category || !basePrice) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields or invalid vendor ID' },
         { status: 400 }
       );
     }
@@ -81,7 +120,7 @@ export async function POST(request: NextRequest) {
       .from('products')
       .insert([
         {
-          vendor_id: vendorId,
+          vendor_id: finalVendorId,
           name,
           category,
           description,

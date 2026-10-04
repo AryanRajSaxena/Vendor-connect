@@ -69,6 +69,16 @@ export function isValidPassword(password: string): boolean {
 }
 
 /**
+ * Validate UUID format
+ */
+export function isValidUuid(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+}
+
+/**
  * Mock hash password (in production, use proper hashing)
  */
 export function hashPassword(password: string): string {

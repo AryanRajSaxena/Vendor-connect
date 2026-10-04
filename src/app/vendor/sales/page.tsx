@@ -95,13 +95,23 @@ export default function VendorSalesPage() {
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') router.push('/');
-    if (user?.id) fetchOrders();
+    if (user && user.role === 'vendor') fetchOrders();
   }, [user, isLoading, router]);
 
   const fetchOrders = async () => {
+    if (!user || user.role !== 'vendor') return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/orders?vendorId=${user?.id}`);
+      setError(null);
+      const params = new URLSearchParams();
+      if (user.id && user.id !== 'undefined' && user.id !== 'null') {
+        params.set('vendorId', user.id);
+      }
+      if (user.email) {
+        params.set('vendorEmail', user.email);
+      }
+      const queryString = params.toString();
+      const res = await fetch(queryString ? `/api/orders?${queryString}` : '/api/orders');
       if (!res.ok) throw new Error('Failed to fetch orders');
       const data = await res.json();
       const raw: any[] = Array.isArray(data) ? data : data.orders ?? [];

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidUuid } from '@/utils/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +17,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (vendorId) {
-      query = query.eq('vendor_id', vendorId);
+      if (isValidUuid(vendorId)) {
+        query = query.eq('vendor_id', vendorId.trim());
+      } else {
+        return NextResponse.json([], { status: 200 });
+      }
     }
 
     if (isActive) {
@@ -46,13 +51,13 @@ export async function GET(request: NextRequest) {
 
         // Check if current seller already has this product
         let isSellerProduct = false;
-        if (sellerId) {
+        if (sellerId && isValidUuid(sellerId)) {
           const { data: existingProduct } = await supabase
             .from('seller_products')
             .select('id')
             .eq('product_id', product.id)
-            .eq('seller_id', sellerId)
-            .single();
+            .eq('seller_id', sellerId.trim())
+            .maybeSingle();
           isSellerProduct = !!existingProduct;
         }
 

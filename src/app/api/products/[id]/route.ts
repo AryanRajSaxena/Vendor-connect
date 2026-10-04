@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidUuid } from '@/utils/auth';
 
 export async function GET(
   _request: NextRequest,
@@ -8,11 +9,18 @@ export async function GET(
   try {
     const { id } = await params;
 
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
     const { data: product, error } = await supabase
       .from('products')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error || !product) {
       return NextResponse.json(
@@ -37,6 +45,14 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
     let body;
     try {
       body = await request.json();
@@ -52,7 +68,7 @@ export async function PUT(
       .from('products')
       .select('id, base_price')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (existingError || !existingProduct) {
       return NextResponse.json(
@@ -157,6 +173,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
 
     const { error } = await supabase
       .from('products')
