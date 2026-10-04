@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidUuid } from '@/utils/auth';
 
 const legacyPriceKey = ['final', 'price'].join('_');
 
@@ -10,11 +11,18 @@ export async function GET(
   try {
     const { id } = await params;
 
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
     const { data: order, error } = await supabase
       .from('orders')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error || !order) {
       return NextResponse.json(
@@ -44,6 +52,14 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid order ID' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { orderStatus, commissionStatus, commissionReleaseDate, paymentStatus } = body;
 
@@ -51,7 +67,7 @@ export async function PUT(
       .from('orders')
       .select('payment_method, payment_status, commission_release_date, commission_status')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     const updateData: any = {};
     if (orderStatus) updateData.order_status = orderStatus;

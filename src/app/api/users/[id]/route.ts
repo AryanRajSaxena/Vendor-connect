@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidUuid } from '@/utils/auth';
 
 export async function GET(
   _request: NextRequest,
@@ -7,6 +8,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Account not found' },
+        { status: 404 }
+      );
+    }
 
     // 1. Check vendors table
     const { data: vendor, error: vErr } = await supabase
@@ -63,6 +71,14 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid account ID' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
 
     // Determine target role: check payload role or look up in tables
