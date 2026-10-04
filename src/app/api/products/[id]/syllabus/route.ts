@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { generateSyllabusPdfBytes } from '@/lib/syllabus-pdf';
 
 export async function GET(
   _request: NextRequest,
@@ -25,7 +26,7 @@ export async function GET(
     // 1. Fetch product record
     const { data: product, error: prodError } = await supabaseAdmin
       .from('products')
-      .select('id, name, pdf_path, specifications')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -37,14 +38,9 @@ export async function GET(
     }
 
     const specifications = (product.specifications || {}) as Record<string, any>;
-    const pdfPath = product.pdf_path || specifications?.pdf_path || specifications?.syllabus_url;
-
-    if (!pdfPath) {
-      return NextResponse.json(
-        { error: 'No syllabus PDF uploaded for this course yet.' },
-        { status: 404 }
-      );
-    }
+    const highlights = typeof specifications.highlights === 'string'
+      ? specifications.highlights.split('|||').filter(Boolean)
+      : [];
 
     const sanitizedName = (product.name || 'Course')
       .replace(/[^a-zA-Z0-9_\-\s]/g, '')
@@ -52,38 +48,32 @@ export async function GET(
       .replace(/\s+/g, '_');
     const filename = `${sanitizedName}_Syllabus.pdf`;
 
-    // 2. If it is an external URL, redirect or stream
-    if (pdfPath.startsWith('http://') || pdfPath.startsWith('https://')) {
-      return NextResponse.redirect(pdfPath);
-    }
+    // 2. Generate PDF strictly on-the-fly in memory (no storage / no persistence)
+    const generatedBytes = await generateSyllabusPdfBytes({
+      name: product.name,
+      category: product.category,
+      description: product.description,
+      courseDuration: product.course_duration,
+      basePrice: product.base_price,
+      highlights,
+      prerequisites: Array.isArray(product.prerequisites) ? product.prerequisites : [],
+      learningOutcomes: Array.isArray(product.learning_outcomes) ? product.learning_outcomes : [],
+      curriculum: Array.isArray(product.curriculum) ? product.curriculum : [],
+    });
 
-    // 3. Otherwise download from Supabase Storage 'syllabuses' bucket
-    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from('syllabuses')
-      .download(pdfPath);
-
-    if (downloadError || !fileData) {
-      console.error('[API] Storage download error:', downloadError);
-      return NextResponse.json(
-        { error: 'Failed to download syllabus from storage', details: downloadError?.message },
-        { status: 502 }
-      );
-    }
-
-    const arrayBuffer = await fileData.arrayBuffer();
-
-    return new NextResponse(arrayBuffer, {
+    // 3. Stream the generated PDF directly to the client
+    return new NextResponse(Buffer.from(generatedBytes), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
   } catch (error) {
-    console.error('[API] Syllabus download error:', error);
+    console.error('[API] On-the-fly syllabus generation error:', error);
     return NextResponse.json(
-      { error: 'Internal server error while downloading syllabus' },
+      { error: 'Internal server error while generating syllabus PDF' },
       { status: 500 }
     );
   }

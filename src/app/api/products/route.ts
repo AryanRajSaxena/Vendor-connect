@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { generateSalesKitForProduct } from '@/lib/sales-kit-generator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
       prerequisites,
       learningOutcomes,
       curriculum,
+      pdfPath,
     } = body;
 
     if (!vendorId || !name || !category || !basePrice) {
@@ -93,6 +95,7 @@ export async function POST(request: NextRequest) {
           prerequisites: prerequisites || [],
           learning_outcomes: learningOutcomes || [],
           curriculum: curriculum || [],
+          pdf_path: pdfPath || null,
         },
       ])
       .select()
@@ -104,6 +107,13 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create product' },
         { status: 500 }
       );
+    }
+
+    // Automatically trigger Sales Kit & Syllabus generation in the background
+    try {
+      await generateSalesKitForProduct(product.id);
+    } catch (kitErr) {
+      console.warn('Initial sales kit generation warning:', kitErr);
     }
 
     return NextResponse.json(product, { status: 201 });

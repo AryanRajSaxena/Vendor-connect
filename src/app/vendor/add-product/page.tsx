@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { X, Plus, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Plus, Info, ChevronDown, ChevronUp, Upload, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { calculateCommissions, formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface FormData {
@@ -58,12 +59,15 @@ export default function AddProductPage() {
   const [prerequisites, setPrerequisites] = useState<Prerequisite[]>(['', '']);
   const [learningOutcomes, setLearningOutcomes] = useState<LearningOutcome[]>(['', '', '']);
   const [curriculum, setCurriculum] = useState<CurriculumModule[]>([]);
+  const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
+  const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
     media: false,
     highlights: false,
     course: true,
+    syllabus: true,
     prerequisites: false,
     curriculum: false,
     learning: false,
@@ -189,6 +193,25 @@ export default function AddProductPage() {
       const filledLearningOutcomes = learningOutcomes.filter((l) => l.trim());
       const filledCurriculum = curriculum.filter((c) => c.title.trim());
 
+      let pdfPath: string | null = null;
+      if (syllabusFile) {
+        setUploadingSyllabus(true);
+        const cleanName = `${Date.now()}_${syllabusFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: upErr } = await supabase.storage
+          .from('syllabuses')
+          .upload(cleanName, syllabusFile, {
+            contentType: 'application/pdf',
+            upsert: true,
+          });
+
+        if (!upErr) {
+          pdfPath = cleanName;
+        } else {
+          console.warn('PDF upload failed, using auto-generation fallback:', upErr);
+        }
+        setUploadingSyllabus(false);
+      }
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -215,6 +238,7 @@ export default function AddProductPage() {
             highlights: filledHighlights.join('|||'),
           },
           stock: 999999,
+          pdfPath,
         }),
       });
 
@@ -441,6 +465,70 @@ export default function AddProductPage() {
             </div>
           </SectionCard>
 
+          {/* COURSE SYLLABUS PDF */}
+          <SectionCard
+            title="Course Syllabus (PDF)"
+            expanded={expandedSections.syllabus}
+            onToggle={() => toggleSection('syllabus')}
+            badge={syllabusFile ? 1 : undefined}
+          >
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Upload your official curriculum document (PDF). If left blank, a verified PDF syllabus will be automatically generated from your curriculum modules!
+              </p>
+
+              <div className="border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-xl p-5 text-center transition-colors bg-gray-50/50">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  id="syllabus-file-input"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.type !== 'application/pdf') {
+                        setError('Please select a valid PDF file.');
+                        return;
+                      }
+                      if (file.size > 25 * 1024 * 1024) {
+                        setError('PDF file size must be under 25MB.');
+                        return;
+                      }
+                      setSyllabusFile(file);
+                      setError(null);
+                    }
+                  }}
+                />
+                <label htmlFor="syllabus-file-input" className="cursor-pointer flex flex-col items-center justify-center gap-2">
+                  <div className="p-2.5 rounded-full bg-blue-50 text-blue-600">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">
+                    {syllabusFile ? syllabusFile.name : 'Click to select or drag and drop a Syllabus PDF'}
+                  </span>
+                  <span className="text-xs text-gray-400">Supported format: PDF up to 25MB</span>
+                </label>
+              </div>
+
+              {syllabusFile && (
+                <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span className="font-medium truncate max-w-xs">{syllabusFile.name}</span>
+                    <span className="text-emerald-600">({(syllabusFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSyllabusFile(null)}
+                    className="text-red-500 hover:text-red-700 font-medium ml-2"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+
           {/* PREREQUISITES */}
           <SectionCard
             title="Prerequisites"
@@ -641,10 +729,10 @@ export default function AddProductPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-3">
             <button
               onClick={handlePublish}
-              disabled={loading || success}
+              disabled={loading || uploadingSyllabus || success}
               className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium text-sm rounded-lg transition-colors"
             >
-              {loading ? 'Publishing...' : 'Publish Course'}
+              {uploadingSyllabus ? 'Uploading Syllabus...' : loading ? 'Publishing...' : 'Publish Course'}
             </button>
             <Link
               href="/vendor/products"
