@@ -186,23 +186,34 @@ export default function SellerProductDetailPage() {
     try {
       setDownloadingPdf(true);
       const targetId = product.productId || product.id || productId;
+      if (!targetId || targetId === 'undefined') {
+        throw new Error('Course identifier is not ready yet. Please refresh the page.');
+      }
       const downloadEndpoint = `/api/products/${targetId}/syllabus`;
       const res = await fetch(downloadEndpoint);
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || errData.details || `Download failed (HTTP ${res.status})`);
+        let errorMsg = `Download failed (HTTP ${res.status})`;
+        try {
+          const errData = await res.json();
+          errorMsg = errData.details || errData.error || errorMsg;
+        } catch {
+          const text = await res.text().catch(() => '');
+          if (text) errorMsg = text;
+        }
+        throw new Error(errorMsg);
       }
       const blob = await res.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
-      const cleanName = product.product_name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+      const cleanName = (product.product_name || 'Course').replace(/[^a-zA-Z0-9_\-]/g, '_');
       a.download = `${cleanName}_Syllabus.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
+      console.error('[Download PDF Error]:', err);
       alert((err as Error).message);
     } finally {
       setDownloadingPdf(false);

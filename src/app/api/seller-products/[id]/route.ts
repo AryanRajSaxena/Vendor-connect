@@ -21,39 +21,53 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const resolvedParams = params ? await Promise.resolve(params) : null;
+    const id = resolvedParams?.id?.trim();
 
-    // Get seller product
-    const { data: sellerProduct, error: sellError } = await supabase
+    if (!id || id === 'undefined' || id === 'null') {
+      return NextResponse.json(
+        { error: 'Invalid or missing product identifier' },
+        { status: 400 }
+      );
+    }
+
+    // 1. Try to get seller product by its own record id
+    let { data: sellerProduct } = await supabase
       .from('seller_products')
       .select('id, seller_id, product_id, referral_code, clicks, sales, earnings, added_at')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
-    if (sellError) {
-      console.error('[API] Seller product query error:', sellError);
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
-    }
-
+    // 2. If not found, check if id is a products record id that was added to seller_products
     if (!sellerProduct) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      const { data: spByProd } = await supabase
+        .from('seller_products')
+        .select('id, seller_id, product_id, referral_code, clicks, sales, earnings, added_at')
+        .eq('product_id', id)
+        .maybeSingle();
+
+      if (spByProd) {
+        sellerProduct = spByProd;
+      }
     }
+
+    const targetProductId = sellerProduct?.product_id || id;
 
     // Get product details
-    const { data: product, error: prodError } = await supabase
+    const { data: product } = await supabase
       .from('products')
       .select('*')
-      .eq('id', sellerProduct.product_id)
-      .single();
+      .eq('id', targetProductId)
+      .maybeSingle();
 
-    if (prodError) {
-      console.warn('[API] Product details fetch failed:', prodError);
+    if (!product && !sellerProduct) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!product && sellerProduct) {
       // Return seller product without enrichment
       return NextResponse.json({
         id: sellerProduct.id,
@@ -94,18 +108,18 @@ export async function GET(
     );
 
     const enrichedProduct = {
-      id: sellerProduct.id,
-      productId: sellerProduct.product_id,
-      sellerId: sellerProduct.seller_id,
+      id: sellerProduct?.id || id,
+      productId: sellerProduct?.product_id || product.id,
+      sellerId: sellerProduct?.seller_id || '',
       product_name: product.name || 'Unknown Product',
       description: product.description || '',
       base_price: product.base_price || 0,
       stock: product.stock || 0,
       is_active: product.is_active !== false,
       seller_markup_percentage: 0,
-      sold_count: sellerProduct.sales || 0,
-      clicks: sellerProduct.clicks || 0,
-      earnings: sellerProduct.earnings || 0,
+      sold_count: sellerProduct?.sales || 0,
+      clicks: sellerProduct?.clicks || 0,
+      earnings: sellerProduct?.earnings || 0,
       images: product.images || [],
       category: product.category || '',
       specifications,
@@ -115,11 +129,11 @@ export async function GET(
       learning_outcomes: normalizedLearningOutcomes,
       learningOutcomes: normalizedLearningOutcomes,
       curriculum: normalizedCurriculum,
-      referral_code: sellerProduct.referral_code,
+      referral_code: sellerProduct?.referral_code || '',
       vendor_id: product.vendor_id,
       pdf_path: product.pdf_path || specifications.pdf_path || specifications.syllabus_url || null,
       sales_kit: product.sales_kit || null,
-      created_at: sellerProduct.added_at,
+      created_at: sellerProduct?.added_at || product.created_at || '',
     };
 
     return NextResponse.json(enrichedProduct, { status: 200 });

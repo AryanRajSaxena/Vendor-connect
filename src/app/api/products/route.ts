@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Create product error:', error);
       return NextResponse.json(
-        { error: 'Failed to create product' },
+        { error: error.message || 'Failed to create product', details: error },
         { status: 500 }
       );
     }
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Create product error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: (error as Error).message || 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }

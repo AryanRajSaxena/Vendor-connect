@@ -19,33 +19,40 @@ export interface CoursePdfData {
 
 export function sanitizePdfText(text: string | undefined | null): string {
   if (!text) return '';
-  return text
+  return String(text)
     .replace(/₹/g, 'INR ')
     .replace(/[•●▪]/g, '-')
     .replace(/[–—]/g, '-')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
     .replace(/[…]/g, '...')
-    .replace(/[^\x20-\x7E\t\n\r]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]/g, '')
     .trim();
 }
 
 function wrapText(text: string, maxCharsPerLine: number = 75): string[] {
-  const sanitized = sanitizePdfText(text);
-  if (!sanitized) return [];
-  const words = sanitized.split(' ');
+  if (!text) return [];
+  const rawParagraphs = String(text).split(/\r?\n+/);
   const lines: string[] = [];
-  let currentLine = '';
 
-  for (const word of words) {
-    if ((currentLine + word).length < maxCharsPerLine) {
-      currentLine += (currentLine ? ' ' : '') + word;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
+  for (const para of rawParagraphs) {
+    const sanitized = sanitizePdfText(para);
+    if (!sanitized) continue;
+    const words = sanitized.split(' ').filter(Boolean);
+    let currentLine = '';
+
+    for (const word of words) {
+      if ((currentLine + (currentLine ? ' ' : '') + word).length <= maxCharsPerLine) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
     }
+    if (currentLine) lines.push(currentLine);
   }
-  if (currentLine) lines.push(currentLine);
+
   return lines;
 }
 

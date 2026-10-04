@@ -1,45 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { generateSyllabusPdfBytes } from '@/lib/syllabus-pdf';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const resolvedParams = params ? await Promise.resolve(params) : null;
+    const id = resolvedParams?.id?.trim();
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!id || id === 'undefined' || id === 'null') {
       return NextResponse.json(
-        { error: 'Supabase configuration is missing on the server' },
-        { status: 500 }
+        { error: 'Invalid or missing course identifier' },
+        { status: 400 }
       );
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    // Prepare trusted Supabase client (service role to bypass RLS when reading products/seller_products)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const dbClient = (supabaseUrl && serviceRoleKey)
+      ? createClient(supabaseUrl, serviceRoleKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        })
+      : supabase;
 
     // 1. Fetch product record by id
-    let { data: product } = await supabaseAdmin
+    let { data: product, error: prodErr } = await dbClient
       .from('products')
       .select('*')
       .eq('id', id)
       .maybeSingle();
 
-    // If not found in products, check if id is a seller_products record id
+    if (prodErr) {
+      console.warn('[API Syllabus] Query by products.id warning:', prodErr);
+    }
+
+    // 2. If not found in products, check if id is a seller_products record id
     if (!product) {
-      const { data: sellerProd } = await supabaseAdmin
+      const { data: sellerProd, error: spErr } = await dbClient
         .from('seller_products')
         .select('product_id')
         .eq('id', id)
         .maybeSingle();
 
+      if (spErr) {
+        console.warn('[API Syllabus] Query by seller_products.id warning:', spErr);
+      }
+
       if (sellerProd?.product_id) {
-        const { data: linkedProd } = await supabaseAdmin
+        const { data: linkedProd } = await dbClient
           .from('products')
           .select('*')
           .eq('id', sellerProd.product_id)
@@ -48,9 +60,27 @@ export async function GET(
       }
     }
 
+    // 3. If still not found, check if id matches a seller_products product_id
+    if (!product) {
+      const { data: spByProd } = await dbClient
+        .from('seller_products')
+        .select('product_id')
+        .eq('product_id', id)
+        .maybeSingle();
+
+      if (spByProd?.product_id) {
+        const { data: linkedProd } = await dbClient
+          .from('products')
+          .select('*')
+          .eq('id', spByProd.product_id)
+          .maybeSingle();
+        product = linkedProd;
+      }
+    }
+
     if (!product) {
       return NextResponse.json(
-        { error: 'Course not found' },
+        { error: 'Course not found', requestedId: id },
         { status: 404 }
       );
     }
@@ -63,10 +93,10 @@ export async function GET(
     const sanitizedName = (product.name || 'Course')
       .replace(/[^a-zA-Z0-9_\-\s]/g, '')
       .trim()
-      .replace(/\s+/g, '_');
+      .replace(/\s+/g, '_') || 'Course';
     const filename = `${sanitizedName}_Syllabus.pdf`;
 
-    // 2. Generate PDF strictly on-the-fly in memory (no persistence)
+    // Generate PDF strictly on-the-fly in memory (zero persistence)
     const generatedBytes = await generateSyllabusPdfBytes({
       name: product.name,
       category: product.category,
@@ -79,12 +109,13 @@ export async function GET(
       curriculum: Array.isArray(product.curriculum) ? product.curriculum : [],
     });
 
-    // 3. Stream the generated PDF directly to the client as an attachment
-    return new NextResponse(Buffer.from(generatedBytes), {
+    // Stream the generated PDF directly to the client as an attachment using standard Web API Response
+    return new Response(generatedBytes as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': String(generatedBytes.byteLength),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
@@ -92,8 +123,8 @@ export async function GET(
     console.error('[API] On-the-fly syllabus generation error:', error);
     return NextResponse.json(
       {
-        error: 'Failed to generate syllabus PDF',
-        details: (error as Error).message,
+        error: (error as Error).message || 'Failed to generate syllabus PDF',
+        details: (error as Error).stack || String(error),
       },
       { status: 500 }
     );
