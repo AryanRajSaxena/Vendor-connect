@@ -17,8 +17,23 @@ export interface CoursePdfData {
   }>;
 }
 
+export function sanitizePdfText(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    .replace(/₹/g, 'INR ')
+    .replace(/[•●▪]/g, '-')
+    .replace(/[–—]/g, '-')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[…]/g, '...')
+    .replace(/[^\x20-\x7E\t\n\r]/g, '')
+    .trim();
+}
+
 function wrapText(text: string, maxCharsPerLine: number = 75): string[] {
-  const words = text.split(' ');
+  const sanitized = sanitizePdfText(text);
+  if (!sanitized) return [];
+  const words = sanitized.split(' ');
   const lines: string[] = [];
   let currentLine = '';
 
@@ -36,7 +51,7 @@ function wrapText(text: string, maxCharsPerLine: number = 75): string[] {
 
 export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  let page = doc.addPage([595.28, 841.89]);
+  let page = doc.addPage([595.28, 841.89]); // A4 standard
   const { width, height } = page.getSize();
 
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -61,7 +76,7 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
   });
 
   // Header Title
-  const courseTitle = course.name || 'Course Syllabus';
+  const courseTitle = sanitizePdfText(course.name || 'Course Syllabus');
   page.drawText(courseTitle.slice(0, 48), {
     x: 55,
     y: y - 25,
@@ -70,7 +85,7 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
     color: rgb(1, 1, 1),
   });
 
-  const subtitle = `${course.category || 'Online Course'} • ${course.courseDuration || 'Self-paced'}`;
+  const subtitle = sanitizePdfText(`${course.category || 'Online Course'} - ${course.courseDuration || 'Self-paced'}`);
   page.drawText(subtitle, {
     x: 55,
     y: y - 45,
@@ -121,9 +136,10 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
     y -= 18;
 
     for (const h of course.highlights) {
-      if (!h.trim()) continue;
+      const cleanH = sanitizePdfText(h);
+      if (!cleanH) continue;
       checkPageBreak(15);
-      page.drawText(`• ${h.trim()}`, {
+      page.drawText(`- ${cleanH}`, {
         x: 45,
         y,
         size: 10,
@@ -160,7 +176,8 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
         borderWidth: 1,
       });
 
-      const modTitle = `Module ${idx + 1}: ${mod.title || 'Module'}`;
+      const rawTitle = `Module ${idx + 1}: ${mod.title || 'Module'}`;
+      const modTitle = sanitizePdfText(rawTitle);
       page.drawText(modTitle.slice(0, 60), {
         x: 52,
         y: y - 12,
@@ -169,7 +186,8 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
         color: rgb(0.1, 0.15, 0.22),
       });
 
-      const details = `${mod.lessons ? `${mod.lessons} Lessons` : 'Included'} ${mod.duration ? `• ${mod.duration}` : ''}`;
+      const rawDetails = `${mod.lessons ? `${mod.lessons} Lessons` : 'Included'} ${mod.duration ? `- ${mod.duration}` : ''}`;
+      const details = sanitizePdfText(rawDetails);
       page.drawText(details, {
         x: 52,
         y: y - 23,
@@ -183,7 +201,7 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
   }
 
   checkPageBreak(30);
-  page.drawText('Official Course Syllabus • Verified by Vendor Connect Marketplace', {
+  page.drawText('Official Course Syllabus - Verified by Vendor Connect Marketplace', {
     x: 40,
     y: 30,
     size: 8,

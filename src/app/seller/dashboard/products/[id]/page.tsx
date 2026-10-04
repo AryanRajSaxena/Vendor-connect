@@ -185,11 +185,12 @@ export default function SellerProductDetailPage() {
     if (!product) return;
     try {
       setDownloadingPdf(true);
-      const downloadEndpoint = `/api/products/${product.productId}/syllabus`;
+      const targetId = product.productId || product.id || productId;
+      const downloadEndpoint = `/api/products/${targetId}/syllabus`;
       const res = await fetch(downloadEndpoint);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'No syllabus PDF has been uploaded for this course yet.');
+        throw new Error(errData.error || errData.details || `Download failed (HTTP ${res.status})`);
       }
       const blob = await res.blob();
       const blobUrl = window.URL.createObjectURL(blob);

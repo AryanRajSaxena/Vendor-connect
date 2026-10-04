@@ -23,14 +23,32 @@ export async function GET(
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // 1. Fetch product record
-    const { data: product, error: prodError } = await supabaseAdmin
+    // 1. Fetch product record by id
+    let { data: product } = await supabaseAdmin
       .from('products')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
-    if (prodError || !product) {
+    // If not found in products, check if id is a seller_products record id
+    if (!product) {
+      const { data: sellerProd } = await supabaseAdmin
+        .from('seller_products')
+        .select('product_id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (sellerProd?.product_id) {
+        const { data: linkedProd } = await supabaseAdmin
+          .from('products')
+          .select('*')
+          .eq('id', sellerProd.product_id)
+          .maybeSingle();
+        product = linkedProd;
+      }
+    }
+
+    if (!product) {
       return NextResponse.json(
         { error: 'Course not found' },
         { status: 404 }
@@ -48,7 +66,7 @@ export async function GET(
       .replace(/\s+/g, '_');
     const filename = `${sanitizedName}_Syllabus.pdf`;
 
-    // 2. Generate PDF strictly on-the-fly in memory (no storage / no persistence)
+    // 2. Generate PDF strictly on-the-fly in memory (no persistence)
     const generatedBytes = await generateSyllabusPdfBytes({
       name: product.name,
       category: product.category,
@@ -61,7 +79,7 @@ export async function GET(
       curriculum: Array.isArray(product.curriculum) ? product.curriculum : [],
     });
 
-    // 3. Stream the generated PDF directly to the client
+    // 3. Stream the generated PDF directly to the client as an attachment
     return new NextResponse(Buffer.from(generatedBytes), {
       status: 200,
       headers: {
@@ -73,7 +91,10 @@ export async function GET(
   } catch (error) {
     console.error('[API] On-the-fly syllabus generation error:', error);
     return NextResponse.json(
-      { error: 'Internal server error while generating syllabus PDF' },
+      {
+        error: 'Failed to generate syllabus PDF',
+        details: (error as Error).message,
+      },
       { status: 500 }
     );
   }
