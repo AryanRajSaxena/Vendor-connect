@@ -2,6 +2,9 @@ import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidUuid } from '@/utils/auth';
 
+// Extend execution time limit for LLM Sales Kit generation on Netlify/Vercel
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

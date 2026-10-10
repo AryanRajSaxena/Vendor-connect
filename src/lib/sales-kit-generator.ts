@@ -131,44 +131,10 @@ ${modulesSummary || 'Comprehensive curriculum with practical lessons and assignm
 
   let salesKit: SalesKitData;
 
-  // 4. Generate via LLM if OPENROUTER_API_KEY is available
-  if (openrouterKey && openrouterKey.trim().length > 5) {
-    const openrouter = createOpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: openrouterKey,
-    });
-
-    const prompt = `You are a high-performing digital marketing and affiliate sales copywriter.
-Generate a high-converting Sales Kit for sellers and affiliates to pitch this course.
-
-Course Details:
-- Title: ${product.name}
-- Category: ${product.category}
-- Price: ₹${product.base_price}
-- Duration: ${product.course_duration || 'Self-paced'}
-
-Syllabus Content:
-"""
-${syllabusText.slice(0, 25000)}
-"""
-
-Generate the sales kit strictly according to the schema:
-1. target_audience: 2 concise sentences describing who needs this exact course.
-2. where_to_find: Specific communities, forums, WhatsApp/Telegram groups, and LinkedIn platforms to find these buyers.
-3. whatsapp_scripts: Exactly 3 scripts (Casual Intro, Value Pitch, Urgency Closer). Every script must contain '[SELLER_REFERRAL_LINK]'.
-4. objections: Exactly 3 common buyer objections and the convincing answers.`;
-
-    const { object } = await generateObject({
-      model: openrouter('nvidia/llama-3.1-nemotron-70b-instruct'),
-      schema: SalesKitSchema,
-      prompt,
-    });
-
-    salesKit = object;
-  } else {
-    // Intelligent contextual fallback when API key is not yet set
-    const cName = product.name || 'this course';
-    salesKit = {
+  function buildFallback(p: any): SalesKitData {
+    const cName = p.name || 'this course';
+    const cat = p.category || 'tech skills';
+    return {
       target_audience: `Professionals, freelancers, and students eager to master ${cName} and upgrade their practical career skills. Target individuals seeking high-ROI skills that produce immediate income or job advancement.`,
       where_to_find: `LinkedIn job boards, WhatsApp batch groups for graduates and interns, Telegram career channels, and tech/marketing Discord servers.`,
       whatsapp_scripts: [
@@ -178,7 +144,7 @@ Generate the sales kit strictly according to the schema:
         },
         {
           title: 'Script 2: The High-ROI Value Pitch',
-          body: `Hey [Name]! If you want an industry-tested roadmap for ${product.category || 'tech skills'} without spending months on random videos, I highly recommend ${cName}. You can inspect the module breakdown and outcomes here: [SELLER_REFERRAL_LINK]`,
+          body: `Hey [Name]! If you want an industry-tested roadmap for ${cat} without spending months on random videos, I highly recommend ${cName}. You can inspect the module breakdown and outcomes here: [SELLER_REFERRAL_LINK]`,
         },
         {
           title: 'Script 3: Limited Seats / Urgency Closer',
@@ -200,6 +166,50 @@ Generate the sales kit strictly according to the schema:
         },
       ],
     };
+  }
+
+  // 4. Generate via LLM if OPENROUTER_API_KEY is available
+  if (openrouterKey && openrouterKey.trim().length > 5) {
+    try {
+      const openrouter = createOpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: openrouterKey.trim(),
+      });
+
+      const prompt = `You are a high-performing digital marketing and affiliate sales copywriter.
+Generate a high-converting Sales Kit for sellers and affiliates to pitch this course.
+
+Course Details:
+- Title: ${product.name}
+- Category: ${product.category}
+- Price: ₹${product.base_price}
+- Duration: ${product.course_duration || 'Self-paced'}
+
+Syllabus Content:
+"""
+${syllabusText.slice(0, 25000)}
+"""
+
+Generate the sales kit strictly according to the schema:
+1. target_audience: 2 concise sentences describing who needs this exact course.
+2. where_to_find: Specific communities, forums, WhatsApp/Telegram groups, and LinkedIn platforms to find these buyers.
+3. whatsapp_scripts: Exactly 3 scripts (Casual Intro, Value Pitch, Urgency Closer). Every script must contain '[SELLER_REFERRAL_LINK]'.
+4. objections: Exactly 3 common buyer objections and the convincing answers.`;
+
+      const { object } = await generateObject({
+        model: openrouter('nvidia/llama-3.1-nemotron-70b-instruct'),
+        schema: SalesKitSchema,
+        prompt,
+      });
+
+      salesKit = object;
+    } catch (llmErr) {
+      console.warn('[SalesKit] Nemotron generation failed, falling back to smart template:', llmErr);
+      salesKit = buildFallback(product);
+    }
+  } else {
+    // Contextual fallback when API key is not yet set
+    salesKit = buildFallback(product);
   }
 
   // 5. Update database record with sales_kit JSON only
