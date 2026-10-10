@@ -96,7 +96,35 @@ export async function GET(
       .replace(/\s+/g, '_') || 'Course';
     const filename = `${sanitizedName}_Syllabus.pdf`;
 
-    // Generate PDF strictly on-the-fly in memory (zero persistence)
+    // 1. If vendor uploaded an original PDF syllabus, stream it directly from Supabase Storage
+    const pdfPath = product.pdf_path || specifications.pdf_path || specifications.syllabus_url;
+    if (pdfPath && typeof pdfPath === 'string') {
+      if (pdfPath.startsWith('http://') || pdfPath.startsWith('https://')) {
+        return NextResponse.redirect(pdfPath);
+      }
+      try {
+        const { data: fileData, error: dlErr } = await dbClient.storage
+          .from('syllabuses')
+          .download(pdfPath);
+
+        if (!dlErr && fileData) {
+          const buffer = await fileData.arrayBuffer();
+          return new Response(buffer, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="${filename}"`,
+              'Content-Length': String(buffer.byteLength),
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+        }
+      } catch (storageErr) {
+        console.warn('[API Syllabus] Failed to download stored PDF, generating on-the-fly:', storageErr);
+      }
+    }
+
+    // 2. Otherwise generate PDF on-the-fly in memory
     const generatedBytes = await generateSyllabusPdfBytes({
       name: product.name,
       category: product.category,

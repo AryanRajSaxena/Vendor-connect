@@ -176,25 +176,22 @@ ${modulesSummary || 'Comprehensive curriculum with practical lessons and assignm
         apiKey: openrouterKey.trim(),
       });
 
-      const prompt = `You are a high-performing digital marketing and affiliate sales copywriter.
-Generate a high-converting Sales Kit for sellers and affiliates to pitch this course.
+      const pdfText = syllabusText;
+      console.log("Extracted PDF Text (First 500 chars):", pdfText.substring(0, 500));
 
-Course Details:
-- Title: ${product.name}
-- Category: ${product.category}
-- Price: ₹${product.base_price}
-- Duration: ${product.course_duration || 'Self-paced'}
+      const prompt = `
+  You are an expert direct-response copywriter for the Indian EdTech market. 
+  Read the following course syllabus and generate a "Sales Kit" JSON for our affiliate sellers.
 
-Syllabus Content:
-"""
-${syllabusText.slice(0, 25000)}
-"""
+  CRITICAL INSTRUCTIONS:
+  1. BE HYPER-SPECIFIC: Do NOT use generic placeholder phrases like "this online course". You MUST mention the actual tools taught (e.g., SQL, Power BI, Excel, Meta Ads) and exact outcomes (e.g., ₹6LPA-₹10LPA salaries).
+  2. TARGET AUDIENCE: Explicitly extract and call out the exact target demographic mentioned in the text (e.g., "B.Com, BBA, non-CS graduates" or "Aspiring Agency Owners"). 
+  3. OBJECTIONS: You MUST include at least one objection addressing the specific fear of the target audience based on the text (e.g., "I don't have a coding/technical background, can I do this?"). Answer it using facts from the syllabus.
+  4. PRICING: Mention the exact price of the course in the value pitch script to build trust.
 
-Generate the sales kit strictly according to the schema:
-1. target_audience: 2 concise sentences describing who needs this exact course.
-2. where_to_find: Specific communities, forums, WhatsApp/Telegram groups, and LinkedIn platforms to find these buyers.
-3. whatsapp_scripts: Exactly 3 scripts (Casual Intro, Value Pitch, Urgency Closer). Every script must contain '[SELLER_REFERRAL_LINK]'.
-4. objections: Exactly 3 common buyer objections and the convincing answers.`;
+  SYLLABUS TEXT TO ANALYZE:
+  ${pdfText}
+`;
 
       const { object } = await generateObject({
         model: openrouter('nvidia/llama-3.1-nemotron-70b-instruct'),

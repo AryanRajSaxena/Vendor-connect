@@ -70,6 +70,7 @@ function ProductDetailContent() {
   const [guestPhone, setGuestPhone] = useState(user?.phone || '');
   const [guestError, setGuestError] = useState<string | null>(null);
   const [guestSubmitting, setGuestSubmitting] = useState(false);
+  const [downloadingBrochure, setDownloadingBrochure] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -154,21 +155,29 @@ function ProductDetailContent() {
     }
   };
 
-  const handleDownloadBrochure = () => {
-    const specs = (product?.specifications || {}) as Record<string, any>;
-    const brochureUrl =
-      product?.brochure_url ||
-      product?.syllabus_url ||
-      specs.brochure_url ||
-      specs.syllabus_url ||
-      specs.brochureUrl ||
-      specs.syllabusUrl ||
-      specs.pdf_url;
-
-    if (brochureUrl && typeof brochureUrl === 'string' && brochureUrl.startsWith('http')) {
-      window.open(brochureUrl, '_blank');
-    } else {
-      showCartToast('Brochure / Syllabus PDF will be uploaded soon by the creator.');
+  const handleDownloadBrochure = async () => {
+    if (!product) return;
+    try {
+      setDownloadingBrochure(true);
+      const res = await fetch(`/api/products/${product.id}/syllabus`);
+      if (!res.ok) {
+        throw new Error('Brochure / Syllabus is currently unavailable.');
+      }
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      const cleanName = (product.name || 'Course').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      a.download = `${cleanName}_Brochure.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Failed to download brochure', e);
+      showCartToast('Could not download brochure PDF. Please try again.');
+    } finally {
+      setDownloadingBrochure(false);
     }
   };
 
@@ -460,10 +469,11 @@ function ProductDetailContent() {
                     </button>
                     <button
                       onClick={handleDownloadBrochure}
-                      className="w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-3 px-4 rounded-lg text-sm transition-all"
+                      disabled={downloadingBrochure}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-3 px-4 rounded-lg text-sm transition-all disabled:opacity-50"
                     >
                       <Download className="w-4 h-4" />
-                      Download Brochure PDF
+                      {downloadingBrochure ? 'Downloading...' : 'Download Brochure PDF'}
                     </button>
                   </div>
                 </div>

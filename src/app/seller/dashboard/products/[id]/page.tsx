@@ -105,6 +105,15 @@ export default function SellerProductDetailPage() {
         }
         const data = await res.json();
         const item = data.product || data;
+        let parsedSalesKit = item.sales_kit || item.products?.sales_kit || null;
+        if (typeof parsedSalesKit === 'string') {
+          try {
+            parsedSalesKit = JSON.parse(parsedSalesKit);
+          } catch {
+            parsedSalesKit = null;
+          }
+        }
+
         setProduct({
           id: item.id || productId,
           productId: item.product_id || item.productId || productId,
@@ -124,7 +133,7 @@ export default function SellerProductDetailPage() {
           learning_outcomes: item.learning_outcomes || item.products?.learning_outcomes || [],
           curriculum: item.curriculum || item.products?.curriculum || [],
           pdf_path: item.pdf_path || item.products?.pdf_path || null,
-          sales_kit: item.sales_kit || item.products?.sales_kit || null,
+          sales_kit: parsedSalesKit,
           created_at: item.created_at || item.added_at || '',
         });
       } catch (err) {
