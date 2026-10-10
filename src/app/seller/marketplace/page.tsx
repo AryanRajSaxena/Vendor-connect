@@ -9,6 +9,7 @@ import {
   Plus,
   CheckCircle2,
   Tag,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency, getImageUrl } from '@/utils/calculations';
@@ -382,10 +383,14 @@ function SellerMarketplaceContent() {
                     )}
 
                     {product.isSellerProduct ? (
-                      <div className="flex items-center justify-center gap-1.5 w-full py-2 bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-md">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        Added
-                      </div>
+                      <Link
+                        href={`/seller/dashboard/products/${product.id}`}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 bg-emerald-950/60 border border-emerald-500/40 hover:bg-emerald-900/60 text-emerald-300 text-sm font-semibold rounded-md transition-colors"
+                        title="Open AI Sales Kit & WhatsApp Pitch Scripts"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                        Sales Kit
+                      </Link>
                     ) : (
                       <button
                         onClick={() => handleAddProduct(product.id)}

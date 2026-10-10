@@ -476,6 +476,13 @@ function ProductDetailContent() {
                       {downloadingBrochure ? 'Downloading...' : 'Download Brochure PDF'}
                     </button>
                   </div>
+                  <Link
+                    href={`/seller/dashboard/products/${product.id}`}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600/90 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-all shadow-lg shadow-emerald-600/20 border border-emerald-500/30"
+                  >
+                    <Sparkles className="w-4 h-4 text-emerald-200" />
+                    <span>Open AI Sales Kit & WhatsApp Pitch Scripts →</span>
+                  </Link>
                 </div>
               ) : (
                 <div className="mt-6">
