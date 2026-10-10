@@ -1,419 +1,57 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ShoppingCart, ChevronDown, Search, Package } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency, getImageUrl } from '@/utils/calculations';
-import { showCartToast } from '@/components/shared/CartToast';
+export const dynamic = 'force-dynamic';
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  base_price: number;
-  markup: number;
-  markup_percentage: number;
-  stock: number;
-  sold_count: number;
-  is_active: boolean;
-  images: string[];
-  vendor_id: string;
-  created_at: string;
+interface ProductsPageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-function ProductsContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user } = useAuth();
-  const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
-  const isGuestVendorOrSeller =
-    !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
-  const [sortBy, setSortBy] = useState('relevance');
-  const [activeReferralCode, setActiveReferralCode] = useState<string>('');
-  const [isResolvingRef, setIsResolvingRef] = useState(false);
-  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const resolvedParams = await searchParams;
+  const rawRef = (resolvedParams?.ref || resolvedParams?.referral || resolvedParams?.code || '') as string;
+  const cleanRef = (Array.isArray(rawRef) ? rawRef[0] : rawRef || '').trim();
 
-  const getSafeCart = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn('Invalid cart in localStorage, resetting cart.', error);
-    }
+  if (cleanRef) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    localStorage.setItem('cart', '[]');
-    return [];
-  };
+    if (supabaseUrl && serviceRoleKey) {
+      const supabase = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
 
-  const syncLocalCart = (cart: any[]) => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('cart-updated'));
-  };
+      // 1. Look up by referral_code (case-insensitive) in seller_products
+      const { data: spRecord } = await supabase
+        .from('seller_products')
+        .select('product_id, referral_code')
+        .ilike('referral_code', cleanRef)
+        .maybeSingle();
 
-  const sortOptions = [
-    { value: 'relevance', label: 'Relevance' },
-    { value: 'price-low', label: 'Price: Low to High' },
-    { value: 'price-high', label: 'Price: High to Low' },
-    { value: 'rating', label: 'Rating' },
-    { value: 'newest', label: 'Newest' },
-  ];
-
-  // Fetch products & resolve referral attribution
-  useEffect(() => {
-    const rawCode =
-      searchParams.get('ref') ||
-      searchParams.get('referral') ||
-      searchParams.get('code') ||
-      '';
-
-    const cleanCode = rawCode.trim();
-    if (cleanCode) {
-      setActiveReferralCode(cleanCode);
-      try {
-        localStorage.setItem('referralCode', cleanCode.toUpperCase());
-        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-        localStorage.setItem(
-          'referral_attribution',
-          JSON.stringify({ ref: cleanCode, expiresAt: Date.now() + thirtyDaysMs, savedAt: Date.now() })
-        );
-      } catch (e) {
-        console.warn('Storage warning:', e);
+      if (spRecord?.product_id) {
+        redirect(`/products/${spRecord.product_id}?ref=${encodeURIComponent(cleanRef)}`);
       }
 
-      // Check if this referral code belongs to a specific course and redirect to its buy page
-      setIsResolvingRef(true);
-      fetch(`/api/resolve-referral?ref=${encodeURIComponent(cleanCode)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.found && data?.productId) {
-            router.replace(`/products/${data.productId}?ref=${encodeURIComponent(cleanCode)}`);
-          } else {
-            setIsResolvingRef(false);
-          }
-        })
-        .catch(() => {
-          setIsResolvingRef(false);
-        });
-      return;
-    }
+      // 2. Check if cleanRef is a seller UUID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanRef);
+      if (isUuid) {
+        const { data: spBySeller } = await supabase
+          .from('seller_products')
+          .select('product_id')
+          .eq('seller_id', cleanRef)
+          .order('added_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-    const storedCode = (localStorage.getItem('referralCode') || '').trim().toUpperCase();
-    if (storedCode) {
-      setActiveReferralCode(storedCode);
-    }
-  }, [searchParams, router]);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams();
-        params.append('isActive', 'true');
-
-        const response = await fetch(`/api/products?${params}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
-        }
-
-        const data = await response.json();
-        let filtered = data;
-
-        // Sort products
-        if (sortBy === 'price-low') {
-          filtered.sort((a: Product, b: Product) => a.base_price - b.base_price);
-        } else if (sortBy === 'price-high') {
-          filtered.sort((a: Product, b: Product) => b.base_price - a.base_price);
-        } else if (sortBy === 'newest') {
-          filtered.sort(
-            (a: Product, b: Product) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-        } else if (sortBy === 'rating') {
-          filtered.sort((a: Product, b: Product) => b.sold_count - a.sold_count);
-        }
-
-        setProducts(filtered);
-      } catch (error) {
-        console.error('Failed to fetch products:', error);
-        setError((error as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [sortBy]);
-
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-  );
-
-  const handleAddToCart = (product: Product) => {
-    if (isGuestVendorOrSeller) {
-      showCartToast('Cart actions are disabled in guest seller/vendor browsing mode.', 'error');
-      return;
-    }
-
-    const addToLocalCart = () => {
-      const cart = getSafeCart();
-      const existingItem = cart.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity += 1;
-      } else {
-        cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.base_price,
-          quantity: 1,
-          image: product.images?.[0] || '📦',
-          vendorId: product.vendor_id,
-        });
-      }
-
-      syncLocalCart(cart);
-    };
-
-    if (!user?.id) {
-      try {
-        addToLocalCart();
-        showCartToast('Product added to cart!');
-      } catch (error) {
-        console.error('Failed to add to cart:', error);
-      }
-      return;
-    }
-
-    (async () => {
-      try {
-        const response = await fetch('/api/cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: user.id,
-            productId: product.id,
-            quantity: 1,
-          }),
-        });
-
-        if (!response.ok) {
-          const apiError = await response.json().catch(() => ({}));
-          throw new Error(apiError.error || 'Failed to add to database cart');
-        }
-
-        const data = await response.json();
-        syncLocalCart(data.items || []);
-        showCartToast('Product added to cart!');
-      } catch (error) {
-        console.error('Failed to add to database cart, falling back to local cart:', error);
-        try {
-          addToLocalCart();
-          showCartToast('Product added to cart!');
-        } catch (fallbackError) {
-          console.error('Failed to add to fallback local cart:', fallbackError);
+        if (spBySeller?.product_id) {
+          redirect(`/products/${spBySeller.product_id}?ref=${encodeURIComponent(cleanRef)}`);
         }
       }
-    })();
-  };
-
-  if (isResolvingRef) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <div className="w-9 h-9 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-slate-200 text-sm font-semibold">Redirecting to course enrollment...</p>
-        <p className="text-slate-500 text-xs mt-1">Applying partner referral discount</p>
-      </div>
-    );
+    }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-16 z-40 shadow-soft">
-        <div className="container-custom py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Discover Products</h1>
-            <p className="text-gray-600 mt-1">Browse our curated collection of quality products</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="container-custom py-8">
-        <div>
-            {/* Sort Options */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 bg-white rounded-xl p-4 shadow-soft border border-gray-100">
-              <div className="relative w-full md:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search courses by name..."
-                  className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
-                />
-              </div>
-
-              <p className="text-gray-600 font-medium md:order-3">
-                <span className="text-gray-900 font-bold">{filteredProducts.length}</span> products found
-              </p>
-
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="select pr-10 text-sm font-medium"
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Loading State */}
-            {loading && (
-              <div className="text-center py-20">
-                <div className="spinner w-12 h-12 mx-auto mb-4"></div>
-                <p className="text-gray-500 font-medium">Loading products...</p>
-              </div>
-            )}
-
-            {/* Error State */}
-            {error && (
-              <div className="alert-error">
-                <p className="font-semibold">Error: {error}</p>
-              </div>
-            )}
-
-            {/* Products Grid */}
-            {!loading && !error && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => {
-                    return (
-                    <div key={product.id} className="group rounded-xl border border-slate-700/80 bg-slate-900/80 overflow-hidden hover:border-emerald-400/50 hover:shadow-[0_10px_30px_rgba(16,185,129,0.08)] transition-all duration-200 flex flex-col">
-                      {/* Media */}
-                      <div className="relative h-44 bg-gradient-to-br from-slate-200 to-slate-100 overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent z-10" />
-
-                        <div className="h-full w-full flex items-center justify-center">
-                          {getImageUrl(product.images?.[0]) && !imageLoadErrors[product.id] ? (
-                            <img
-                              src={getImageUrl(product.images?.[0])!}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                              onError={() => {
-                                setImageLoadErrors((prev) => ({ ...prev, [product.id]: true }));
-                              }}
-                            />
-                          ) : (
-                            <div className="w-14 h-14 rounded-xl bg-slate-900 text-slate-200 flex items-center justify-center text-3xl shadow-sm">
-                              📦
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Details */}
-                      <div className="p-4 flex flex-col flex-1">
-                        <div className="mb-3 min-h-[66px]">
-                          <h3 className="text-lg leading-snug font-semibold text-slate-100 line-clamp-2">
-                            {product.name}
-                          </h3>
-                          <p className="mt-1 text-sm text-slate-300 line-clamp-2">
-                            {product.description || 'Premium course with practical learning outcomes.'}
-                          </p>
-                        </div>
-
-                        <div className="mb-3 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-500/10 to-emerald-600/5 p-3">
-                          <p className="text-[11px] text-slate-400 font-medium">Course Price</p>
-                          <span className="text-2xl font-black tracking-tight text-slate-100 tabular-nums">
-                            {formatCurrency(product.base_price)}
-                          </span>
-                          <span className="ml-2 text-xs font-medium text-slate-300 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
-                            Lifetime access
-                          </span>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 mt-auto">
-                          <Link
-                            href={`/products/${product.id}${(() => {
-                              const detailParams = new URLSearchParams();
-                              if (activeReferralCode) {
-                                detailParams.set('ref', activeReferralCode);
-                              }
-                              if (isGuestVendorOrSeller) {
-                                detailParams.set('guestRole', guestRoleParam);
-                              }
-                              const query = detailParams.toString();
-                              return query ? `?${query}` : '';
-                            })()}`}
-                            className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
-                          >
-                            View Details
-                          </Link>
-                          <button
-                            onClick={() => handleAddToCart(product)}
-                            disabled={isGuestVendorOrSeller}
-                            className={`inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
-                              isGuestVendorOrSeller
-                                ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
-                                : 'bg-emerald-600 text-white hover:bg-emerald-500'
-                            }`}
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                            {isGuestVendorOrSeller ? 'Add to Cart' : 'Add'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )})
-                ) : (
-                  <div className="col-span-full text-center py-20">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gray-100 text-gray-400 mb-4">
-                      <Package className="w-10 h-10" />
-                    </div>
-                    <p className="text-gray-500 text-lg font-medium">No products found</p>
-                    <p className="text-gray-400 text-sm mt-2">Try a different course name</p>
-                  </div>
-                )}
-              </div>
-            )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function ProductsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">Loading products...</p>
-        </div>
-      }
-    >
-      <ProductsContent />
-    </Suspense>
-  );
+  // Customers should never access the raw products catalog grid with Add to Cart.
+  // Redirect directly to home page or marketplace.
+  redirect('/');
 }

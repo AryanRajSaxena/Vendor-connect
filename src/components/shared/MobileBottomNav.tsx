@@ -21,9 +21,7 @@ export default function MobileBottomNav() {
 
   const customerItems: MobileNavItem[] = [
     { href: '/', label: 'Home', icon: Home },
-    { href: '/products', label: 'Products', icon: Store },
-    { href: '/cart', label: 'Cart', icon: ShoppingCart },
-    { href: '/customer/dashboard', label: 'Orders', icon: BarChart3 },
+    { href: '/customer/dashboard', label: 'My Courses', icon: BarChart3 },
     { href: '/customer/settings', label: 'Profile', icon: UserCircle },
   ];
 

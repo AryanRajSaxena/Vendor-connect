@@ -187,10 +187,10 @@ function OrderConfirmationContent() {
             Track Order
           </Link>
           <Link
-            href="/products"
+            href="/"
             className="btn btn-outline py-3 text-center"
           >
-            Continue Shopping
+            Back to Home
           </Link>
         </div>
 

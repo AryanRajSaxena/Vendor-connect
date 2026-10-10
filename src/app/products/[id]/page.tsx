@@ -87,7 +87,7 @@ function ProductDetailContent() {
     if (guestRoleParam === 'seller' || guestRoleParam === 'vendor') {
       return `/seller/marketplace?guestRole=${encodeURIComponent(guestRoleParam)}`;
     }
-    return '/products';
+    return '/';
   })();
 
   useEffect(() => {
@@ -370,7 +370,7 @@ function ProductDetailContent() {
         <div className="max-w-7xl mx-auto">
           <Link href={backHref} className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-100 text-sm font-medium transition-colors">
             <ChevronLeft className="w-4 h-4" />
-            Back to Products
+            {user?.role === 'seller' ? 'Back to Marketplace' : 'Back to Home'}
           </Link>
         </div>
       </div>

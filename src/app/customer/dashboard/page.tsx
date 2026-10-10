@@ -175,8 +175,8 @@ export default function CustomerDashboard() {
               <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-600 font-medium mb-2">No orders yet</p>
               <p className="text-sm text-gray-500 mb-6">Start shopping to see your orders here</p>
-              <Link href="/products" className="btn btn-primary">
-                Browse Products
+              <Link href="/" className="btn btn-primary">
+                Explore Courses
               </Link>
             </div>
           ) : (
@@ -233,13 +233,13 @@ export default function CustomerDashboard() {
         {/* Quick Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
           <Link
-            href="/products"
+            href="/"
             className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-lg transition group"
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Continue Shopping</h3>
-                <p className="text-sm text-gray-600">Browse more products</p>
+                <h3 className="font-semibold text-gray-900 mb-2">Explore Programs</h3>
+                <p className="text-sm text-gray-600">Discover upcoming cohorts & courses</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition" />
             </div>
