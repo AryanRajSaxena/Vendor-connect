@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { X, Plus, Info, ChevronDown, ChevronUp, Upload, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
 import { calculateCommissions, formatCurrency, getImageUrl } from '@/utils/calculations';
 
 interface FormData {
@@ -196,20 +195,24 @@ export default function AddProductPage() {
       let pdfPath: string | null = null;
       if (syllabusFile) {
         setUploadingSyllabus(true);
-        const cleanName = `${Date.now()}_${syllabusFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const { error: upErr } = await supabase.storage
-          .from('syllabuses')
-          .upload(cleanName, syllabusFile, {
-            contentType: 'application/pdf',
-            upsert: true,
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', syllabusFile);
+          const upRes = await fetch('/api/upload/syllabus', {
+            method: 'POST',
+            body: uploadFormData,
           });
-
-        if (!upErr) {
-          pdfPath = cleanName;
-        } else {
-          console.warn('PDF upload failed, using auto-generation fallback:', upErr);
+          const upData = await upRes.json();
+          if (upRes.ok && upData.pdfPath) {
+            pdfPath = upData.pdfPath;
+          } else {
+            console.warn('PDF upload failed, using auto-generation fallback:', upData?.error);
+          }
+        } catch (pdfErr) {
+          console.warn('PDF upload error, using auto-generation fallback:', pdfErr);
+        } finally {
+          setUploadingSyllabus(false);
         }
-        setUploadingSyllabus(false);
       }
 
       const response = await fetch('/api/products', {
