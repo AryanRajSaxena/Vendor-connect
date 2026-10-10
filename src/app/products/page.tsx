@@ -28,7 +28,6 @@ function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const isUnauthenticated = !user?.id;
   const guestRoleParam = (searchParams.get('guestRole') || '').toLowerCase();
   const isGuestVendorOrSeller =
     !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
@@ -92,7 +91,7 @@ function ProductsContent() {
 
       // Check if this referral code belongs to a specific course and redirect to its buy page
       setIsResolvingRef(true);
-      fetch(`/api/seller-products/resolve-ref?ref=${encodeURIComponent(cleanCode)}`)
+      fetch(`/api/resolve-referral?ref=${encodeURIComponent(cleanCode)}`)
         .then((res) => res.json())
         .then((data) => {
           if (data?.found && data?.productId) {

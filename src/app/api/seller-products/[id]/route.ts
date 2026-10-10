@@ -31,6 +31,53 @@ export async function GET(
       );
     }
 
+    // Intercept resolve-ref if routed through this dynamic handler
+    if (id === 'resolve-ref') {
+      const { searchParams } = new URL(_request.url);
+      const ref = (searchParams.get('ref') || searchParams.get('referral') || searchParams.get('code') || '').trim();
+
+      if (!ref) {
+        return NextResponse.json({ error: 'Missing referral code' }, { status: 400 });
+      }
+
+      const { data: spRecord } = await supabase
+        .from('seller_products')
+        .select('id, product_id, seller_id, referral_code')
+        .ilike('referral_code', ref)
+        .maybeSingle();
+
+      if (spRecord?.product_id) {
+        return NextResponse.json({
+          found: true,
+          productId: spRecord.product_id,
+          sellerId: spRecord.seller_id,
+          referralCode: spRecord.referral_code,
+        });
+      }
+
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
+      if (isUuid) {
+        const { data: spBySeller } = await supabase
+          .from('seller_products')
+          .select('id, product_id, seller_id, referral_code')
+          .eq('seller_id', ref)
+          .order('added_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (spBySeller?.product_id) {
+          return NextResponse.json({
+            found: true,
+            productId: spBySeller.product_id,
+            sellerId: spBySeller.seller_id,
+            referralCode: spBySeller.referral_code,
+          });
+        }
+      }
+
+      return NextResponse.json({ found: false });
+    }
+
     // 1. Try to get seller product by its own record id
     let { data: sellerProduct } = await supabase
       .from('seller_products')
@@ -48,6 +95,19 @@ export async function GET(
 
       if (spByProd) {
         sellerProduct = spByProd;
+      }
+    }
+
+    // 3. If still not found, check if id is a referral_code
+    if (!sellerProduct) {
+      const { data: spByCode } = await supabase
+        .from('seller_products')
+        .select('id, seller_id, product_id, referral_code, clicks, sales, earnings, added_at')
+        .ilike('referral_code', id)
+        .maybeSingle();
+
+      if (spByCode) {
+        sellerProduct = spByCode;
       }
     }
 

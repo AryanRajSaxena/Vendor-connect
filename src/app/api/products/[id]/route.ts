@@ -9,17 +9,28 @@ export async function GET(
   try {
     const { id } = await params;
 
+    let targetId = id;
     if (!isValidUuid(id)) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      const { data: spRecord } = await supabase
+        .from('seller_products')
+        .select('product_id')
+        .ilike('referral_code', id)
+        .maybeSingle();
+
+      if (spRecord?.product_id) {
+        targetId = spRecord.product_id;
+      } else {
+        return NextResponse.json(
+          { error: 'Product not found' },
+          { status: 404 }
+        );
+      }
     }
 
     const { data: product, error } = await supabase
       .from('products')
       .select('*')
-      .eq('id', id)
+      .eq('id', targetId)
       .maybeSingle();
 
     if (error || !product) {
