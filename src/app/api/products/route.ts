@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
-import { generateSalesKitForProduct } from '@/lib/sales-kit-generator';
 import { isValidUuid } from '@/utils/auth';
 
 export async function GET(request: NextRequest) {
@@ -150,6 +149,7 @@ export async function POST(request: NextRequest) {
 
     // Automatically trigger Sales Kit & Syllabus generation in the background
     try {
+      const { generateSalesKitForProduct } = await import('@/lib/sales-kit-generator');
       await generateSalesKitForProduct(product.id);
     } catch (kitErr) {
       console.warn('Initial sales kit generation warning:', kitErr);

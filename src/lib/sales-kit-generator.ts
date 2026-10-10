@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { PDFParse } from 'pdf-parse';
 
 export const SalesKitSchema = z.object({
   target_audience: z
@@ -76,11 +75,25 @@ export async function generateSalesKitForProduct(productId: string): Promise<Sal
         .download(pdfPath);
 
       if (!dlErr && fileData) {
-        const arrayBuffer = await fileData.arrayBuffer();
-        const parser = new PDFParse({ data: Buffer.from(arrayBuffer) });
-        const parsed = await parser.getText();
-        syllabusText = parsed.text?.trim() || '';
-        await parser.destroy();
+        try {
+          const arrayBuffer = await fileData.arrayBuffer();
+          const pdfParseModule = await import('pdf-parse');
+          const PDFParser = (pdfParseModule as any).PDFParse;
+          if (PDFParser) {
+            const parser = new PDFParser({ data: Buffer.from(arrayBuffer) });
+            const parsed = await parser.getText();
+            syllabusText = parsed.text?.trim() || '';
+            if (typeof parser.destroy === 'function') await parser.destroy();
+          } else {
+            const parseFn = (pdfParseModule as any).default || pdfParseModule;
+            if (typeof parseFn === 'function') {
+              const parsed = await parseFn(Buffer.from(arrayBuffer));
+              syllabusText = parsed.text?.trim() || '';
+            }
+          }
+        } catch (pdfErr) {
+          console.warn('[SalesKit] PDF text extraction error:', pdfErr);
+        }
       }
     } catch (parseErr) {
       console.warn('[SalesKit] PDF text extraction error:', parseErr);
