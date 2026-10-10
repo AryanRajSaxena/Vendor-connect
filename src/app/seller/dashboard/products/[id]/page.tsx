@@ -367,10 +367,10 @@ export default function SellerProductDetailPage() {
               onClick={handleDownloadPdf}
               disabled={downloadingPdf}
               className="flex items-center gap-1.5 px-3.5 py-2 text-sm text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
-              title="Download Course Syllabus PDF"
+              title="Download Complete Course Brochure & Syllabus PDF"
             >
               <Download className="w-3.5 h-3.5" />
-              {downloadingPdf ? 'Downloading...' : 'Download PDF'}
+              {downloadingPdf ? 'Downloading...' : 'Download Brochure & Syllabus'}
             </button>
             <button
               onClick={handleDelete}
@@ -476,8 +476,13 @@ export default function SellerProductDetailPage() {
                       <MessageSquare className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold text-white">WhatsApp Pitch Scripts</h2>
-                      <p className="text-xs text-slate-400">High-converting message templates ready to copy & paste</p>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-semibold text-white">WhatsApp Pitch Scripts</h2>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          Ready to Pitch
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">High-converting pitch templates with your referral link pre-inserted</p>
                     </div>
                   </div>
 
@@ -491,23 +496,35 @@ export default function SellerProductDetailPage() {
                           <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">
                             {script.title}
                           </span>
-                          <button
-                            onClick={() => copyScript(script.text, idx)}
-                            className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-slate-700/60 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-600/50 transition-colors"
-                            title="Copy script"
-                          >
-                            {copiedScript === idx ? (
-                              <>
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-emerald-400 font-medium">Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Copy</span>
-                              </>
-                            )}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                window.open(`https://wa.me/?text=${encodeURIComponent(script.text)}`, '_blank');
+                              }}
+                              className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded border border-emerald-500/30 transition-colors"
+                              title="Share this script directly on WhatsApp"
+                            >
+                              <WhatsAppIcon className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">WhatsApp</span>
+                            </button>
+                            <button
+                              onClick={() => copyScript(script.text, idx)}
+                              className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-slate-700/60 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-600/50 transition-colors"
+                              title="Copy script"
+                            >
+                              {copiedScript === idx ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span className="text-emerald-400 font-medium">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Copy</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                         <p className="text-sm text-slate-300 leading-relaxed select-text">
                           {script.text}

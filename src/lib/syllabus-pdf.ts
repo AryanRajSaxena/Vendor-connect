@@ -76,9 +76,9 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
   // Header Banner Background
   page.drawRectangle({
     x: 40,
-    y: y - 55,
+    y: y - 65,
     width: width - 80,
-    height: 65,
+    height: 75,
     color: rgb(0.06, 0.09, 0.16),
   });
 
@@ -86,22 +86,31 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
   const courseTitle = sanitizePdfText(course.name || 'Course Syllabus');
   page.drawText(courseTitle.slice(0, 48), {
     x: 55,
-    y: y - 25,
-    size: 18,
+    y: y - 24,
+    size: 17,
     font: boldFont,
     color: rgb(1, 1, 1),
   });
 
-  const subtitle = sanitizePdfText(`${course.category || 'Online Course'} - ${course.courseDuration || 'Self-paced'}`);
+  const priceTag = course.basePrice ? ` | Fee: INR ${course.basePrice}` : '';
+  const subtitle = sanitizePdfText(`${course.category || 'Online Course'} | ${course.courseDuration || 'Self-paced'}${priceTag}`);
   page.drawText(subtitle, {
     x: 55,
-    y: y - 45,
-    size: 11,
+    y: y - 44,
+    size: 10,
     font: regularFont,
     color: rgb(0.2, 0.78, 0.55),
   });
 
-  y -= 80;
+  page.drawText('OFFICIAL COURSE SYLLABUS & BROCHURE', {
+    x: 55,
+    y: y - 58,
+    size: 7.5,
+    font: boldFont,
+    color: rgb(0.55, 0.65, 0.75),
+  });
+
+  y -= 90;
 
   // Course Description Section
   if (course.description) {
@@ -154,6 +163,68 @@ export async function generateSyllabusPdfBytes(course: CoursePdfData): Promise<U
         color: rgb(0.2, 0.25, 0.35),
       });
       y -= 14;
+    }
+    y -= 10;
+  }
+
+  // What You'll Learn (Learning Outcomes)
+  if (course.learningOutcomes && course.learningOutcomes.length > 0) {
+    checkPageBreak(50);
+    page.drawText("What You'll Learn (Learning Outcomes)", {
+      x: 40,
+      y,
+      size: 13,
+      font: boldFont,
+      color: rgb(0.06, 0.09, 0.16),
+    });
+    y -= 18;
+
+    for (const outcome of course.learningOutcomes) {
+      const cleanOutcome = sanitizePdfText(outcome);
+      if (!cleanOutcome) continue;
+      const wrapped = wrapText(cleanOutcome, 75);
+      for (let i = 0; i < wrapped.length; i++) {
+        checkPageBreak(15);
+        page.drawText(i === 0 ? `+ ${wrapped[i]}` : `  ${wrapped[i]}`, {
+          x: 45,
+          y,
+          size: 9.5,
+          font: regularFont,
+          color: rgb(0.18, 0.22, 0.32),
+        });
+        y -= 14;
+      }
+    }
+    y -= 10;
+  }
+
+  // Prerequisites & Requirements
+  if (course.prerequisites && course.prerequisites.length > 0) {
+    checkPageBreak(50);
+    page.drawText('Prerequisites & Requirements', {
+      x: 40,
+      y,
+      size: 13,
+      font: boldFont,
+      color: rgb(0.06, 0.09, 0.16),
+    });
+    y -= 18;
+
+    for (const prereq of course.prerequisites) {
+      const cleanPrereq = sanitizePdfText(prereq);
+      if (!cleanPrereq) continue;
+      const wrapped = wrapText(cleanPrereq, 75);
+      for (let i = 0; i < wrapped.length; i++) {
+        checkPageBreak(15);
+        page.drawText(i === 0 ? `- ${wrapped[i]}` : `  ${wrapped[i]}`, {
+          x: 45,
+          y,
+          size: 9.5,
+          font: regularFont,
+          color: rgb(0.25, 0.3, 0.38),
+        });
+        y -= 14;
+      }
     }
     y -= 10;
   }
