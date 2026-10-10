@@ -171,7 +171,8 @@ export default function SellerProductDetailPage() {
 
   const copyLink = () => {
     if (!product?.referral_code) return;
-    const link = `${window.location.origin}/products?ref=${product.referral_code}`;
+    const targetCourseId = product.productId || product.id || productId;
+    const link = `${window.location.origin}/products/${targetCourseId}?ref=${product.referral_code}`;
     navigator.clipboard.writeText(link);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
@@ -185,7 +186,8 @@ export default function SellerProductDetailPage() {
 
   const handleWhatsAppShare = () => {
     if (!product?.referral_code) return;
-    const link = `${window.location.origin}/products?ref=${product.referral_code}`;
+    const targetCourseId = product.productId || product.id || productId;
+    const link = `${window.location.origin}/products/${targetCourseId}?ref=${product.referral_code}`;
     const text = `Hey! Check out this course: ${product.product_name} - ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -258,9 +260,10 @@ export default function SellerProductDetailPage() {
   }
 
   const imgUrl = getImageUrl(product.images?.[0]);
+  const targetCourseId = product.productId || product.id || productId;
   const referralLink = typeof window !== 'undefined'
-    ? `${window.location.origin}/products?ref=${product.referral_code}`
-    : `/products?ref=${product.referral_code}`;
+    ? `${window.location.origin}/products/${targetCourseId}?ref=${product.referral_code}`
+    : `/products/${targetCourseId}?ref=${product.referral_code}`;
   const highlightText = String(product.specifications?.highlights || '');
   const features = highlightText
     .split('|||')

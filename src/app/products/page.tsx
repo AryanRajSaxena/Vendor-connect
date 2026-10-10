@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingCart, ChevronDown, Search, Package } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +25,7 @@ interface Product {
 }
 
 function ProductsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const isUnauthenticated = !user?.id;
@@ -37,6 +38,7 @@ function ProductsContent() {
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('relevance');
   const [activeReferralCode, setActiveReferralCode] = useState<string>('');
+  const [isResolvingRef, setIsResolvingRef] = useState(false);
   const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
   const getSafeCart = () => {
@@ -66,18 +68,42 @@ function ProductsContent() {
     { value: 'newest', label: 'Newest' },
   ];
 
-  // Fetch products
+  // Fetch products & resolve referral attribution
   useEffect(() => {
-    const code =
+    const rawCode =
       searchParams.get('ref') ||
       searchParams.get('referral') ||
       searchParams.get('code') ||
       '';
 
-    const normalized = code.trim().toUpperCase();
-    if (normalized) {
-      setActiveReferralCode(normalized);
-      localStorage.setItem('referralCode', normalized);
+    const cleanCode = rawCode.trim();
+    if (cleanCode) {
+      setActiveReferralCode(cleanCode);
+      try {
+        localStorage.setItem('referralCode', cleanCode.toUpperCase());
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        localStorage.setItem(
+          'referral_attribution',
+          JSON.stringify({ ref: cleanCode, expiresAt: Date.now() + thirtyDaysMs, savedAt: Date.now() })
+        );
+      } catch (e) {
+        console.warn('Storage warning:', e);
+      }
+
+      // Check if this referral code belongs to a specific course and redirect to its buy page
+      setIsResolvingRef(true);
+      fetch(`/api/seller-products/resolve-ref?ref=${encodeURIComponent(cleanCode)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.found && data?.productId) {
+            router.replace(`/products/${data.productId}?ref=${encodeURIComponent(cleanCode)}`);
+          } else {
+            setIsResolvingRef(false);
+          }
+        })
+        .catch(() => {
+          setIsResolvingRef(false);
+        });
       return;
     }
 
@@ -85,7 +111,7 @@ function ProductsContent() {
     if (storedCode) {
       setActiveReferralCode(storedCode);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -206,6 +232,16 @@ function ProductsContent() {
     })();
   };
 
+  if (isResolvingRef) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="w-9 h-9 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-slate-200 text-sm font-semibold">Redirecting to course enrollment...</p>
+        <p className="text-slate-500 text-xs mt-1">Applying partner referral discount</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -320,31 +356,22 @@ function ProductsContent() {
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-2 gap-2 mt-auto">
-                          {isUnauthenticated ? (
-                            <span
-                              aria-disabled="true"
-                              className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800/40 text-slate-500 cursor-not-allowed py-2.5 text-sm font-medium"
-                            >
-                              View Details
-                            </span>
-                          ) : (
-                            <Link
-                              href={`/products/${product.id}${(() => {
-                                const detailParams = new URLSearchParams();
-                                if (activeReferralCode) {
-                                  detailParams.set('ref', activeReferralCode);
-                                }
-                                if (isGuestVendorOrSeller) {
-                                  detailParams.set('guestRole', guestRoleParam);
-                                }
-                                const query = detailParams.toString();
-                                return query ? `?${query}` : '';
-                              })()}`}
-                              className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
-                            >
-                              View Details
-                            </Link>
-                          )}
+                          <Link
+                            href={`/products/${product.id}${(() => {
+                              const detailParams = new URLSearchParams();
+                              if (activeReferralCode) {
+                                detailParams.set('ref', activeReferralCode);
+                              }
+                              if (isGuestVendorOrSeller) {
+                                detailParams.set('guestRole', guestRoleParam);
+                              }
+                              const query = detailParams.toString();
+                              return query ? `?${query}` : '';
+                            })()}`}
+                            className="inline-flex items-center justify-center rounded-lg border border-slate-500 bg-transparent text-slate-200 hover:bg-slate-800 py-2.5 text-sm font-medium transition-colors"
+                          >
+                            View Details
+                          </Link>
                           <button
                             onClick={() => handleAddToCart(product)}
                             disabled={isGuestVendorOrSeller}
