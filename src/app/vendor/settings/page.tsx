@@ -26,7 +26,17 @@ export default function VendorSettings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
+  const [savedFields, setSavedFields] = useState<{
+    businessName?: string;
+    supportEmail?: string;
+    name?: string;
+    phone?: string;
+    gstNumber?: string;
+    panNumber?: string;
+    bankAccountHolder?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+  }>({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Business Profile
@@ -46,41 +56,64 @@ export default function VendorSettings() {
   const [notifyInstantPayment, setNotifyInstantPayment] = useState(true);
   const [notifyDailySummary, setNotifyDailySummary] = useState(true);
 
+  // Field locking rules: ONLY lock a field if it was filled with a non-empty value and saved
+  const isBusinessNameLocked = Boolean(savedFields.businessName?.trim());
+  const isSupportEmailLocked = Boolean(savedFields.supportEmail?.trim());
+  const isNameLocked = Boolean(savedFields.name?.trim());
+  const isPhoneLocked = Boolean(savedFields.phone?.trim());
+  const isGstNumberLocked = Boolean(savedFields.gstNumber?.trim());
+  const isPanNumberLocked = Boolean(savedFields.panNumber?.trim());
+  const isBankAccountHolderLocked = Boolean(savedFields.bankAccountHolder?.trim());
+  const isBankAccountNumberLocked = Boolean(savedFields.bankAccountNumber?.trim());
+  const isBankIfscCodeLocked = Boolean(savedFields.bankIfscCode?.trim());
+
+  const allFieldsLocked =
+    isBusinessNameLocked &&
+    isSupportEmailLocked &&
+    isNameLocked &&
+    isPhoneLocked &&
+    isGstNumberLocked &&
+    isPanNumberLocked &&
+    isBankAccountHolderLocked &&
+    isBankAccountNumberLocked &&
+    isBankIfscCodeLocked;
+
+  const hasAnyLocked =
+    isBusinessNameLocked ||
+    isSupportEmailLocked ||
+    isNameLocked ||
+    isPhoneLocked ||
+    isGstNumberLocked ||
+    isPanNumberLocked ||
+    isBankAccountHolderLocked ||
+    isBankAccountNumberLocked ||
+    isBankIfscCodeLocked;
+
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') router.push('/');
     if (user) {
       const u = user as any;
-      setBusinessName(u.businessName || u.business_name || '');
-      setName(u.name || '');
-      setPhone(u.phone || '');
-      if (u.supportEmail || u.support_email) setSupportEmail(u.supportEmail || u.support_email);
-      if (u.gstNumber || u.gst_number) setGstNumber(u.gstNumber || u.gst_number);
-      if (u.panNumber || u.pan_number) setPanNumber(u.panNumber || u.pan_number);
-      if (u.bankAccountHolder || u.bank_account_holder) setBankAccountHolder(u.bankAccountHolder || u.bank_account_holder);
-      if (u.account_number || u.accountNumber) setBankAccountNumber(u.account_number || u.accountNumber);
-      if (u.ifsc_code || u.ifscCode) setBankIfscCode(u.ifsc_code || u.ifscCode);
-
-      // Check if locked
-      if (u.is_locked || u.isLocked) {
-        setIsLocked(true);
-      } else {
-        const lockedStatus = localStorage.getItem(`vendor_settings_locked_${user.id}`);
-        if (lockedStatus === 'true' || (u.account_number && u.name && u.phone && (u.businessName || u.business_name))) {
-          setIsLocked(true);
-        }
-      }
+      const initialBusinessName = (u.businessName || u.business_name || '').trim();
+      const initialName = (u.name || '').trim();
+      const initialPhone = (u.phone || '').trim();
+      let initialSupportEmail = (u.supportEmail || u.support_email || '').trim();
+      let initialGst = (u.gstNumber || u.gst_number || '').trim();
+      let initialPan = (u.panNumber || u.pan_number || '').trim();
+      let initialHolder = (u.bankAccountHolder || u.bank_account_holder || '').trim();
+      let initialAccountNum = (u.account_number || u.accountNumber || '').trim();
+      let initialIfsc = (u.ifsc_code || u.ifscCode || '').trim();
 
       // Load extended vendor settings from localStorage fallback
       try {
         const saved = localStorage.getItem(`vendor_settings_${user.id}`);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.supportEmail && !u.support_email) setSupportEmail(parsed.supportEmail);
-          if (parsed.gstNumber && !u.gst_number) setGstNumber(parsed.gstNumber);
-          if (parsed.panNumber && !u.pan_number) setPanNumber(parsed.panNumber);
-          if (parsed.bankAccountHolder && !u.bank_account_holder) setBankAccountHolder(parsed.bankAccountHolder);
-          if (parsed.bankAccountNumber && !u.account_number) setBankAccountNumber(parsed.bankAccountNumber);
-          if (parsed.bankIfscCode && !u.ifsc_code) setBankIfscCode(parsed.bankIfscCode);
+          if (!initialSupportEmail && parsed.supportEmail) initialSupportEmail = parsed.supportEmail.trim();
+          if (!initialGst && parsed.gstNumber) initialGst = parsed.gstNumber.trim();
+          if (!initialPan && parsed.panNumber) initialPan = parsed.panNumber.trim();
+          if (!initialHolder && parsed.bankAccountHolder) initialHolder = parsed.bankAccountHolder.trim();
+          if (!initialAccountNum && parsed.bankAccountNumber) initialAccountNum = parsed.bankAccountNumber.trim();
+          if (!initialIfsc && parsed.bankIfscCode) initialIfsc = parsed.bankIfscCode.trim();
           if (typeof parsed.notifyInstantPayment === 'boolean') {
             setNotifyInstantPayment(parsed.notifyInstantPayment);
           }
@@ -91,6 +124,61 @@ export default function VendorSettings() {
       } catch (e) {
         console.warn('Failed to parse vendor settings from storage', e);
       }
+
+      setBusinessName(initialBusinessName);
+      setName(initialName);
+      setPhone(initialPhone);
+      setSupportEmail(initialSupportEmail);
+      setGstNumber(initialGst);
+      setPanNumber(initialPan);
+      setBankAccountHolder(initialHolder);
+      setBankAccountNumber(initialAccountNum);
+      setBankIfscCode(initialIfsc);
+
+      // Only lock fields that have a saved non-empty value
+      const savedMap: Record<string, string> = {};
+      if (initialBusinessName) savedMap.businessName = initialBusinessName;
+      if (initialName) savedMap.name = initialName;
+      if (initialPhone) savedMap.phone = initialPhone;
+      if (initialSupportEmail) savedMap.supportEmail = initialSupportEmail;
+      if (initialGst) savedMap.gstNumber = initialGst;
+      if (initialPan) savedMap.panNumber = initialPan;
+      if (initialHolder) savedMap.bankAccountHolder = initialHolder;
+      if (initialAccountNum) savedMap.bankAccountNumber = initialAccountNum;
+      if (initialIfsc) savedMap.bankIfscCode = initialIfsc;
+      setSavedFields(savedMap);
+
+      // Fresh sync from /api/users/${user.id}
+      fetch(`/api/users/${user.id}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((dbUser) => {
+          if (dbUser) {
+            const dbBusinessName = (dbUser.business_name || dbUser.businessName || '').trim();
+            const dbName = (dbUser.name || '').trim();
+            const dbPhone = (dbUser.phone || '').trim();
+            const dbSupportEmail = (dbUser.support_email || dbUser.supportEmail || '').trim();
+            const dbGst = (dbUser.gst_number || dbUser.gstNumber || '').trim();
+            const dbPan = (dbUser.pan_number || dbUser.panNumber || '').trim();
+            const dbHolder = (dbUser.bank_account_holder || dbUser.bankAccountHolder || '').trim();
+            const dbAccountNum = (dbUser.account_number || dbUser.accountNumber || '').trim();
+            const dbIfsc = (dbUser.ifsc_code || dbUser.ifscCode || '').trim();
+
+            setSavedFields((prev) => {
+              const updated = { ...prev };
+              if (dbBusinessName) { updated.businessName = dbBusinessName; setBusinessName((s) => s || dbBusinessName); }
+              if (dbName) { updated.name = dbName; setName((s) => s || dbName); }
+              if (dbPhone) { updated.phone = dbPhone; setPhone((s) => s || dbPhone); }
+              if (dbSupportEmail) { updated.supportEmail = dbSupportEmail; setSupportEmail((s) => s || dbSupportEmail); }
+              if (dbGst) { updated.gstNumber = dbGst; setGstNumber((s) => s || dbGst); }
+              if (dbPan) { updated.panNumber = dbPan; setPanNumber((s) => s || dbPan); }
+              if (dbHolder) { updated.bankAccountHolder = dbHolder; setBankAccountHolder((s) => s || dbHolder); }
+              if (dbAccountNum) { updated.bankAccountNumber = dbAccountNum; setBankAccountNumber((s) => s || dbAccountNum); }
+              if (dbIfsc) { updated.bankIfscCode = dbIfsc; setBankIfscCode((s) => s || dbIfsc); }
+              return updated;
+            });
+          }
+        })
+        .catch(() => {});
     }
   }, [user, isLoading, router]);
 
@@ -98,26 +186,50 @@ export default function VendorSettings() {
     e.preventDefault();
     setError(null);
 
-    if (isLocked) return;
+    if (allFieldsLocked) return;
 
-    if (!businessName.trim()) {
+    if (!isBusinessNameLocked && !businessName.trim()) {
       setError('Creator / Company Name is required');
       return;
     }
-    if (!name.trim()) {
+    if (!isNameLocked && !name.trim()) {
       setError('Owner / Contact Name is required');
       return;
     }
-    if (!phone.trim()) {
+    if (!isPhoneLocked && !phone.trim()) {
       setError('Phone Number is required for order coordination');
       return;
     }
-    if (!bankAccountNumber.trim()) {
-      setError('Bank Account Number is required for 80% revenue remittances');
+
+    if (!isBankAccountNumberLocked && bankAccountNumber.trim() && !bankIfscCode.trim()) {
+      setError('Bank IFSC Code is required for your bank account');
       return;
     }
-    if (!bankIfscCode.trim()) {
-      setError('Bank IFSC Code is required');
+
+    // Check if there are any new fields being saved
+    const hasNewBusinessName = !isBusinessNameLocked && Boolean(businessName.trim());
+    const hasNewName = !isNameLocked && Boolean(name.trim());
+    const hasNewPhone = !isPhoneLocked && Boolean(phone.trim());
+    const hasNewSupportEmail = !isSupportEmailLocked && Boolean(supportEmail.trim());
+    const hasNewGst = !isGstNumberLocked && Boolean(gstNumber.trim());
+    const hasNewPan = !isPanNumberLocked && Boolean(panNumber.trim());
+    const hasNewHolder = !isBankAccountHolderLocked && Boolean(bankAccountHolder.trim());
+    const hasNewAccountNum = !isBankAccountNumberLocked && Boolean(bankAccountNumber.trim());
+    const hasNewIfsc = !isBankIfscCodeLocked && Boolean(bankIfscCode.trim());
+
+    const hasNewChanges =
+      hasNewBusinessName ||
+      hasNewName ||
+      hasNewPhone ||
+      hasNewSupportEmail ||
+      hasNewGst ||
+      hasNewPan ||
+      hasNewHolder ||
+      hasNewAccountNum ||
+      hasNewIfsc;
+
+    if (!hasNewChanges) {
+      setError('No new details entered. Please fill in the unlocked fields before saving.');
       return;
     }
 
@@ -132,20 +244,20 @@ export default function VendorSettings() {
     setSuccess(false);
 
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         email: user?.email,
         role: 'vendor',
-        name: name.trim(),
-        phone: phone.trim(),
-        business_name: businessName.trim(),
-        support_email: supportEmail.trim(),
-        gst_number: gstNumber.trim().toUpperCase(),
-        pan_number: panNumber.trim().toUpperCase(),
-        bank_account_holder: bankAccountHolder.trim(),
-        account_number: bankAccountNumber.trim(),
-        ifsc_code: bankIfscCode.trim().toUpperCase(),
-        is_locked: true,
       };
+
+      if (businessName.trim()) payload.business_name = businessName.trim();
+      if (name.trim()) payload.name = name.trim();
+      if (phone.trim()) payload.phone = phone.trim();
+      if (supportEmail.trim()) payload.support_email = supportEmail.trim();
+      if (gstNumber.trim()) payload.gst_number = gstNumber.trim().toUpperCase();
+      if (panNumber.trim()) payload.pan_number = panNumber.trim().toUpperCase();
+      if (bankAccountHolder.trim()) payload.bank_account_holder = bankAccountHolder.trim();
+      if (bankAccountNumber.trim()) payload.account_number = bankAccountNumber.trim();
+      if (bankIfscCode.trim()) payload.ifsc_code = bankIfscCode.trim().toUpperCase();
 
       // Update in database (saves to public.users and public.vendors)
       const res = await fetch(`/api/users/${user!.id}`, {
@@ -170,11 +282,9 @@ export default function VendorSettings() {
         bankIfscCode: bankIfscCode.trim().toUpperCase(),
         notifyInstantPayment,
         notifyDailySummary,
-        isLocked: true,
       };
 
       localStorage.setItem(`vendor_settings_${user!.id}`, JSON.stringify(extendedSettings));
-      localStorage.setItem(`vendor_settings_locked_${user!.id}`, 'true');
 
       updateUser({
         name: name.trim(),
@@ -184,7 +294,21 @@ export default function VendorSettings() {
         ...extendedSettings,
       });
 
-      setIsLocked(true);
+      // Update savedFields so filled fields are now locked
+      setSavedFields((prev) => {
+        const next = { ...prev };
+        if (businessName.trim()) next.businessName = businessName.trim();
+        if (name.trim()) next.name = name.trim();
+        if (phone.trim()) next.phone = phone.trim();
+        if (supportEmail.trim()) next.supportEmail = supportEmail.trim();
+        if (gstNumber.trim()) next.gstNumber = gstNumber.trim().toUpperCase();
+        if (panNumber.trim()) next.panNumber = panNumber.trim().toUpperCase();
+        if (bankAccountHolder.trim()) next.bankAccountHolder = bankAccountHolder.trim();
+        if (bankAccountNumber.trim()) next.bankAccountNumber = bankAccountNumber.trim();
+        if (bankIfscCode.trim()) next.bankIfscCode = bankIfscCode.trim().toUpperCase();
+        return next;
+      });
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
@@ -219,11 +343,15 @@ export default function VendorSettings() {
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
             <Building2 className="w-3.5 h-3.5" />
             Vendor &amp; Creator Portal
-            {isLocked && (
+            {allFieldsLocked ? (
               <span className="ml-1 inline-flex items-center gap-1 text-emerald-800 font-bold">
-                • <Lock className="w-3 h-3" /> Locked &amp; Verified
+                • <Lock className="w-3 h-3" /> All Details Locked &amp; Verified
               </span>
-            )}
+            ) : hasAnyLocked ? (
+              <span className="ml-1 inline-flex items-center gap-1 text-amber-800 font-bold">
+                • <Lock className="w-3 h-3" /> Partially Locked
+              </span>
+            ) : null}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
             Settings &amp; Business Profile
@@ -234,9 +362,9 @@ export default function VendorSettings() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {isLocked && (
+          {hasAnyLocked && (
             <a
-              href="mailto:support@agentcroww.com?subject=Request%20to%20Update%20Vendor%20Business%20Details"
+              href="mailto:team@agentcroww.com?subject=Request%20to%20Update%20Vendor%20Business%20Details"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
             >
               <HelpCircle className="w-3.5 h-3.5 text-gray-500" />
@@ -254,21 +382,31 @@ export default function VendorSettings() {
       </div>
 
       {/* Lock Notice Banner */}
-      {isLocked && (
+      {allFieldsLocked ? (
         <div className="flex items-start gap-3 p-4 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 text-xs sm:text-sm">
           <Lock className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-amber-950">Creator &amp; Payout Details are Locked</p>
             <p className="text-amber-800 leading-relaxed text-xs">
               To safeguard your 80% revenue share bank remittances and protect your creator storefront against unauthorized modification, these fields are permanently locked. If you need to update bank account, GSTIN, PAN, or company registration details, contact{' '}
-              <a href="mailto:support@agentcroww.com" className="font-semibold underline hover:text-amber-950">
-                support@agentcroww.com
+              <a href="mailto:team@agentcroww.com" className="font-semibold underline hover:text-amber-950">
+                team@agentcroww.com
               </a>{' '}
               for identity verification.
             </p>
           </div>
         </div>
-      )}
+      ) : hasAnyLocked ? (
+        <div className="flex items-start gap-3 p-4 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 text-xs sm:text-sm">
+          <Lock className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-950">Saved Details are Permanently Locked</p>
+            <p className="text-amber-800 leading-relaxed text-xs">
+              Your saved business profile and banking details are permanently locked for security. You can still fill and save any remaining unlocked fields below.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* Notifications / Alerts */}
       {error && (
@@ -300,45 +438,57 @@ export default function VendorSettings() {
                 </p>
               </div>
             </div>
-            {isLocked && <Lock className="w-4 h-4 text-gray-400" />}
+            {isBusinessNameLocked && isNameLocked && isPhoneLocked && <Lock className="w-4 h-4 text-gray-400" />}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Creator / Company Name <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Creator / Company Name <span className="text-red-500">*</span></span>
+                {isBusinessNameLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                disabled={isLocked}
+                disabled={isBusinessNameLocked}
                 placeholder="e.g., CodeSprint Academy or Vikram Verma"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-all ${
-                  isLocked
+                  isBusinessNameLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
                 required
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                The official creator/brand name shown to buyers and outbound sellers.
+                {isBusinessNameLocked
+                  ? 'Creator brand name is verified and locked.'
+                  : 'The official creator/brand name shown to buyers and outbound sellers.'}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Support Email (Buyer-Facing)
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Support Email (Buyer-Facing)</span>
+                {isSupportEmailLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <div className="relative">
                 <input
                   type="email"
                   value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
-                  disabled={isLocked}
+                  disabled={isSupportEmailLocked}
                   placeholder="support@youracademy.com"
                   className={`w-full pl-9 pr-3.5 py-2.5 border rounded-xl text-sm transition-all ${
-                    isLocked
+                    isSupportEmailLocked
                       ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                       : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                   }`}
@@ -346,22 +496,29 @@ export default function VendorSettings() {
                 <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
               <p className="text-[11px] text-gray-400 mt-1">
-                The contact email students see for login credentials or LMS onboarding questions.
+                {isSupportEmailLocked
+                  ? 'Support email is verified and locked.'
+                  : 'The contact email students see for login credentials or LMS onboarding questions.'}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Owner / Manager Full Name <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Owner / Manager Full Name <span className="text-red-500">*</span></span>
+                {isNameLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={isLocked}
+                disabled={isNameLocked}
                 placeholder="Your legal full name"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-all ${
-                  isLocked
+                  isNameLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
@@ -370,18 +527,23 @@ export default function VendorSettings() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Contact Phone / WhatsApp <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Contact Phone / WhatsApp <span className="text-red-500">*</span></span>
+                {isPhoneLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <div className="relative">
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  disabled={isLocked}
+                  disabled={isPhoneLocked}
                   placeholder="e.g., 9876543210"
                   className={`w-full pl-9 pr-3.5 py-2.5 border rounded-xl text-sm transition-all ${
-                    isLocked
+                    isPhoneLocked
                       ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                       : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                   }`}
@@ -390,49 +552,65 @@ export default function VendorSettings() {
                 <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
               <p className="text-[11px] text-gray-400 mt-1">
-                Used for urgent order fulfillment escalations and bank settlement alerts.
+                {isPhoneLocked
+                  ? 'Verified phone number locked.'
+                  : 'Used for urgent order fulfillment escalations and bank settlement alerts.'}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                GSTIN / Tax ID <span className="text-xs font-normal text-gray-400 lowercase">(optional)</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>GSTIN / Tax ID <span className="text-xs font-normal text-gray-400 lowercase">(optional)</span></span>
+                {isGstNumberLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                disabled={isLocked}
+                disabled={isGstNumberLocked}
                 placeholder="e.g., 27ABCDE1234F1Z5"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono transition-all ${
-                  isLocked
+                  isGstNumberLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                For Indian GST compliance and B2B invoice generation as your sales scale.
+                {isGstNumberLocked
+                  ? 'GST identification number locked.'
+                  : 'For Indian GST compliance and B2B invoice generation as your sales scale.'}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                PAN Number <span className="text-xs font-normal text-gray-400 lowercase">(optional)</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>PAN Number <span className="text-xs font-normal text-gray-400 lowercase">(optional)</span></span>
+                {isPanNumberLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={panNumber}
                 onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                disabled={isLocked}
+                disabled={isPanNumberLocked}
                 placeholder="e.g., ABCDE1234F"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono transition-all ${
-                  isLocked
+                  isPanNumberLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Required for annual TDS reporting on marketplace sales disbursements.
+                {isPanNumberLocked
+                  ? 'PAN tax identifier locked.'
+                  : 'Required for annual TDS reporting on marketplace sales disbursements.'}
               </p>
             </div>
 
@@ -471,11 +649,15 @@ export default function VendorSettings() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {isLocked && (
+              {allFieldsLocked ? (
                 <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <Lock className="w-3 h-3 text-gray-500" /> Locked
                 </span>
-              )}
+              ) : isBankAccountNumberLocked && isBankIfscCodeLocked ? (
+                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-gray-500" /> Bank Locked
+                </span>
+              ) : null}
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100/70 text-emerald-800">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 80% Creator Cut
@@ -485,17 +667,22 @@ export default function VendorSettings() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Bank Account Holder Name
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Bank Account Holder Name</span>
+                {isBankAccountHolderLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={bankAccountHolder}
                 onChange={(e) => setBankAccountHolder(e.target.value)}
-                disabled={isLocked}
+                disabled={isBankAccountHolderLocked}
                 placeholder="Full Name as registered with your bank"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm transition-all ${
-                  isLocked
+                  isBankAccountHolderLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
@@ -506,17 +693,22 @@ export default function VendorSettings() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Bank Account Number <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Bank Account Number <span className="text-red-500">*</span></span>
+                {isBankAccountNumberLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={bankAccountNumber}
                 onChange={(e) => setBankAccountNumber(e.target.value.replace(/\s+/g, ''))}
-                disabled={isLocked}
+                disabled={isBankAccountNumberLocked}
                 placeholder="e.g., 912010045678912"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono transition-all ${
-                  isLocked
+                  isBankAccountNumberLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
@@ -525,17 +717,22 @@ export default function VendorSettings() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                Bank IFSC Code <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Bank IFSC Code <span className="text-red-500">*</span></span>
+                {isBankIfscCodeLocked && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={bankIfscCode}
                 onChange={(e) => setBankIfscCode(e.target.value.toUpperCase())}
-                disabled={isLocked}
+                disabled={isBankIfscCodeLocked}
                 placeholder="e.g., HDFC0000123"
                 className={`w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono uppercase transition-all ${
-                  isLocked
+                  isBankIfscCodeLocked
                     ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed select-none'
                     : 'bg-gray-50/50 border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
                 }`}
@@ -613,14 +810,14 @@ export default function VendorSettings() {
 
         {/* Form Action Controls */}
         <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
-          {isLocked ? (
+          {allFieldsLocked ? (
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 bg-gray-100 text-gray-500 font-bold rounded-xl border border-gray-200 select-none">
                 <Lock className="w-5 h-5 text-gray-400" />
-                Settings Locked &amp; Saved
+                All Settings Locked &amp; Saved
               </div>
               <a
-                href="mailto:support@agentcroww.com?subject=Request%20to%20Update%20Vendor%20Business%20Details"
+                href="mailto:team@agentcroww.com?subject=Request%20to%20Update%20Vendor%20Business%20Details"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white text-gray-700 hover:text-gray-900 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
               >
                 <HelpCircle className="w-4 h-4 text-gray-500" />
@@ -634,7 +831,7 @@ export default function VendorSettings() {
               className="w-full sm:w-auto min-w-[240px] inline-flex items-center justify-center gap-2.5 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-base font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-5 h-5" />
-              {loading ? 'Saving Settings...' : 'Save All Changes'}
+              {loading ? 'Saving Settings...' : 'Save Settings'}
             </button>
           )}
         </div>
@@ -655,47 +852,130 @@ export default function VendorSettings() {
             </div>
 
             <div className="p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-900 leading-relaxed">
-              <strong>You will not be able to edit these fields after saving.</strong>
+              <strong>Filled fields will be permanently locked after saving.</strong>
               <p className="mt-1 text-amber-800">
-                To safeguard your 80% revenue remittances and protect your creator storefront against unauthorized modification, your business identity and bank payout details will be permanently locked upon confirmation.
+                To safeguard your 80% revenue remittances and protect your creator storefront, any details you fill in and save are locked against unauthorized modification. Any fields left empty can still be filled in later.
               </p>
             </div>
 
             {/* Snapshot of details being locked */}
             <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-200 space-y-2 text-xs">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">Creator / Brand:</span>
-                <span className="font-semibold text-gray-800">{businessName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Support Email:</span>
-                <span className="font-semibold text-gray-800">{supportEmail || '—'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Owner Name:</span>
-                <span className="font-semibold text-gray-800">{name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Phone Number:</span>
-                <span className="font-semibold text-gray-800">{phone}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">GSTIN / Tax ID:</span>
-                <span className="font-mono font-semibold text-gray-800">{gstNumber || '—'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">PAN Number:</span>
-                <span className="font-mono font-semibold text-gray-800">{panNumber || '—'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Bank Account:</span>
-                <span className="font-mono font-semibold text-gray-800">
-                  {bankAccountNumber ? `•••• ${bankAccountNumber.slice(-4)}` : '—'}
+                <span className="font-semibold text-gray-800 flex items-center gap-1">
+                  {businessName.trim() ? (
+                    <>
+                      {businessName}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Support Email:</span>
+                <span className="font-semibold text-gray-800 flex items-center gap-1">
+                  {supportEmail.trim() ? (
+                    <>
+                      {supportEmail}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Owner Name:</span>
+                <span className="font-semibold text-gray-800 flex items-center gap-1">
+                  {name.trim() ? (
+                    <>
+                      {name}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Phone Number:</span>
+                <span className="font-semibold text-gray-800 flex items-center gap-1">
+                  {phone.trim() ? (
+                    <>
+                      {phone}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">GSTIN / Tax ID:</span>
+                <span className="font-mono font-semibold text-gray-800 flex items-center gap-1">
+                  {gstNumber.trim() ? (
+                    <>
+                      {gstNumber}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">PAN Number:</span>
+                <span className="font-mono font-semibold text-gray-800 flex items-center gap-1">
+                  {panNumber.trim() ? (
+                    <>
+                      {panNumber}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Account Holder:</span>
+                <span className="font-semibold text-gray-800 flex items-center gap-1">
+                  {bankAccountHolder.trim() ? (
+                    <>
+                      {bankAccountHolder}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Bank Account:</span>
+                <span className="font-mono font-semibold text-gray-800 flex items-center gap-1">
+                  {bankAccountNumber.trim() ? (
+                    <>
+                      •••• {bankAccountNumber.trim().slice(-4)}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">IFSC Code:</span>
-                <span className="font-mono font-semibold text-gray-800">{bankIfscCode || '—'}</span>
+                <span className="font-mono font-semibold text-gray-800 flex items-center gap-1">
+                  {bankIfscCode.trim() ? (
+                    <>
+                      {bankIfscCode}
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set (editable)</span>
+                  )}
+                </span>
               </div>
             </div>
 
