@@ -419,20 +419,6 @@ function ProductDetailContent() {
               ) : (
                 <p className="text-sm text-slate-400">Clear outcomes and practical modules included.</p>
               )}
-
-              {hasSyllabus && (
-                <div className="mt-4 pt-4 border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={handleDownloadBrochure}
-                    disabled={downloadingBrochure}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 font-medium py-2.5 px-3 rounded-lg text-xs transition-all disabled:opacity-50"
-                  >
-                    <Download className="w-3.5 h-3.5 text-sky-400" />
-                    <span>{downloadingBrochure ? 'Downloading...' : 'Download Syllabus PDF'}</span>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
@@ -634,25 +620,7 @@ function ProductDetailContent() {
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg shadow-black/20">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <div>
-                  <h3 className="text-base font-bold text-slate-100">Course Curriculum</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {curriculum.length > 0 ? `${curriculum.length} modules • ${totalLessons} lessons` : 'Detailed curriculum breakdown'}
-                  </p>
-                </div>
-                {hasSyllabus && (
-                  <button
-                    type="button"
-                    onClick={handleDownloadBrochure}
-                    disabled={downloadingBrochure}
-                    className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-sky-400 hover:text-sky-300 bg-sky-950/60 border border-sky-800/60 hover:bg-sky-900/60 px-3.5 py-2 rounded-lg transition-all disabled:opacity-50"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>{downloadingBrochure ? 'Downloading...' : 'Download Syllabus PDF'}</span>
-                  </button>
-                )}
-              </div>
+              <h3 className="text-base font-bold text-slate-100 mb-4">Course Curriculum</h3>
               {curriculum.length > 0 ? (
                 <div className="space-y-3">
                   {curriculum.map((module, idx) => (
