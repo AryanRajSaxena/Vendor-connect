@@ -134,19 +134,26 @@ export async function PUT(
     }
 
     const nextPaymentStatus = updateData.payment_status || existingOrder?.payment_status;
-    const releaseDate = existingOrder?.commission_release_date
-      ? new Date(existingOrder.commission_release_date)
-      : null;
-    const canReleaseCommission =
-      nextPaymentStatus === 'completed' &&
-      (!releaseDate || Number.isNaN(releaseDate.getTime()) || releaseDate <= new Date());
+    const isRefunded = nextPaymentStatus === 'refunded' || orderStatus === 'refunded';
 
-    if (
-      canReleaseCommission &&
-      existingOrder?.commission_status !== 'paid' &&
-      !commissionStatus
-    ) {
-      updateData.commission_status = 'available';
+    if (isRefunded) {
+      updateData.payment_status = 'refunded';
+      updateData.commission_status = 'refunded';
+    } else {
+      const releaseDate = existingOrder?.commission_release_date
+        ? new Date(existingOrder.commission_release_date)
+        : null;
+      const canReleaseCommission =
+        nextPaymentStatus === 'completed' &&
+        (!releaseDate || Number.isNaN(releaseDate.getTime()) || releaseDate <= new Date());
+
+      if (
+        canReleaseCommission &&
+        existingOrder?.commission_status !== 'paid' &&
+        !commissionStatus
+      ) {
+        updateData.commission_status = 'available';
+      }
     }
 
     updateData.updated_at = new Date().toISOString();

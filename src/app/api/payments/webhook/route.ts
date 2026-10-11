@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
 import { notifyVendorOfSale } from '@/lib/email';
+import { isRefundWebhookPayload } from '@/lib/payu';
 
 export interface WebhookPayload {
   // Generic / Unified payment event fields
@@ -64,6 +65,116 @@ export async function POST(request: NextRequest) {
       } catch {
         return NextResponse.json({ error: 'Invalid payload format' }, { status: 400 });
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // PayU & Payment Gateway Refund Indication Handler
+    // -------------------------------------------------------------------------
+    if (isRefundWebhookPayload(body)) {
+      const refundTxnId = String(body.txnid || body.merchantTxnId || body.orderId || body.paymentGatewayOrderId || '').trim();
+      const refundPaymentId = String(body.mihpayid || body.paymentGatewayPaymentId || body.bank_ref_num || '').trim();
+      const refundAmt = Number(body.amt || body.amount || 0);
+      const refundId = String(body.request_id || body.refund_id || body.refundId || `REF-${Date.now()}`);
+
+      console.log(`[PayU Webhook] Refund indication received for txn: "${refundTxnId || refundPaymentId}", amount: ₹${refundAmt}`);
+
+      let matchedOrder: any = null;
+
+      if (refundTxnId) {
+        const { data: o } = await supabase
+          .from('orders')
+          .select('id, product_id, quantity, seller_id, seller_commission, customer_details, payment_status')
+          .or(`id.eq.${refundTxnId},payment_gateway_order_id.eq.${refundTxnId}`)
+          .maybeSingle();
+        matchedOrder = o;
+      }
+
+      if (!matchedOrder && refundPaymentId) {
+        const { data: o } = await supabase
+          .from('orders')
+          .select('id, product_id, quantity, seller_id, seller_commission, customer_details, payment_status')
+          .eq('payment_gateway_payment_id', refundPaymentId)
+          .maybeSingle();
+        matchedOrder = o;
+      }
+
+      if (matchedOrder?.id) {
+        const existingDetails =
+          typeof matchedOrder.customer_details === 'object' && matchedOrder.customer_details !== null
+            ? matchedOrder.customer_details
+            : {};
+
+        await supabase
+          .from('orders')
+          .update({
+            payment_status: 'refunded',
+            order_status: 'refunded',
+            commission_status: 'refunded',
+            customer_details: {
+              ...existingDetails,
+              refund: {
+                refund_id: refundId,
+                amount: refundAmt,
+                refunded_at: new Date().toISOString(),
+                source: 'payu_webhook',
+              },
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', matchedOrder.id);
+
+        // Revert product sold count
+        if (matchedOrder.product_id) {
+          const { data: prod } = await supabase
+            .from('products')
+            .select('sold_count')
+            .eq('id', matchedOrder.product_id)
+            .maybeSingle();
+          if (prod) {
+            await supabase
+              .from('products')
+              .update({ sold_count: Math.max(0, (prod.sold_count || 1) - (matchedOrder.quantity || 1)) })
+              .eq('id', matchedOrder.product_id);
+          }
+        }
+
+        // Revert seller commission
+        if (matchedOrder.seller_id) {
+          const { data: sp } = await supabase
+            .from('seller_products')
+            .select('id, sales, earnings')
+            .eq('seller_id', matchedOrder.seller_id)
+            .eq('product_id', matchedOrder.product_id)
+            .maybeSingle();
+          if (sp) {
+            await supabase
+              .from('seller_products')
+              .update({
+                sales: Math.max(0, (sp.sales || 1) - (matchedOrder.quantity || 1)),
+                earnings: roundMoney(Math.max(0, (sp.earnings || 0) - Number(matchedOrder.seller_commission || 0))),
+              })
+              .eq('id', sp.id);
+          }
+        }
+
+        return NextResponse.json(
+          {
+            message: 'PayU refund indication processed. Order marked as refunded and pending fulfillment balance cleared.',
+            orderId: matchedOrder.id,
+            status: 'refunded',
+          },
+          { status: 200 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          message: 'PayU refund webhook received but matching order was not found in database.',
+          refundTxnId,
+          refundPaymentId,
+        },
+        { status: 200 }
+      );
     }
 
     // -------------------------------------------------------------------------
@@ -279,7 +390,6 @@ export async function POST(request: NextRequest) {
 
     const sellerPct = Number(adminSettings?.seller_commission_percentage ?? 10);
     const platformPct = Number(adminSettings?.platform_commission_percentage ?? 10);
-    const coolingDays = Number(adminSettings?.commission_cooling_period_days ?? 15);
 
     const unitPrice = Number(product.final_price || product.base_price || 0);
     const totalAmount = roundMoney(unitPrice * quantity);
@@ -326,8 +436,8 @@ export async function POST(request: NextRequest) {
     const platformCommission = roundMoney(totalAmount * (platformPct / 100));
     const vendorPayout = roundMoney(totalAmount - sellerCommission - platformCommission);
 
-    const releaseDate = new Date();
-    releaseDate.setDate(releaseDate.getDate() + Math.max(0, coolingDays));
+    // 48-Hour PayU Safety Net Holding Window
+    const releaseDate = new Date(Date.now() + 48 * 3600 * 1000);
 
     const customerDetails = {
       name: buyerName,

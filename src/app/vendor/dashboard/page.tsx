@@ -19,6 +19,8 @@ import {
   MessageSquare,
   RefreshCw,
   ExternalLink,
+  ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
@@ -37,8 +39,10 @@ interface OrderItem {
   productName: string;
   vendorPayout: number;
   basePrice: number;
+  payment_status: string;
   order_status: string;
   commission_status: string;
+  commission_release_date?: string;
   createdAt: string;
   customerName: string;
   customerEmail: string;
@@ -112,6 +116,7 @@ export default function VendorDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -157,23 +162,64 @@ export default function VendorDashboard() {
       }
 
       const now = new Date();
+      const nowMs = now.getTime();
       const cm = now.getMonth();
       const cy = now.getFullYear();
 
       const totalSold = products.reduce((s, p) => s + (p.sold_count ?? 0), 0);
       const activeListings = products.filter((p) => p.is_active !== false).length;
 
-      const totalEarned = rawOrders
-        .filter((o) => o.commission_status === 'available' || o.commission_status === 'paid')
-        .reduce((s, o) => s + (o.vendor_payout ?? o.vendorPayout ?? 0), 0);
+      // Modulate numbers based on PayU 48-Hour Safety Net and Refunds
+      let totalEarned = 0;
+      let inTransit = 0; // Pending Fulfillment
+      let thisMonthSales = 0;
+      let thisMonthEarnings = 0;
 
-      const inTransit = rawOrders
-        .filter((o) => o.commission_status === 'pending')
-        .reduce((s, o) => s + (o.vendor_payout ?? o.vendorPayout ?? 0), 0);
+      rawOrders.forEach((o) => {
+        const payout = Number(o.vendor_payout ?? o.vendorPayout ?? 0);
+        const orderDate = new Date(o.created_at ?? o.createdAt);
+        const isThisMonth = !isNaN(orderDate.getTime()) && orderDate.getMonth() === cm && orderDate.getFullYear() === cy;
 
-      const thisMonthOrders = rawOrders.filter((o) => {
-        const d = new Date(o.created_at ?? o.createdAt);
-        return d.getMonth() === cm && d.getFullYear() === cy;
+        const isRefunded =
+          o.payment_status === 'refunded' ||
+          o.order_status === 'refunded' ||
+          o.commission_status === 'refunded';
+
+        // If refunded within 48h or later, payout drops to 0 in pending fulfillment and is NEVER added to total earned
+        if (isRefunded) {
+          return;
+        }
+
+        const isCompleted =
+          o.payment_status === 'completed' ||
+          o.order_status === 'delivered' ||
+          o.order_status === 'confirmed';
+
+        if (!isCompleted && o.order_status !== 'pending') {
+          return;
+        }
+
+        if (isThisMonth) {
+          thisMonthSales++;
+        }
+
+        // 48-Hour Safety Net Rule:
+        // Holds in PayU for 48 hours (Pending Fulfillment). After 48 hours without refund, unlocks to Total Earned.
+        const releaseDate = o.commission_release_date ? new Date(o.commission_release_date) : null;
+        const isPast48h = !isNaN(orderDate.getTime()) && (nowMs - orderDate.getTime() >= 48 * 3600 * 1000);
+        const isSafetyNetMatured = releaseDate && !isNaN(releaseDate.getTime())
+          ? nowMs >= releaseDate.getTime()
+          : isPast48h;
+
+        const isAvailable = o.commission_status === 'available' || o.commission_status === 'paid' || isSafetyNetMatured;
+
+        if (isAvailable) {
+          totalEarned += payout;
+          if (isThisMonth) thisMonthEarnings += payout;
+        } else {
+          // Still within 48-hour safety net holding window
+          inTransit += payout;
+        }
       });
 
       setStats({
@@ -181,11 +227,8 @@ export default function VendorDashboard() {
         totalEarned,
         inTransit,
         activeListings,
-        thisMonthSales: thisMonthOrders.length,
-        thisMonthEarnings: thisMonthOrders.reduce(
-          (s, o) => s + (o.vendor_payout ?? o.vendorPayout ?? 0),
-          0
-        ),
+        thisMonthSales,
+        thisMonthEarnings,
       });
 
       setTopProducts(
@@ -201,8 +244,10 @@ export default function VendorDashboard() {
             productName: o.product?.name ?? o.product_name ?? o.productName ?? 'Digital Course',
             vendorPayout: Number(o.vendor_payout ?? o.vendorPayout ?? 0),
             basePrice: Number(o.base_price ?? o.basePrice ?? 0),
+            payment_status: o.payment_status ?? (o.order_status === 'refunded' ? 'refunded' : 'completed'),
             order_status: o.order_status ?? o.status ?? 'pending',
             commission_status: o.commission_status ?? 'pending',
+            commission_release_date: o.commission_release_date,
             createdAt: o.created_at ?? o.createdAt ?? new Date().toISOString(),
             customerName: cust.name,
             customerEmail: cust.email,
@@ -241,7 +286,6 @@ export default function VendorDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderStatus: 'delivered',
-          commissionStatus: 'available',
         }),
       });
 
@@ -256,30 +300,61 @@ export default function VendorDashboard() {
             ? {
                 ...ord,
                 order_status: 'delivered',
-                commission_status: 'available',
               }
             : ord
         )
       );
 
-      // Update KPIs
-      setStats((prev) => {
-        const targetOrder = orders.find((o) => o.id === orderId);
-        const payout = targetOrder?.vendorPayout || 0;
-        return {
-          ...prev,
-          inTransit: Math.max(0, prev.inTransit - payout),
-          totalEarned: prev.totalEarned + payout,
-        };
-      });
-
-      setToastMessage(`Access granted for order #${orderId.slice(-6)}! Commission released.`);
+      setToastMessage(`Access granted for order #${orderId.slice(-6)}! Student access credentials fulfilled.`);
       setTimeout(() => setToastMessage(null), 4000);
+      fetchData(true);
     } catch (err: any) {
       console.error('Error granting access:', err);
       alert(err.message || 'Failed to update access');
     } finally {
       setUpdatingOrderId(null);
+    }
+  };
+
+  const handleRefundOrder = async (orderId: string) => {
+    const confirmRefund = window.confirm(
+      `Are you sure you want to issue a refund for order #${orderId.slice(-8)}?\n\nThis will trigger the PayU refund service, mark the order as refunded, and remove the amount from Pending Fulfillment (setting it to ₹0).`
+    );
+    if (!confirmRefund) return;
+
+    try {
+      setRefundingOrderId(orderId);
+      const res = await fetch('/api/payments/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to initiate refund');
+      }
+
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.id === orderId
+            ? {
+                ...ord,
+                order_status: 'refunded',
+                payment_status: 'refunded',
+                commission_status: 'refunded',
+              }
+            : ord
+        )
+      );
+
+      setToastMessage(`Order #${orderId.slice(-8)} refunded via PayU! Pending fulfillment balance cleared to ₹0.`);
+      setTimeout(() => setToastMessage(null), 4000);
+      fetchData(true);
+    } catch (err: any) {
+      alert(err.message || 'Refund failed');
+    } finally {
+      setRefundingOrderId(null);
     }
   };
 
@@ -399,7 +474,7 @@ export default function VendorDashboard() {
             <span className="text-xs font-medium text-gray-500">Total Earned</span>
           </div>
           <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(stats.totalEarned)}</p>
-          <p className="text-xs text-gray-400 mt-1">+{formatCurrency(stats.thisMonthEarnings)} this month</p>
+          <p className="text-xs text-gray-400 mt-1">Unlocked after 48h safety net</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
@@ -408,7 +483,9 @@ export default function VendorDashboard() {
             <span className="text-xs font-medium text-gray-500">Pending Fulfillment</span>
           </div>
           <p className="text-2xl font-bold text-amber-600 tabular-nums">{formatCurrency(stats.inTransit)}</p>
-          <p className="text-xs text-gray-400 mt-1">Unlocks on access grant</p>
+          <p className="text-xs text-amber-600/90 mt-1 flex items-center gap-1 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5" /> Held in PayU (48h safety net)
+          </p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
@@ -468,9 +545,19 @@ export default function VendorDashboard() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {orders.map((order) => {
-                  const isPending = order.order_status === 'pending';
+                  const isRefunded =
+                    order.payment_status === 'refunded' ||
+                    order.order_status === 'refunded' ||
+                    order.commission_status === 'refunded';
+                  const orderTime = new Date(order.createdAt).getTime();
+                  const nowMs = Date.now();
+                  const diffMs = !isNaN(orderTime) ? (orderTime + 48 * 3600 * 1000) - nowMs : 0;
+                  const remainingHours = Math.max(0, Math.ceil(diffMs / (3600 * 1000)));
+                  const isWithin48hSafetyNet = !isRefunded && diffMs > 0;
                   const isDelivered = order.order_status === 'delivered' || order.order_status === 'confirmed';
+                  const isPending = order.order_status === 'pending';
                   const isUpdating = updatingOrderId === order.id;
+                  const isRefunding = refundingOrderId === order.id;
 
                   const orderDate = new Date(order.createdAt);
                   const formattedDate = orderDate.toLocaleDateString('en-IN', {
@@ -550,42 +637,91 @@ export default function VendorDashboard() {
                         <div className="font-semibold text-gray-900 text-sm truncate max-w-[220px]">
                           {order.productName}
                         </div>
-                        <div className="text-xs font-bold text-emerald-600 mt-0.5">
-                          {formatCurrency(order.vendorPayout)}{' '}
-                          <span className="text-[11px] font-normal text-gray-400">payout (80%)</span>
-                        </div>
+                        {isRefunded ? (
+                          <div className="text-xs font-semibold text-rose-600 mt-0.5 flex items-center gap-1.5">
+                            <span className="line-through text-gray-400 font-normal">{formatCurrency(order.vendorPayout)}</span>
+                            <span>₹0.00 (Refunded via PayU)</span>
+                          </div>
+                        ) : (
+                          <div className="text-xs font-bold text-emerald-600 mt-0.5">
+                            {formatCurrency(order.vendorPayout)}{' '}
+                            <span className="text-[11px] font-normal text-gray-400">payout (80%)</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* 4. Fulfillment Status & Action */}
                       <td className="px-5 py-4 align-top">
-                        {isPending ? (
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              <Clock className="w-3 h-3 text-amber-600" />
-                              Pending Access
-                            </span>
-                            <button
-                              onClick={() => handleGrantAccess(order.id)}
-                              disabled={isUpdating}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
-                            >
-                              {isUpdating ? (
-                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              )}
-                              Mark Access Granted
-                            </button>
-                          </div>
-                        ) : isDelivered ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Access Granted
+                        {isRefunded ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                            Refunded via PayU
                           </div>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                            {order.order_status}
-                          </span>
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {isWithin48hSafetyNet ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                                  title="Payment safely held in PayU during 48-hour window before entering Total Earned"
+                                >
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  Safety Net ({remainingHours}h remaining)
+                                </span>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  title="48-hour safety net window cleared. Added to Total Earned"
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  Released to Total Earned
+                                </span>
+                              )}
+
+                              {isPending ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                  Pending Access
+                                </span>
+                              ) : isDelivered ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  Access Granted
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              {isPending && (
+                                <button
+                                  onClick={() => handleGrantAccess(order.id)}
+                                  disabled={isUpdating}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                                >
+                                  {isUpdating ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  )}
+                                  Grant Access
+                                </button>
+                              )}
+
+                              {isWithin48hSafetyNet && (
+                                <button
+                                  onClick={() => handleRefundOrder(order.id)}
+                                  disabled={isRefunding}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 text-rose-700 border border-rose-200 text-xs font-semibold rounded-lg transition-colors"
+                                  title="Initiate refund via PayU within 48h safety net"
+                                >
+                                  {isRefunding ? (
+                                    <div className="w-3 h-3 border-2 border-rose-700 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                  )}
+                                  Refund (PayU)
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </td>
                     </tr>

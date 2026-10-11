@@ -159,10 +159,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedOrders = (orders || []).map((order: any) => ({
-      ...order,
-      base_price: Number(order?.base_price ?? order?.[legacyPriceKey] ?? 0),
-    }));
+    const now = Date.now();
+    const maturedOrderIds: string[] = [];
+
+    const normalizedOrders = (orders || []).map((order: any) => {
+      let commissionStatus = order.commission_status ?? 'pending';
+
+      const isRefunded =
+        order.payment_status === 'refunded' ||
+        order.order_status === 'refunded' ||
+        commissionStatus === 'refunded';
+
+      if (isRefunded) {
+        commissionStatus = 'refunded';
+      } else if (order.payment_status === 'completed') {
+        const orderTime = new Date(order.created_at).getTime();
+        const releaseTime = order.commission_release_date
+          ? new Date(order.commission_release_date).getTime()
+          : orderTime + 48 * 3600 * 1000;
+
+        // If 48-hour safety net holding period has elapsed without refund, unlock commission
+        if (!isNaN(releaseTime) && now >= releaseTime && commissionStatus === 'pending') {
+          commissionStatus = 'available';
+          maturedOrderIds.push(order.id);
+        }
+      }
+
+      return {
+        ...order,
+        commission_status: commissionStatus,
+        base_price: Number(order?.base_price ?? order?.[legacyPriceKey] ?? 0),
+      };
+    });
+
+    // Background sync to keep database rows updated
+    if (maturedOrderIds.length > 0) {
+      Promise.resolve(
+        supabase
+          .from('orders')
+          .update({ commission_status: 'available', updated_at: new Date().toISOString() })
+          .in('id', maturedOrderIds)
+      ).catch(() => {});
+    }
 
     return NextResponse.json(normalizedOrders, { status: 200 });
   } catch (error) {
@@ -302,12 +340,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const coolingDays = Number(settings?.commission_cooling_period_days ?? 15);
-    const computedCommissionReleaseDate = new Date();
-    computedCommissionReleaseDate.setDate(computedCommissionReleaseDate.getDate() + Math.max(0, coolingDays));
-    const autoCommissionAvailable =
-      coolingDays <= 0 && resolvedPaymentStatus === 'completed';
-    const resolvedCommissionStatus = autoCommissionAvailable ? 'available' : 'pending';
+    // 48-Hour PayU Safety Net Holding Window
+    const computedCommissionReleaseDate = new Date(Date.now() + 48 * 3600 * 1000);
+    const resolvedCommissionStatus = 'pending';
 
     // Create order
     const orderPayload: Record<string, any> = {
