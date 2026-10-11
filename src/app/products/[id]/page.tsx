@@ -109,6 +109,9 @@ function ProductDetailContent() {
       try {
         localStorage.setItem('referral_attribution', JSON.stringify(attributionData));
         localStorage.setItem('referralCode', normalizedParam.toUpperCase());
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('referral-updated'));
+        }
       } catch (e) {
         console.warn('Failed to store referral in localStorage:', e);
       }
@@ -125,6 +128,9 @@ function ProductDetailContent() {
           } else if (parsed?.expiresAt && parsed.expiresAt <= Date.now()) {
             localStorage.removeItem('referral_attribution');
             localStorage.removeItem('referralCode');
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('referral-updated'));
+            }
             setHasReferral(false);
             setReferralId(null);
           }

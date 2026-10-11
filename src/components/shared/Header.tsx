@@ -15,7 +15,61 @@ export default function Header() {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [landingRole, setLandingRole] = useState<'vendor' | 'seller'>('vendor');
+  const [isReferralBuyer, setIsReferralBuyer] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkReferral = () => {
+      if (!pathname?.startsWith('/products')) {
+        setIsReferralBuyer(false);
+        return;
+      }
+
+      try {
+        if (typeof window !== 'undefined') {
+          const searchParams = new URLSearchParams(window.location.search);
+          const urlRef =
+            searchParams.get('ref') ||
+            searchParams.get('referral') ||
+            searchParams.get('code');
+          if (urlRef && urlRef.trim()) {
+            setIsReferralBuyer(true);
+            return;
+          }
+
+          const storedAttr = localStorage.getItem('referral_attribution');
+          if (storedAttr) {
+            const parsed = JSON.parse(storedAttr);
+            if (parsed?.expiresAt && parsed.expiresAt > Date.now() && parsed.ref) {
+              setIsReferralBuyer(true);
+              return;
+            }
+          }
+
+          const legacyRef =
+            localStorage.getItem('referralCode') ||
+            localStorage.getItem('referral_code');
+          if (legacyRef && legacyRef.trim()) {
+            setIsReferralBuyer(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Error reading referral attribution in Header:', err);
+      }
+
+      setIsReferralBuyer(false);
+    };
+
+    checkReferral();
+    window.addEventListener('storage', checkReferral);
+    window.addEventListener('referral-updated', checkReferral);
+
+    return () => {
+      window.removeEventListener('storage', checkReferral);
+      window.removeEventListener('referral-updated', checkReferral);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     const sync = () => {
@@ -237,7 +291,7 @@ export default function Header() {
               )}
             </div>
           </div>
-        ) : (
+        ) : !isReferralBuyer ? (
           <div className="hidden md:flex items-center gap-3">
             <Link
               href="/auth/login"
@@ -246,11 +300,11 @@ export default function Header() {
               Sign In
             </Link>
           </div>
-        )}
+        ) : null}
 
         {/* Mobile Navigation */}
         <div className="md:hidden flex items-center gap-2">
-          {!isAuthenticated && (
+          {!isAuthenticated && !isReferralBuyer && (
             <Link
               href="/auth/login"
               className="px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-primary-600 transition-colors"
