@@ -58,11 +58,18 @@ function ProductDetailContent() {
   const isGuestVendorOrSeller =
     !user?.id && (guestRoleParam === 'vendor' || guestRoleParam === 'seller');
 
+  const initialRefParam = (
+    searchParams.get('ref') ||
+    searchParams.get('referral') ||
+    searchParams.get('code') ||
+    ''
+  ).trim();
+
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasReferral, setHasReferral] = useState(false);
-  const [referralId, setReferralId] = useState<string | null>(null);
+  const [hasReferral, setHasReferral] = useState(Boolean(initialRefParam));
+  const [referralId, setReferralId] = useState<string | null>(initialRefParam || null);
   const [isCopied, setIsCopied] = useState(false);
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [guestName, setGuestName] = useState(user?.name || '');
@@ -318,9 +325,11 @@ function ProductDetailContent() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 text-lg mb-4">{error || 'Product not found'}</p>
-          <Link href={backHref} className="inline-flex items-center rounded-lg bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-semibold transition-colors">
-            Back to Products
-          </Link>
+          {(!hasReferral || user?.role === 'seller' || user?.role === 'vendor') && (
+            <Link href={backHref} className="inline-flex items-center rounded-lg bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-semibold transition-colors">
+              Back to Products
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -372,14 +381,16 @@ function ProductDetailContent() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3">
-        <div className="max-w-7xl mx-auto">
-          <Link href={backHref} className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-100 text-sm font-medium transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-            {user?.role === 'seller' ? 'Back to Marketplace' : 'Back to Home'}
-          </Link>
+      {(!hasReferral || user?.role === 'seller' || user?.role === 'vendor') && (
+        <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3">
+          <div className="max-w-7xl mx-auto">
+            <Link href={backHref} className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-100 text-sm font-medium transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+              {user?.role === 'seller' ? 'Back to Marketplace' : 'Back to Home'}
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 py-8 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
