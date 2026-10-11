@@ -10,19 +10,30 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const cleanId = id?.trim();
 
-    if (!isValidUuid(id)) {
+    if (!cleanId || cleanId === 'undefined' || cleanId === 'null') {
       return NextResponse.json(
-        { error: 'Order not found' },
-        { status: 404 }
+        { error: 'Order ID is required' },
+        { status: 400 }
       );
     }
 
-    const { data: order, error } = await supabase
+    // 1. Fetch order by primary id or payment_gateway_order_id
+    let { data: order, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('id', id)
+      .or(`id.eq.${cleanId},payment_gateway_order_id.eq.${cleanId}`)
       .maybeSingle();
+
+    if (!order) {
+      const { data: fallbackOrder } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', cleanId)
+        .maybeSingle();
+      order = fallbackOrder;
+    }
 
     if (error || !order) {
       return NextResponse.json(
@@ -31,9 +42,45 @@ export async function GET(
       );
     }
 
+    // 2. Fetch associated product details
+    let productDetails = null;
+    if (order.product_id) {
+      const { data: prod } = await supabase
+        .from('products')
+        .select('id, name, category, images, course_duration')
+        .eq('id', order.product_id)
+        .maybeSingle();
+      productDetails = prod;
+    }
+
+    // 3. Fetch guest customer details if present
+    let guestDetails = null;
+    if (order.guest_customer_id) {
+      const { data: guest } = await supabase
+        .from('guest_customers')
+        .select('id, email, name, phone')
+        .eq('id', order.guest_customer_id)
+        .maybeSingle();
+      guestDetails = guest;
+    }
+
+    // 4. Resolve buyer information cleanly
+    const buyerEmail =
+      guestDetails?.email ||
+      order.customer_details?.email ||
+      '';
+    const buyerName =
+      guestDetails?.name ||
+      order.customer_details?.name ||
+      '';
+
     const normalizedOrder = {
       ...order,
       base_price: Number((order as any)?.base_price ?? (order as any)?.[legacyPriceKey] ?? 0),
+      product: productDetails,
+      guest_customer: guestDetails,
+      buyer_email: buyerEmail,
+      buyer_name: buyerName,
     };
 
     return NextResponse.json(normalizedOrder, { status: 200 });

@@ -419,6 +419,16 @@ export async function POST(request: NextRequest) {
       await creditSellerAccount(resolvedSellerId, sellerCommissionCalculated);
     }
 
+    // If order payment is marked completed, automatically notify vendor via Resend
+    if (resolvedPaymentStatus === 'completed' && order?.id) {
+      try {
+        const { triggerVendorSaleNotification } = await import('@/lib/email');
+        await triggerVendorSaleNotification(order.id);
+      } catch (notifyErr) {
+        console.error('[Orders API] Failed to trigger vendor sale notification:', notifyErr);
+      }
+    }
+
     return NextResponse.json(order, { status: 201 });
   } catch (error) {
     console.error('Create order error:', error);

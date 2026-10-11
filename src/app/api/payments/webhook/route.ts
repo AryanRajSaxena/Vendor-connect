@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
+import { notifyVendorOfSale } from '@/lib/email';
 
-interface WebhookPayload {
+export interface WebhookPayload {
   // Generic / Unified payment event fields
   event?: string;
   type?: string;
+  status?: string;
 
   // Buyer / Guest details
   buyerName?: string;
@@ -26,6 +28,20 @@ interface WebhookPayload {
   paymentMethod?: string;
   amount?: number;
 
+  // PayU specific fields
+  txnid?: string;
+  mihpayid?: string;
+  productinfo?: string;
+  firstname?: string;
+  email?: string;
+  phone?: string;
+  mode?: string;
+  udf1?: string;
+  udf2?: string;
+  udf3?: string;
+  udf4?: string;
+  udf5?: string;
+
   // Raw payload wrapper (e.g. from Razorpay or Cashfree)
   payload?: any;
   data?: any;
@@ -36,27 +52,46 @@ const roundMoney = (val: number) => Math.round(val * 100) / 100;
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
-    let body: WebhookPayload = {};
+    let body: WebhookPayload & Record<string, any> = {};
 
     try {
       body = JSON.parse(rawBody);
     } catch {
-      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+      // Parse form-urlencoded / URLSearchParams (standard PayU webhook & callback format)
+      try {
+        const params = new URLSearchParams(rawBody);
+        body = Object.fromEntries(params.entries());
+      } catch {
+        return NextResponse.json({ error: 'Invalid payload format' }, { status: 400 });
+      }
     }
 
     // -------------------------------------------------------------------------
-    // Normalize Gateway-Specific Payloads (Razorpay, Cashfree, or Direct)
+    // Normalize Gateway-Specific Payloads (PayU, Razorpay, Cashfree, or Direct)
     // -------------------------------------------------------------------------
-    let buyerEmail = body.buyerEmail || '';
-    let buyerName = body.buyerName || '';
-    let buyerPhone = body.buyerPhone || '';
-    let productId = body.productId || '';
-    let sellerId = body.sellerId || body.ref || '';
-    let referralCode = body.referralCode || body.ref || '';
-    let paymentGatewayOrderId = body.paymentGatewayOrderId || body.orderId || '';
-    let paymentGatewayPaymentId = body.paymentGatewayPaymentId || '';
-    let paymentMethod = body.paymentMethod || 'upi';
+    let buyerEmail = body.buyerEmail || body.email || '';
+    let buyerName = body.buyerName || body.firstname || body.name || '';
+    let buyerPhone = body.buyerPhone || body.phone || '';
+    let productId = body.productId || body.productinfo || body.udf1 || '';
+    let sellerId = body.sellerId || body.ref || body.udf2 || '';
+    let referralCode = body.referralCode || body.ref || body.udf3 || '';
+    let paymentGatewayOrderId = body.paymentGatewayOrderId || body.orderId || body.txnid || '';
+    let paymentGatewayPaymentId = body.paymentGatewayPaymentId || body.mihpayid || body.bank_ref_num || '';
+    let paymentMethod = body.paymentMethod || body.mode || 'upi';
     let quantity = Number(body.quantity || 1);
+
+    // Support PayU Webhook format: status === 'success' or unmappedstatus === 'captured'
+    if (body.status === 'success' || body.unmappedstatus === 'captured' || body.mihpayid || body.txnid) {
+      paymentGatewayPaymentId = String(body.mihpayid || body.bank_ref_num || paymentGatewayPaymentId);
+      paymentGatewayOrderId = String(body.txnid || paymentGatewayOrderId);
+      buyerEmail = buyerEmail || body.email || '';
+      buyerName = buyerName || body.firstname || body.name || 'Guest Buyer';
+      buyerPhone = buyerPhone || body.phone || '';
+      paymentMethod = body.mode || paymentMethod;
+      productId = productId || body.productinfo || body.udf1 || '';
+      sellerId = sellerId || body.udf2 || '';
+      referralCode = referralCode || body.udf3 || '';
+    }
 
     // Support Razorpay Webhook format: event === 'payment.captured' or 'order.paid'
     if (body.event?.startsWith('payment.') || body.event?.startsWith('order.')) {
@@ -141,6 +176,9 @@ export async function POST(request: NextRequest) {
       );
 
       if (!rpcError && rpcResult?.success) {
+        const { triggerVendorSaleNotification } = await import('@/lib/email');
+        await triggerVendorSaleNotification(orderId);
+
         return NextResponse.json({
           message: 'Order processed successfully via database transaction',
           order: rpcResult,
@@ -148,6 +186,33 @@ export async function POST(request: NextRequest) {
       }
     } catch {
       // If RPC is not created yet, proceed to robust fallback
+    }
+
+    // Check if order was already registered (e.g. pre-checkout) and now marked as completed by PayU
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id, payment_status, vendor_id, product_id, guest_customer_id, customer_details')
+      .or(`id.eq.${orderId},payment_gateway_order_id.eq.${paymentGatewayOrderId || orderId}`)
+      .maybeSingle();
+
+    if (existingOrder?.id) {
+      await supabase
+        .from('orders')
+        .update({
+          payment_status: 'completed',
+          order_status: 'confirmed',
+          payment_gateway_payment_id: paymentGatewayPaymentId || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingOrder.id);
+
+      const { triggerVendorSaleNotification } = await import('@/lib/email');
+      await triggerVendorSaleNotification(existingOrder.id);
+
+      return NextResponse.json({
+        message: 'Order confirmed and vendor notified',
+        orderId: existingOrder.id,
+      }, { status: 200 });
     }
 
     // -------------------------------------------------------------------------
@@ -198,7 +263,7 @@ export async function POST(request: NextRequest) {
     // Step 2: Fetch Product & Calculate Splits
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id, vendor_id, base_price, final_price, sold_count, is_active')
+      .select('id, name, vendor_id, base_price, final_price, sold_count, is_active')
       .eq('id', productId)
       .maybeSingle();
 
@@ -335,6 +400,57 @@ export async function POST(request: NextRequest) {
       .from('products')
       .update({ sold_count: Number(product.sold_count || 0) + quantity })
       .eq('id', productId);
+
+    // Step 5: Notify Vendor of New Sale (24-Hour Fulfillment SLA)
+    try {
+      let vendorEmail: string | undefined;
+      const { data: vendorRecord } = await supabase
+        .from('vendors')
+        .select('email')
+        .eq('id', product.vendor_id)
+        .maybeSingle();
+
+      vendorEmail = vendorRecord?.email;
+      if (!vendorEmail) {
+        const { data: userRecord } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', product.vendor_id)
+          .maybeSingle();
+        vendorEmail = userRecord?.email;
+      }
+
+      // Resolve buyer details from guest_customers table
+      let finalBuyerName = buyerName;
+      let finalBuyerEmail = buyerEmail;
+
+      if (guestCustomerId) {
+        const { data: guestRow } = await supabase
+          .from('guest_customers')
+          .select('name, email, phone')
+          .eq('id', guestCustomerId)
+          .maybeSingle();
+
+        if (guestRow?.email) finalBuyerEmail = guestRow.email;
+        if (guestRow?.name) finalBuyerName = guestRow.name;
+      }
+
+      const courseName = product.name || 'Course';
+
+      if (vendorEmail) {
+        await notifyVendorOfSale(
+          vendorEmail,
+          finalBuyerName,
+          finalBuyerEmail,
+          courseName,
+          newOrder?.id || orderId
+        );
+      } else {
+        console.warn(`[Webhook] No vendor email found for vendor_id: ${product.vendor_id}`);
+      }
+    } catch (emailErr) {
+      console.error('[Webhook] Failed to dispatch vendor notification email:', emailErr);
+    }
 
     return NextResponse.json(
       {

@@ -274,6 +274,9 @@ function ProductDetailContent() {
       }
 
       const order = await res.json();
+      try {
+        localStorage.setItem('last_checkout_email', trimmedEmail);
+      } catch {}
       window.location.href = `/order-confirmation?orderId=${order.id}`;
     } catch (err: any) {
       console.error('Guest enrollment error:', err);
