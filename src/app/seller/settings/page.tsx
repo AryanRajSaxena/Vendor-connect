@@ -400,7 +400,7 @@ export default function SellerSettings() {
                   : 'bg-white border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500'
               }`}
             />
-            <p className="text-xs text-gray-400 mt-1">Instant settlements direct to Google Pay, PhonePe, or Paytm UPI.</p>
+            <p className="text-xs text-gray-400 mt-1">Settlements processed within 48 working hours direct to Google Pay, PhonePe, or Paytm UPI.</p>
           </div>
 
           {/* Bank Details */}

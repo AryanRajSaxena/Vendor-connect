@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Store, CreditCard, TrendingUp, Sparkles, Wallet, FileText, Percent, CheckCircle2, Share2, Users } from 'lucide-react';
+import { CheckCircle, Store, CreditCard, TrendingUp, Wallet, FileText, Percent, CheckCircle2, Share2, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { RoleSelectorModal, UserRole } from '@/components/shared/RoleSelectorModal';
@@ -172,7 +172,7 @@ export default function HomePage() {
       {
         step: '04',
         title: 'Withdraw to Your Bank',
-        desc: 'Watch commissions hit your wallet instantly and withdraw them to your bank.',
+        desc: 'Commissions are settled within 48 working hours and withdrawable to your bank.',
       },
     ],
   };
@@ -316,9 +316,8 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-400 z-10">
+                    <div className="flex items-center text-xs text-slate-400 z-10">
                       <span>By Top Indian Analyst</span>
-                      <span>⭐ 4.9 (1,240+ reviews)</span>
                     </div>
 
                     {/* Background Candlestick Graphic */}
@@ -386,10 +385,6 @@ export default function HomePage() {
                   </div>
 
                   <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-xl">
-                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full mb-3">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Instant Rupee Value
-                    </div>
                     <h3 className="text-lg font-bold text-white mb-2 leading-snug">
                       Earn ₹1,550 on Every Single Sale
                     </h3>
@@ -408,7 +403,7 @@ export default function HomePage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                        <span>Instant wallet crediting upon checkout</span>
+                        <span>Settlement within 48 working hours</span>
                       </div>
                     </div>
                   </div>

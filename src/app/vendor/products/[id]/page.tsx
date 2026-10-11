@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { X, Plus, Info, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
+import { X, Plus, Info, ChevronDown, ChevronUp, ArrowLeft, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateCommissions, formatCurrency, getImageUrl } from '@/utils/calculations';
 
@@ -362,7 +362,7 @@ export default function EditCoursePage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Final Price (including taxes) (₹) <span className="text-red-500">*</span>
+                      Course Price (₹) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -372,6 +372,17 @@ export default function EditCoursePage() {
                       min="1"
                       className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <div className="mt-2.5 space-y-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <p className="flex items-center gap-1.5 font-medium text-slate-800">
+                        <span className="text-blue-600 font-bold">ℹ️</span> Price must be <strong className="text-slate-900">inclusive of all taxes (GST)</strong>.
+                      </p>
+                      <p className="text-slate-600">
+                        • Payment gateway cost (<strong className="text-slate-800">2.4%</strong>) will be deducted from your <strong className="text-slate-800">80%</strong> share.
+                      </p>
+                      <p className="text-slate-600">
+                        • Settlement for both seller and vendor is processed within <strong className="text-slate-800">48 working hours</strong> instead of instant settlement.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -671,22 +682,44 @@ export default function EditCoursePage() {
               {commission ? (
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Your Price</span>
+                    <span className="text-gray-500">Course Price (GST incl.)</span>
                     <span className="font-semibold text-gray-900">
                       {formatCurrency(parseFloat(formData.basePrice) || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between pb-3 border-b border-gray-100">
-                    <span className="text-gray-500">Platform Cut (20%)</span>
-                    <span className="font-semibold text-red-500">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Platform Share (20%)</span>
+                    <span className="font-semibold text-slate-500">
                       -{formatCurrency(commission.platformCommission)}
                     </span>
                   </div>
-                  <div className="flex justify-between pt-3 border-t border-gray-200">
-                    <span className="font-bold text-gray-900">You Receive (80%)</span>
-                    <span className="font-bold text-green-600 text-base">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Vendor Gross Share (80%)</span>
+                    <span className="font-semibold text-gray-900">
                       {formatCurrency(commission.vendorPayout)}
                     </span>
+                  </div>
+                  <div className="flex justify-between pb-3 border-b border-gray-100">
+                    <span className="text-gray-500">Payment Gateway Fee (2.4%)</span>
+                    <span className="font-semibold text-red-500">
+                      -{formatCurrency(commission.gatewayFee)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span className="font-bold text-gray-900">Net Vendor Payout (77.6%)</span>
+                    <span className="font-bold text-green-600 text-base">
+                      {formatCurrency(commission.netVendorPayout)}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-100 bg-blue-50/60 rounded-lg p-2.5 text-xs text-blue-900 space-y-1">
+                    <div className="font-semibold flex items-center gap-1 text-blue-800">
+                      <Clock className="w-3.5 h-3.5 text-blue-600" />
+                      48 Working Hours Settlement
+                    </div>
+                    <p className="text-blue-700 leading-relaxed text-[11px]">
+                      Settlement for both seller (10% commission) and vendor (77.6% net) is processed within 48 working hours.
+                    </p>
                   </div>
                 </div>
               ) : (

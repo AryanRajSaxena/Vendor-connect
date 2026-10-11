@@ -234,7 +234,7 @@ export default function SellerDashboard() {
                 </div>
                 
                 <p className="text-slate-300 text-sm leading-relaxed">
-                  Earn a flat 10% commission on every successful sale through your referral link or product listing. Instant payouts and transparent tracking.
+                  Earn a flat 10% commission on every successful sale through your referral link or product listing. Settlement within 48 working hours and transparent tracking.
                 </p>
               </div>
 
@@ -267,8 +267,8 @@ export default function SellerDashboard() {
                   <p className="text-slate-400">Fixed commission rate for all products</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-violet-400 mb-2">Instant</p>
-                  <p className="text-slate-400">Real-time earnings tracking and payouts</p>
+                  <p className="text-3xl font-bold text-violet-400 mb-2">48h SLA</p>
+                  <p className="text-slate-400">Settlement within 48 working hours</p>
                 </div>
                 <div>
                   <p className="text-3xl font-bold text-cyan-400 mb-2">Unlimited</p>

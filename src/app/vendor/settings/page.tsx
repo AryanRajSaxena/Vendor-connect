@@ -572,7 +572,7 @@ export default function VendorSettings() {
             <div className="py-4 flex items-center justify-between first:pt-0">
               <div className="pr-4">
                 <p className="text-sm font-semibold text-gray-900">
-                  Instant Payment &amp; Sale Alerts
+                  Real-time Sale &amp; Order Alerts
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Receive an immediate email with student contact info &amp; enrollment details when a sale closes.

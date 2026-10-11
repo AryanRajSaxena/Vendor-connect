@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, Lock, RotateCcw, Star, Package } from 'lucide-react';
+import { Search, ShoppingCart, Lock, RotateCcw, Package } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -124,10 +124,6 @@ export default function HomePage() {
                 {product.image}
               </div>
               <h3 className="font-semibold text-gray-900 mb-2 truncate">{product.name}</h3>
-              <div className="flex items-center gap-2 mb-3">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="text-sm text-gray-600">{product.rating}</span>
-              </div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl font-bold text-primary">₹{product.price}</span>
                 <span className="text-sm text-gray-500 line-through">₹{product.originalPrice}</span>

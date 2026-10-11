@@ -9,21 +9,27 @@ export interface CommissionBreakdown {
   customerPrice: number;
   sellerCommission: number;
   platformCommission: number;
-  vendorPayout: number;
+  vendorPayout: number; // Gross 80%
+  gatewayFee: number; // 2.4% payment gateway fee deducted from vendor share
+  netVendorPayout: number; // Net 77.6% (80% - 2.4%)
 }
 
 /**
  * Calculate commission breakdown for a product
- * Vendor receives 80%, Platform gets 20%
+ * Price is inclusive of taxes (GST)
+ * Vendor receives 80% gross; 2.4% payment gateway fee is deducted from vendor's share -> 77.6% net vendor payout
+ * Platform cut is 20% (including 10% seller commission upon referral)
  */
 export function calculateCommissions(
   basePrice: number,
   vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE
 ): CommissionBreakdown {
-  const customerPrice = basePrice; // no markup — listed at vendor's price
+  const customerPrice = basePrice; // no markup — listed at vendor's price inclusive of GST
   const vendorPayout = customerPrice * (vendorPayoutPercentage / 100);
+  const gatewayFee = customerPrice * 0.024; // 2.4% gateway fee deducted from vendor's share
+  const netVendorPayout = Math.max(0, vendorPayout - gatewayFee);
   const platformCommission = customerPrice * ((100 - vendorPayoutPercentage) / 100);
-  const sellerCommission = 0; // Not used in display anymore
+  const sellerCommission = customerPrice * 0.10; // 10% seller referral commission
 
   return {
     basePrice,
@@ -33,6 +39,8 @@ export function calculateCommissions(
     sellerCommission: Math.round(sellerCommission * 100) / 100,
     platformCommission: Math.round(platformCommission * 100) / 100,
     vendorPayout: Math.round(vendorPayout * 100) / 100,
+    gatewayFee: Math.round(gatewayFee * 100) / 100,
+    netVendorPayout: Math.round(netVendorPayout * 100) / 100,
   };
 }
 
