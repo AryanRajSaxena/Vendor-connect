@@ -298,11 +298,6 @@ export default function SellerDashboard() {
             <h1 className="text-2xl font-semibold text-slate-100">
               {getGreeting()}, {user.name?.split(' ')[0] || 'there'}
             </h1>
-            <p className="mt-1 text-sm text-slate-300">
-              {stats.totalEarnings > 0
-                ? 'You are in earning mode. Scale your payouts by adding high-converting products and driving repeat sales.'
-                : 'Your first commission is one product away. Add a product and start earning today.'}
-            </p>
           </div>
           <Link
             href="/seller/marketplace"
@@ -486,26 +481,6 @@ export default function SellerDashboard() {
           </div>
         )}
       </div>
-
-      {/* Quick links */}
-      {sellerProducts.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <Link
-            href="/seller/sales"
-            className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 hover:border-gray-300 transition-colors group"
-          >
-            <span className="text-sm font-medium text-gray-900">Sales & Earnings</span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-          </Link>
-          <Link
-            href="/seller/marketplace"
-            className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 hover:border-gray-300 transition-colors group"
-          >
-            <span className="text-sm font-medium text-gray-900">Browse Marketplace</span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

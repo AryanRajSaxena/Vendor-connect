@@ -227,16 +227,18 @@ export default function Header() {
         {/* Desktop Navigation */}
         {isAuthenticated ? (
           <div className="hidden md:flex items-center gap-4">
-            <Link
-              href={getRoleBasedDashboardLink()}
-              className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
-            >
-              <Home className="w-4 h-4" />
-              <div className="leading-tight">
-                <p className="text-[10px] uppercase tracking-wide text-gray-400">Workspace</p>
-                <p className="text-sm font-semibold text-gray-800">{getDashboardLabel()}</p>
-              </div>
-            </Link>
+            {user?.role !== 'vendor' && user?.role !== 'seller' && (
+              <Link
+                href={getRoleBasedDashboardLink()}
+                className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 rounded-lg transition-all duration-200"
+              >
+                <Home className="w-4 h-4" />
+                <div className="leading-tight">
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400">Workspace</p>
+                  <p className="text-sm font-semibold text-gray-800">{getDashboardLabel()}</p>
+                </div>
+              </Link>
+            )}
 
             {user?.role === 'customer' && !isHomePage && (
               <Link

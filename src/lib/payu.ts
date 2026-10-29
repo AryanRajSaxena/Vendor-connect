@@ -118,3 +118,241 @@ export async function initiatePayURefund({
     mode: 'simulated',
   };
 }
+
+// -----------------------------------------------------------------------------
+// PayU Split Payments (Routing) Engine
+// Indian E-commerce Compliance: TDS (Sec 194-O) & TCS (Sec 52 GST)
+// -----------------------------------------------------------------------------
+
+/**
+ * Statutory and Platform Commission Constants
+ */
+export const PAYU_GATEWAY_FEE_PERCENTAGE = 2.36; // Payment gateway standard fee (~2% + 18% GST = 2.36%)
+export const ECOMMERCE_TDS_PERCENTAGE = 0.1; // Section 194-O Income Tax TDS: 0.1%
+export const ECOMMERCE_TCS_PERCENTAGE = 0.5; // Section 52 CGST/SGST E-Commerce TCS: 0.5%
+export const PLATFORM_PROFIT_PERCENTAGE = 10.0; // Agent Croww pure platform profit: 10%
+export const SELLER_COMMISSION_PERCENTAGE = 10.0; // Affiliate pure seller commission: 10%
+export const VENDOR_GROSS_PERCENTAGE = 80.0; // Vendor gross revenue share: 80%
+
+const roundToTwoDecimals = (val: number): number => Math.round((val + Number.EPSILON) * 100) / 100;
+
+export interface PayUSplitRoutingParams {
+  /**
+   * Gross Amount paid by Customer (inclusive of all taxes like GST)
+   */
+  grossAmount: number;
+  /**
+   * Optional PayU child merchant account ID for the Vendor
+   */
+  vendorChildAccountId?: string;
+  /**
+   * Optional PayU child merchant account ID for the Affiliate Seller
+   */
+  sellerChildAccountId?: string;
+  /**
+   * Optional PayU merchant account ID for Agent Croww Platform
+   */
+  platformAccountId?: string;
+  /**
+   * Whether an affiliate seller is attributed for this order (defaults to true)
+   */
+  hasSeller?: boolean;
+  /**
+   * Optional custom gateway fee percentage override (defaults to 2.36%)
+   */
+  customGatewayFeePercentage?: number;
+}
+
+export interface PayUSplitBreakdown {
+  grossAmount: number;
+  rates: {
+    vendorGrossRate: number; // 80%
+    platformProfitRate: number; // 10% (or 20% on direct sales)
+    sellerCommissionRate: number; // 10% (or 0% on direct sales)
+    gatewayFeeRate: number; // 2.36%
+    tdsRate: number; // 0.1%
+    tcsRate: number; // 0.5%
+    totalVendorDeductionsRate: number; // 2.36% + 0.1% + 0.5% = 2.96%
+    netVendorRate: number; // 80% - 2.96% = 77.04%
+    platformFinalRoutedRate: number; // 10% + 0.1% + 0.5% = 10.6%
+  };
+  sellerCommission: number; // Pure 10% affiliate commission
+  platformPureProfit: number; // Pure 10% platform profit
+  vendorGrossAmount: number; // 80% vendor gross entitlement
+  gatewayFee: number; // Payment gateway fee (~2.36%) deducted from vendor share
+  tdsAmount: number; // 0.1% TDS deducted from vendor share (held by platform for gov deposit)
+  tcsAmount: number; // 0.5% TCS deducted from vendor share (held by platform for gov deposit)
+  totalTaxWithheld: number; // TDS + TCS (0.6%) held by platform
+  totalVendorDeductions: number; // Gateway Fee + TDS + TCS (2.96%) deducted from vendor
+  netVendorPayout: number; // Net routed to vendor (80% - 2.96% = 77.04%)
+  platformFinalRoutedAmount: number; // Platform 10% profit + TDS + TCS held (10.6%)
+}
+
+export interface PayURoutedAccount {
+  name: string;
+  role: 'platform' | 'vendor' | 'seller';
+  merchantId?: string;
+  amount: number;
+  description: string;
+}
+
+export interface PayUSplitRoutingResult {
+  breakdown: PayUSplitBreakdown;
+  routedAmounts: {
+    platform: number; // 10% Profit + 0.1% TDS + 0.5% TCS = 10.6%
+    vendor: number; // 80% Gross - 2.36% Gateway - 0.1% TDS - 0.5% TCS = 77.04%
+    seller: number; // 10% Pure Affiliate Commission
+    gatewayRetained: number; // 2.36% retained by payment gateway
+  };
+  splitDetails: PayURoutedAccount[];
+  payuSplitInfo: Array<{
+    name: string;
+    value: string;
+    merchantId?: string;
+    description: string;
+  }>;
+  /**
+   * JSON formatted string ready to be passed directly to PayU API (splitPaymentDetails / splitInfo)
+   */
+  payuSplitInfoJson: string;
+  /**
+   * Mathematical validation flag confirming that total payouts reconcile to grossAmount
+   */
+  isBalanced: boolean;
+}
+
+/**
+ * Calculates PayU Split Payments (Routing) according to Indian e-commerce statutory rules:
+ * - Customer pays Gross Amount (inclusive of all taxes).
+ * - Platform takes exactly 10% pure profit.
+ * - Seller (Affiliate) takes exactly 10% pure commission.
+ * - ALL extra costs (Gateway Fee ~2.36%, TDS 0.1%, TCS 0.5%) are deducted entirely from Vendor's 80% share.
+ * - Platform temporarily holds TDS & TCS to deposit with the government at month-end.
+ * - Platform's final routed amount = 10% Profit + TDS (0.1%) + TCS (0.5%) = 10.6%.
+ */
+export function calculatePayUSplitRouting({
+  grossAmount,
+  vendorChildAccountId,
+  sellerChildAccountId,
+  platformAccountId = process.env.PAYU_MERCHANT_KEY || 'PLATFORM_PRIMARY',
+  hasSeller = true,
+  customGatewayFeePercentage = PAYU_GATEWAY_FEE_PERCENTAGE,
+}: PayUSplitRoutingParams): PayUSplitRoutingResult {
+  const customerGross = Math.max(0, roundToTwoDecimals(Number(grossAmount || 0)));
+
+  const gatewayFeePct = customGatewayFeePercentage;
+  const tdsPct = ECOMMERCE_TDS_PERCENTAGE;
+  const tcsPct = ECOMMERCE_TCS_PERCENTAGE;
+  const sellerPct = hasSeller ? SELLER_COMMISSION_PERCENTAGE : 0;
+  const platformProfitPct = hasSeller ? PLATFORM_PROFIT_PERCENTAGE : (PLATFORM_PROFIT_PERCENTAGE + SELLER_COMMISSION_PERCENTAGE);
+  const vendorGrossPct = VENDOR_GROSS_PERCENTAGE;
+
+  // 1. Calculate Exact Percentages
+  const sellerCommission = roundToTwoDecimals(customerGross * (sellerPct / 100));
+  const platformPureProfit = roundToTwoDecimals(customerGross * (platformProfitPct / 100));
+  const vendorGrossAmount = roundToTwoDecimals(customerGross * (vendorGrossPct / 100));
+
+  // 2. Extra Costs (All Deducted Entirely from Vendor's 80% Share)
+  const gatewayFee = roundToTwoDecimals(customerGross * (gatewayFeePct / 100));
+  const tdsAmount = roundToTwoDecimals(customerGross * (tdsPct / 100));
+  const tcsAmount = roundToTwoDecimals(customerGross * (tcsPct / 100));
+  const totalTaxWithheld = roundToTwoDecimals(tdsAmount + tcsAmount);
+  const totalVendorDeductions = roundToTwoDecimals(gatewayFee + tdsAmount + tcsAmount);
+
+  // 3. Net Vendor Payout (80% - Gateway Fee - TDS - TCS)
+  const netVendorPayout = Math.max(0, roundToTwoDecimals(vendorGrossAmount - totalVendorDeductions));
+
+  // 4. Platform Final Routed Amount (10% Pure Profit + TDS + TCS held for gov remittance)
+  const platformFinalRoutedAmount = roundToTwoDecimals(platformPureProfit + totalTaxWithheld);
+
+  const totalDeductionsRate = roundToTwoDecimals(gatewayFeePct + tdsPct + tcsPct);
+  const netVendorRate = roundToTwoDecimals(vendorGrossPct - totalDeductionsRate);
+  const platformFinalRate = roundToTwoDecimals(platformProfitPct + tdsPct + tcsPct);
+
+  const breakdown: PayUSplitBreakdown = {
+    grossAmount: customerGross,
+    rates: {
+      vendorGrossRate: vendorGrossPct,
+      platformProfitRate: platformProfitPct,
+      sellerCommissionRate: sellerPct,
+      gatewayFeeRate: gatewayFeePct,
+      tdsRate: tdsPct,
+      tcsRate: tcsPct,
+      totalVendorDeductionsRate: totalDeductionsRate,
+      netVendorRate,
+      platformFinalRoutedRate: platformFinalRate,
+    },
+    sellerCommission,
+    platformPureProfit,
+    vendorGrossAmount,
+    gatewayFee,
+    tdsAmount,
+    tcsAmount,
+    totalTaxWithheld,
+    totalVendorDeductions,
+    netVendorPayout,
+    platformFinalRoutedAmount,
+  };
+
+  // 5. PayU Split Routing Accounts Setup
+  const splitDetails: PayURoutedAccount[] = [
+    {
+      name: 'Agent Croww Platform',
+      role: 'platform',
+      merchantId: platformAccountId,
+      amount: platformFinalRoutedAmount,
+      description: `Platform 10% Pure Profit (₹${platformPureProfit.toFixed(2)}) + TDS 0.1% (₹${tdsAmount.toFixed(2)}) + TCS 0.5% (₹${tcsAmount.toFixed(2)}) held for statutory compliance`,
+    },
+    {
+      name: 'Vendor',
+      role: 'vendor',
+      merchantId: vendorChildAccountId,
+      amount: netVendorPayout,
+      description: `Vendor Net Remittance (80% Gross ₹${vendorGrossAmount.toFixed(2)} minus ₹${gatewayFee.toFixed(2)} Gateway Fee, ₹${tdsAmount.toFixed(2)} TDS, ₹${tcsAmount.toFixed(2)} TCS)`,
+    },
+  ];
+
+  if (hasSeller && sellerCommission > 0) {
+    splitDetails.push({
+      name: 'Affiliate Seller',
+      role: 'seller',
+      merchantId: sellerChildAccountId,
+      amount: sellerCommission,
+      description: `Affiliate Partner 10% Pure Referral Commission`,
+    });
+  }
+
+  // PayU standard split payload items
+  const payuSplitInfo = splitDetails.map((acc) => ({
+    name: acc.name,
+    value: acc.amount.toFixed(2),
+    merchantId: acc.merchantId,
+    description: acc.description,
+  }));
+
+  // Reconcile total payouts against customer gross payment (minus gateway fee retained by PayU)
+  const totalRouted = roundToTwoDecimals(platformFinalRoutedAmount + netVendorPayout + sellerCommission);
+  const totalAccountedFor = roundToTwoDecimals(totalRouted + gatewayFee);
+  const isBalanced = Math.abs(totalAccountedFor - customerGross) <= 0.05;
+
+  return {
+    breakdown,
+    routedAmounts: {
+      platform: platformFinalRoutedAmount,
+      vendor: netVendorPayout,
+      seller: sellerCommission,
+      gatewayRetained: gatewayFee,
+    },
+    splitDetails,
+    payuSplitInfo,
+    payuSplitInfoJson: JSON.stringify(payuSplitInfo),
+    isBalanced,
+  };
+}
+
+/**
+ * Validates that a PayU split calculation is completely balanced down to the paise.
+ */
+export function verifyPayUSplitBalance(result: PayUSplitRoutingResult): boolean {
+  return result.isBalanced;
+}

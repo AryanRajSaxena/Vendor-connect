@@ -69,13 +69,6 @@ export default function Footer() {
             </Link>
             <span className="text-gray-600">•</span>
             <Link
-              href="/track-order"
-              className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
-            >
-              Access Purchases
-            </Link>
-            <span className="text-gray-600">•</span>
-            <Link
               href="/terms"
               className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
             >

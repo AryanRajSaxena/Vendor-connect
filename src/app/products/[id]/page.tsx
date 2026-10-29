@@ -75,6 +75,7 @@ function ProductDetailContent() {
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [guestName, setGuestName] = useState(user?.name || '');
   const [guestEmail, setGuestEmail] = useState(user?.email || '');
+  const [guestConfirmEmail, setGuestConfirmEmail] = useState(user?.email || '');
   const [guestPhone, setGuestPhone] = useState(user?.phone || '');
   const [guestError, setGuestError] = useState<string | null>(null);
   const [guestSubmitting, setGuestSubmitting] = useState(false);
@@ -84,6 +85,7 @@ function ProductDetailContent() {
     if (user) {
       if (user.name && !guestName) setGuestName(user.name);
       if (user.email && !guestEmail) setGuestEmail(user.email);
+      if (user.email && !guestConfirmEmail) setGuestConfirmEmail(user.email);
       if (user.phone && !guestPhone) setGuestPhone(user.phone);
     }
   }, [user]);
@@ -210,6 +212,11 @@ function ProductDetailContent() {
 
     if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setGuestError('Please enter a valid email address');
+      return;
+    }
+
+    if (trimmedEmail !== guestConfirmEmail.trim().toLowerCase()) {
+      setGuestError('Email addresses do not match. Please double-check and re-enter both fields.');
       return;
     }
 
@@ -750,7 +757,45 @@ function ProductDetailContent() {
                   />
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Use the exact email where you want your course access unlocked
+                  Your course access credentials will be sent to this email
+                </p>
+              </div>
+
+              {/* Field 2b: Confirm Email Address */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Confirm Email Address <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="email"
+                    required
+                    value={guestConfirmEmail}
+                    onChange={(e) => setGuestConfirmEmail(e.target.value)}
+                    onPaste={(e) => e.preventDefault()}
+                    placeholder="Re-enter your email address"
+                    className={`w-full pl-10 pr-3.5 py-2.5 rounded-lg bg-slate-950 border text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-1 transition-colors ${
+                      guestConfirmEmail && guestEmail
+                        ? guestConfirmEmail.trim().toLowerCase() === guestEmail.trim().toLowerCase()
+                          ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                          : 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
+                        : 'border-slate-800 focus:border-emerald-500 focus:ring-emerald-500'
+                    }`}
+                  />
+                </div>
+                {guestConfirmEmail && guestEmail && guestConfirmEmail.trim().toLowerCase() !== guestEmail.trim().toLowerCase() && (
+                  <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                    ⚠ Email addresses do not match
+                  </p>
+                )}
+                {guestConfirmEmail && guestEmail && guestConfirmEmail.trim().toLowerCase() === guestEmail.trim().toLowerCase() && (
+                  <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+                    ✓ Email addresses match
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Re-type carefully — paste is disabled to prevent typos
                 </p>
               </div>
 

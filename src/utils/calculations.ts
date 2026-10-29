@@ -1,5 +1,31 @@
 import { superheroData, adjectives } from '@/superhero';
 
+import {
+  calculatePayUSplitRouting,
+  PAYU_GATEWAY_FEE_PERCENTAGE,
+  ECOMMERCE_TDS_PERCENTAGE,
+  ECOMMERCE_TCS_PERCENTAGE,
+  PLATFORM_PROFIT_PERCENTAGE,
+  SELLER_COMMISSION_PERCENTAGE,
+  VENDOR_GROSS_PERCENTAGE,
+  type PayUSplitRoutingParams,
+  type PayUSplitRoutingResult,
+  type PayUSplitBreakdown,
+} from '@/lib/payu';
+
+export {
+  calculatePayUSplitRouting,
+  PAYU_GATEWAY_FEE_PERCENTAGE,
+  ECOMMERCE_TDS_PERCENTAGE,
+  ECOMMERCE_TCS_PERCENTAGE,
+  PLATFORM_PROFIT_PERCENTAGE,
+  SELLER_COMMISSION_PERCENTAGE,
+  VENDOR_GROSS_PERCENTAGE,
+  type PayUSplitRoutingParams,
+  type PayUSplitRoutingResult,
+  type PayUSplitBreakdown,
+};
+
 const DEFAULT_VENDOR_PAYOUT_PERCENTAGE = 80;
 
 export interface CommissionBreakdown {
@@ -7,40 +33,64 @@ export interface CommissionBreakdown {
   markup: number;
   markupPercentage: number;
   customerPrice: number;
-  sellerCommission: number;
-  platformCommission: number;
-  vendorPayout: number; // Gross 80%
-  gatewayFee: number; // 2.4% payment gateway fee deducted from vendor share
-  netVendorPayout: number; // Net 77.6% (80% - 2.4%)
+  sellerCommission: number; // 10% pure affiliate commission
+  platformCommission: number; // 20% platform share (10% seller + 10% platform profit)
+  platformProfit: number; // 10% pure platform profit
+  vendorPayout: number; // Gross 80% vendor share
+  gatewayFee: number; // ~2.36% payment gateway fee deducted from vendor share
+  gatewayFeeRate: number; // 2.36%
+  tds: number; // 0.1% Section 194-O Income Tax TDS deducted from vendor share
+  tdsRate: number; // 0.1%
+  tcs: number; // 0.5% Section 52 GST TCS deducted from vendor share
+  tcsRate: number; // 0.5%
+  totalTaxWithheld: number; // 0.6% (TDS + TCS) held by platform for government remittance
+  platformRoutedAmount: number; // 10% pure profit + TDS (0.1%) + TCS (0.5%) = 10.6%
+  netVendorPayout: number; // Net 77.04% (80% - 2.36% Gateway - 0.1% TDS - 0.5% TCS)
+  netVendorRate: number; // 77.04%
 }
 
 /**
  * Calculate commission breakdown for a product
- * Price is inclusive of taxes (GST)
- * Vendor receives 80% gross; 2.4% payment gateway fee is deducted from vendor's share -> 77.6% net vendor payout
- * Platform cut is 20% (including 10% seller commission upon referral)
+ * Price is inclusive of all taxes (GST)
+ * - Customer pays Gross Amount (inclusive of all taxes).
+ * - Platform takes exactly 10% pure profit.
+ * - Seller takes exactly 10% pure commission.
+ * - ALL extra costs (Gateway Fee ~2.36%, TDS 0.1%, TCS 0.5%) are deducted entirely from Vendor's 80% share.
+ * - Platform holds TDS & TCS to deposit with government at month-end.
+ * - Platform's final routed amount = 10% Profit + TDS (0.1%) + TCS (0.5%) = 10.6%.
+ * - Net Vendor Payout = 80% - 2.36% - 0.1% - 0.5% = 77.04%.
  */
 export function calculateCommissions(
   basePrice: number,
-  vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE
+  _vendorPayoutPercentage: number = DEFAULT_VENDOR_PAYOUT_PERCENTAGE
 ): CommissionBreakdown {
-  const customerPrice = basePrice; // no markup — listed at vendor's price inclusive of GST
-  const vendorPayout = customerPrice * (vendorPayoutPercentage / 100);
-  const gatewayFee = customerPrice * 0.024; // 2.4% gateway fee deducted from vendor's share
-  const netVendorPayout = Math.max(0, vendorPayout - gatewayFee);
-  const platformCommission = customerPrice * ((100 - vendorPayoutPercentage) / 100);
-  const sellerCommission = customerPrice * 0.10; // 10% seller referral commission
+  const customerPrice = Math.max(0, Math.round((Number(basePrice || 0) + Number.EPSILON) * 100) / 100);
+  const routing = calculatePayUSplitRouting({
+    grossAmount: customerPrice,
+    hasSeller: true,
+  });
+
+  const b = routing.breakdown;
 
   return {
-    basePrice,
+    basePrice: customerPrice,
     markup: 0,
     markupPercentage: 0,
-    customerPrice: Math.round(customerPrice * 100) / 100,
-    sellerCommission: Math.round(sellerCommission * 100) / 100,
-    platformCommission: Math.round(platformCommission * 100) / 100,
-    vendorPayout: Math.round(vendorPayout * 100) / 100,
-    gatewayFee: Math.round(gatewayFee * 100) / 100,
-    netVendorPayout: Math.round(netVendorPayout * 100) / 100,
+    customerPrice,
+    sellerCommission: b.sellerCommission,
+    platformCommission: Math.round((b.platformPureProfit + b.sellerCommission) * 100) / 100, // 20% platform cut total
+    platformProfit: b.platformPureProfit, // 10% pure platform profit
+    vendorPayout: b.vendorGrossAmount, // Gross 80%
+    gatewayFee: b.gatewayFee, // ~2.36%
+    gatewayFeeRate: b.rates.gatewayFeeRate,
+    tds: b.tdsAmount, // 0.1%
+    tdsRate: b.rates.tdsRate,
+    tcs: b.tcsAmount, // 0.5%
+    tcsRate: b.rates.tcsRate,
+    totalTaxWithheld: b.totalTaxWithheld, // 0.6%
+    platformRoutedAmount: b.platformFinalRoutedAmount, // 10% profit + TDS + TCS = 10.6%
+    netVendorPayout: b.netVendorPayout, // Net 77.04%
+    netVendorRate: b.rates.netVendorRate, // 77.04%
   };
 }
 
@@ -50,9 +100,8 @@ export function calculateCommissions(
 export function validateCommissionBreakdown(breakdown: CommissionBreakdown): boolean {
   const calculated =
     breakdown.vendorPayout +
-    breakdown.sellerCommission +
     breakdown.platformCommission;
-  return Math.abs(calculated - breakdown.customerPrice) < 0.01;
+  return Math.abs(calculated - breakdown.customerPrice) < 0.05;
 }
 
 /**

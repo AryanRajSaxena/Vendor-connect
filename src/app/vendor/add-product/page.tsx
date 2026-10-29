@@ -344,10 +344,10 @@ export default function AddProductPage() {
                       <span className="text-blue-600 font-bold">ℹ️</span> Price must be <strong className="text-slate-900">inclusive of all taxes (GST)</strong>.
                     </p>
                     <p className="text-slate-600">
-                      • Payment gateway cost (<strong className="text-slate-800">2.4%</strong>) will be deducted from your <strong className="text-slate-800">80%</strong> share.
+                      • Gateway fee (<strong className="text-slate-800">~2.36%</strong>), TDS (<strong className="text-slate-800">0.1%</strong> Sec 194-O), and TCS (<strong className="text-slate-800">0.5%</strong> GST) are deducted from your <strong className="text-slate-800">80%</strong> share (Net Payout: <strong className="text-emerald-700">77.04%</strong>).
                     </p>
                     <p className="text-slate-600">
-                      • Settlement for both seller and vendor is processed within <strong className="text-slate-800">48 working hours</strong> instead of instant settlement.
+                      • Settlement for both seller (10%) and vendor (77.04% net) is processed within <strong className="text-slate-800">48 working hours</strong>. TDS &amp; TCS are deposited with the government on your behalf.
                     </p>
                   </div>
                 </div>
@@ -732,14 +732,29 @@ export default function AddProductPage() {
                     {formatCurrency(commission.vendorPayout)}
                   </span>
                 </div>
-                <div className="flex justify-between pb-3 border-b border-gray-100">
-                  <span className="text-gray-500">Payment Gateway Fee (2.4%)</span>
-                  <span className="font-semibold text-red-500">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>• Payment Gateway Fee (~2.36%)</span>
+                  <span className="text-red-500 font-medium">
                     -{formatCurrency(commission.gatewayFee)}
                   </span>
                 </div>
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>• TDS Deduction (0.1% Sec 194-O)</span>
+                  <span className="text-amber-600 font-medium">
+                    -{formatCurrency(commission.tds)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-500 pb-3 border-b border-gray-100">
+                  <span>• TCS Deduction (0.5% GST Sec 52)</span>
+                  <span className="text-amber-600 font-medium">
+                    -{formatCurrency(commission.tcs)}
+                  </span>
+                </div>
                 <div className="flex justify-between pt-1">
-                  <span className="font-bold text-gray-900">Net Vendor Payout (77.6%)</span>
+                  <div>
+                    <span className="font-bold text-gray-900 block">Net Vendor Payout (77.04%)</span>
+                    <span className="text-[11px] text-gray-400">Direct NEFT/RTGS bank remittance</span>
+                  </div>
                   <span className="font-bold text-green-600 text-base">
                     {formatCurrency(commission.netVendorPayout)}
                   </span>
@@ -751,7 +766,7 @@ export default function AddProductPage() {
                     48 Working Hours Settlement
                   </div>
                   <p className="text-blue-700 leading-relaxed text-[11px]">
-                    Settlement for both seller (10% commission) and vendor (77.6% net) is processed within 48 working hours.
+                    Settlement for both seller (10% pure commission) and vendor (77.04% net) is processed within 48 working hours. TDS &amp; TCS (0.6% total) are held by platform to pay the government on your behalf.
                   </p>
                 </div>
               </div>

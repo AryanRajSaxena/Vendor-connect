@@ -11,12 +11,11 @@ import {
   LogOut,
   Menu,
   X,
-  Search,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
-  { href: '/seller/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/seller/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/seller/marketplace', label: 'Marketplace', icon: Store },
   { href: '/seller/sales', label: 'Sales & Earnings', icon: ShoppingBag },
   { href: '/seller/settings', label: 'Settings', icon: Settings },
@@ -114,26 +113,6 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
             );
           })}
         </nav>
-
-        {/* Browse CTA */}
-        <div className="px-3 pb-4">
-          <Link
-            href="/seller/dashboard"
-            onClick={() => setSidebarOpen(false)}
-            className="mb-2 flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm rounded-md transition-colors"
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            My Store
-          </Link>
-          <Link
-            href="/seller/marketplace"
-            onClick={() => setSidebarOpen(false)}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-medium text-sm rounded-md transition-colors"
-          >
-            <Search className="w-3.5 h-3.5" />
-            Browse Products
-          </Link>
-        </div>
 
         {/* User + logout */}
         <div className="p-4 border-t border-slate-800">

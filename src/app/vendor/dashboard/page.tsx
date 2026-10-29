@@ -21,6 +21,7 @@ import {
   ExternalLink,
   ShieldCheck,
   RotateCcw,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/calculations';
@@ -111,6 +112,7 @@ export default function VendorDashboard() {
     thisMonthEarnings: 0,
   });
   const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'delivered' | 'refunded'>('all');
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -270,6 +272,36 @@ export default function VendorDashboard() {
       fetchData();
     }
   }, [fetchData, user]);
+
+  const filteredOrders = orders.filter((o) => {
+    if (filterStatus === 'pending') return o.order_status === 'pending' && o.payment_status !== 'refunded';
+    if (filterStatus === 'delivered') return (o.order_status === 'delivered' || o.order_status === 'confirmed') && o.payment_status !== 'refunded';
+    if (filterStatus === 'refunded') return o.payment_status === 'refunded' || o.order_status === 'refunded' || o.commission_status === 'refunded';
+    return true;
+  });
+
+  const exportCSV = () => {
+    const csv = [
+      ['Order ID', 'Date', 'Customer Name', 'Customer Email', 'Customer Phone', 'Course', 'Your Payout (80%)', 'Status'].join(','),
+      ...filteredOrders.map((o) =>
+        [
+          `"${o.id}"`,
+          `"${new Date(o.createdAt).toLocaleDateString()}"`,
+          `"${o.customerName}"`,
+          `"${o.customerEmail}"`,
+          `"${o.customerPhone}"`,
+          `"${o.productName.replace(/"/g, '""')}"`,
+          o.vendorPayout,
+          `"${o.order_status}"`,
+        ].join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'orders-fulfillment.csv';
+    a.click();
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     if (!text) return;
@@ -462,7 +494,7 @@ export default function VendorDashboard() {
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingBag className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-medium text-gray-500">Units Sold</span>
+            <span className="text-xs font-medium text-gray-500">Courses Sold</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 tabular-nums">{stats.totalSold}</p>
           <p className="text-xs text-gray-400 mt-1">+{stats.thisMonthSales} this month</p>
@@ -474,7 +506,6 @@ export default function VendorDashboard() {
             <span className="text-xs font-medium text-gray-500">Total Earned</span>
           </div>
           <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(stats.totalEarned)}</p>
-          <p className="text-xs text-gray-400 mt-1">Unlocked after 48h safety net</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
@@ -500,11 +531,12 @@ export default function VendorDashboard() {
 
       {/* Orders & Fulfillment Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-gray-100 gap-2 bg-gray-50/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-gray-100 gap-3 bg-gradient-to-r from-emerald-50/50 via-slate-50/50 to-white">
           <div>
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              Orders &amp; Fulfillment
-              <span className="text-xs font-medium bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+              <ShoppingBag className="w-4 h-4 text-emerald-600" />
+              <span>Orders &amp; Fulfillment</span>
+              <span className="text-xs font-semibold bg-emerald-100/90 text-emerald-800 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
                 {orders.length} {orders.length === 1 ? 'sale' : 'sales'}
               </span>
             </h2>
@@ -512,17 +544,30 @@ export default function VendorDashboard() {
               Every time a sale happens, a new row appears at the top. Mark access granted to release commissions.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/vendor/sales"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900 transition-colors"
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as any)}
+              className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-700 shadow-xs"
             >
-              All Sales History <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
+              <option value="all">All Orders ({orders.length})</option>
+              <option value="pending">Pending Access ({orders.filter(o => o.order_status === 'pending' && o.payment_status !== 'refunded').length})</option>
+              <option value="delivered">Access Granted ({orders.filter(o => (o.order_status === 'delivered' || o.order_status === 'confirmed') && o.payment_status !== 'refunded').length})</option>
+              <option value="refunded">Refunded ({orders.filter(o => o.payment_status === 'refunded' || o.order_status === 'refunded' || o.commission_status === 'refunded').length})</option>
+            </select>
+            <button
+              onClick={exportCSV}
+              disabled={orders.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 hover:text-emerald-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-xs disabled:opacity-40"
+              title="Export orders as CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
 
-        {orders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="py-20 text-center px-4">
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-gray-400">
               <ShoppingBag className="w-6 h-6" />
@@ -544,7 +589,7 @@ export default function VendorDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.map((order) => {
+                {filteredOrders.map((order) => {
                   const isRefunded =
                     order.payment_status === 'refunded' ||
                     order.order_status === 'refunded' ||
