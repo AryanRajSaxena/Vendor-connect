@@ -40,7 +40,7 @@ interface VendorOrder {
   whatsAppDisplay: string;
 }
 
-type FilterStatus = 'all' | 'pending' | 'confirmed' | 'delivered' | 'cancelled' | 'refunded';
+type FilterStatus = 'all' | 'pending' | 'confirmed' | 'delivered' | 'fulfilled' | 'cancelled' | 'refunded';
 type TimeRange = 'week' | 'month' | 'year' | 'all';
 
 function parseCustomerInfo(order: any) {
@@ -93,7 +93,6 @@ export default function VendorSalesPage() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [monthlyData, setMonthlyData] = useState<{ month: string; earnings: number }[]>([]);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -180,43 +179,6 @@ export default function VendorSalesPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleGrantAccess = async (orderId: string) => {
-    try {
-      setUpdatingOrderId(orderId);
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderStatus: 'delivered',
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to update order fulfillment status');
-      }
-
-      setOrders((prev) =>
-        prev.map((ord) =>
-          ord.id === orderId
-            ? {
-                ...ord,
-                order_status: 'delivered',
-              }
-            : ord
-        )
-      );
-
-      setToastMessage(`Access granted for order #${orderId.slice(-6)}! Student access credentials fulfilled.`);
-      setTimeout(() => setToastMessage(null), 4000);
-      fetchOrders();
-    } catch (err: any) {
-      console.error('Error granting access:', err);
-      alert(err.message || 'Failed to update access');
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  };
-
   const handleRefundOrder = async (orderId: string) => {
     const confirmRefund = window.confirm(
       `Are you sure you want to issue a refund for order #${orderId.slice(-8)}?\n\nThis will trigger the PayU refund service, mark the order as refunded, and remove the amount from Pending Fulfillment (setting it to ₹0).`
@@ -263,6 +225,10 @@ export default function VendorSalesPage() {
     if (filterStatus === 'refunded') {
       const isRef = o.order_status === 'refunded' || o.payment_status === 'refunded' || o.commission_status === 'refunded';
       if (!isRef) return false;
+    } else if (filterStatus === 'pending') {
+      if (o.order_status !== 'pending' && o.order_status !== 'pending_fulfillment') return false;
+    } else if (filterStatus === 'delivered' || filterStatus === 'fulfilled') {
+      if (o.order_status !== 'delivered' && o.order_status !== 'confirmed' && o.order_status !== 'fulfilled') return false;
     } else if (filterStatus !== 'all' && o.order_status !== filterStatus) {
       return false;
     }
@@ -300,8 +266,8 @@ export default function VendorSalesPage() {
         return isWithin48h && o.commission_status !== 'available' && o.commission_status !== 'paid';
       })
       .reduce((s, o) => s + o.vendorPayout, 0),
-    delivered: orders.filter((o) => (o.order_status === 'delivered' || o.order_status === 'confirmed') && o.payment_status !== 'refunded').length,
-    pending: orders.filter((o) => o.order_status === 'pending' && o.payment_status !== 'refunded').length,
+    delivered: orders.filter((o) => (o.order_status === 'delivered' || o.order_status === 'confirmed' || o.order_status === 'fulfilled') && o.payment_status !== 'refunded').length,
+    pending: orders.filter((o) => (o.order_status === 'pending' || o.order_status === 'pending_fulfillment') && o.payment_status !== 'refunded').length,
     refunded: orders.filter((o) => o.order_status === 'refunded' || o.payment_status === 'refunded' || o.commission_status === 'refunded').length,
   };
 
@@ -435,8 +401,8 @@ export default function VendorSalesPage() {
           className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
         >
           <option value="all">All Statuses ({orders.length})</option>
-          <option value="pending">Pending Access ({orders.filter(o => o.order_status === 'pending' && o.payment_status !== 'refunded').length})</option>
-          <option value="delivered">Access Granted ({orders.filter(o => (o.order_status === 'delivered' || o.order_status === 'confirmed') && o.payment_status !== 'refunded').length})</option>
+          <option value="pending">Pending Fulfillment ({stats.pending})</option>
+          <option value="delivered">Access Granted ({stats.delivered})</option>
           <option value="refunded">Refunded ({stats.refunded})</option>
           <option value="cancelled">Cancelled</option>
         </select>
@@ -490,9 +456,8 @@ export default function VendorSalesPage() {
                   const diffMs = !isNaN(orderTime) ? (orderTime + 48 * 3600 * 1000) - nowMs : 0;
                   const remainingHours = Math.max(0, Math.ceil(diffMs / (3600 * 1000)));
                   const isWithin48hSafetyNet = !isRefunded && diffMs > 0;
-                  const isDelivered = order.order_status === 'delivered' || order.order_status === 'confirmed';
-                  const isPending = order.order_status === 'pending';
-                  const isUpdating = updatingOrderId === order.id;
+                  const isDelivered = order.order_status === 'delivered' || order.order_status === 'confirmed' || order.order_status === 'fulfilled';
+                  const isPending = order.order_status === 'pending' || order.order_status === 'pending_fulfillment';
                   const isRefunding = refundingOrderId === order.id;
 
                   const orderDate = new Date(order.createdAt);
@@ -627,18 +592,13 @@ export default function VendorSalesPage() {
 
                             <div className="flex items-center gap-2 pt-1">
                               {isPending && (
-                                <button
-                                  onClick={() => handleGrantAccess(order.id)}
-                                  disabled={isUpdating}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                                <a
+                                  href={`/vendor/fulfill/${order.id}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
                                 >
-                                  {isUpdating ? (
-                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                  )}
-                                  Grant Access
-                                </button>
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Confirm Access Granted
+                                </a>
                               )}
 
                               {isWithin48hSafetyNet && (

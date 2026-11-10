@@ -112,7 +112,7 @@ export async function PUT(
 
     const { data: existingOrder } = await supabase
       .from('orders')
-      .select('payment_method, payment_status, commission_release_date, commission_status')
+      .select('order_status, payment_method, payment_status, commission_release_date, commission_status')
       .eq('id', id)
       .maybeSingle();
 
@@ -140,11 +140,16 @@ export async function PUT(
       updateData.payment_status = 'refunded';
       updateData.commission_status = 'refunded';
     } else {
+      // Automated Payout Locking: Commission clock only unlocks if order has been fulfilled/delivered
+      const currentStatus = updateData.order_status || existingOrder?.order_status;
+      const isFulfilled = currentStatus === 'fulfilled' || currentStatus === 'delivered';
+
       const releaseDate = existingOrder?.commission_release_date
         ? new Date(existingOrder.commission_release_date)
         : null;
       const canReleaseCommission =
         nextPaymentStatus === 'completed' &&
+        isFulfilled &&
         (!releaseDate || Number.isNaN(releaseDate.getTime()) || releaseDate <= new Date());
 
       if (

@@ -117,10 +117,16 @@ export default function VendorDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // 1-Click Proof of Delivery Modal
+  const [fulfillModalOrder, setFulfillModalOrder] = useState<OrderItem | null>(null);
+  const [modalAccessUrl, setModalAccessUrl] = useState('');
+  const [modalAccessNote, setModalAccessNote] = useState('');
+  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'vendor') {
@@ -194,6 +200,7 @@ export default function VendorDashboard() {
 
         const isCompleted =
           o.payment_status === 'completed' ||
+          o.order_status === 'fulfilled' ||
           o.order_status === 'delivered' ||
           o.order_status === 'confirmed';
 
@@ -206,14 +213,15 @@ export default function VendorDashboard() {
         }
 
         // 48-Hour Safety Net Rule:
-        // Holds in PayU for 48 hours (Pending Fulfillment). After 48 hours without refund, unlocks to Total Earned.
+        // Payout settlement clock starts once access is fulfilled.
+        const isFulfilled = o.order_status === 'fulfilled' || o.order_status === 'delivered';
         const releaseDate = o.commission_release_date ? new Date(o.commission_release_date) : null;
         const isPast48h = !isNaN(orderDate.getTime()) && (nowMs - orderDate.getTime() >= 48 * 3600 * 1000);
         const isSafetyNetMatured = releaseDate && !isNaN(releaseDate.getTime())
           ? nowMs >= releaseDate.getTime()
           : isPast48h;
 
-        const isAvailable = o.commission_status === 'available' || o.commission_status === 'paid' || isSafetyNetMatured;
+        const isAvailable = (o.commission_status === 'available' || o.commission_status === 'paid' || isSafetyNetMatured) && isFulfilled;
 
         if (isAvailable) {
           totalEarned += payout;
@@ -274,9 +282,13 @@ export default function VendorDashboard() {
   }, [fetchData, user]);
 
   const filteredOrders = orders.filter((o) => {
-    if (filterStatus === 'pending') return o.order_status === 'pending' && o.payment_status !== 'refunded';
-    if (filterStatus === 'delivered') return (o.order_status === 'delivered' || o.order_status === 'confirmed') && o.payment_status !== 'refunded';
-    if (filterStatus === 'refunded') return o.payment_status === 'refunded' || o.order_status === 'refunded' || o.commission_status === 'refunded';
+    const isPend = o.order_status === 'pending' || o.order_status === 'pending_fulfillment';
+    const isFulf = o.order_status === 'fulfilled' || o.order_status === 'delivered';
+    const isRef = o.payment_status === 'refunded' || o.order_status === 'refunded' || o.commission_status === 'refunded';
+
+    if (filterStatus === 'pending') return isPend && !isRef;
+    if (filterStatus === 'delivered') return isFulf && !isRef;
+    if (filterStatus === 'refunded') return isRef;
     return true;
   });
 
@@ -310,41 +322,70 @@ export default function VendorDashboard() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleGrantAccess = async (orderId: string) => {
+  const openFulfillModal = async (order: OrderItem) => {
+    setFulfillModalOrder(order);
+    setModalError(null);
+    setModalAccessNote(
+      'Access enabled on your registered email. Please use "Forgot Password" or login with OTP on our course portal.'
+    );
+
+    // Pre-fetch default course access URL if available
     try {
-      setUpdatingOrderId(orderId);
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/orders/${order.id}/fulfill`);
+      if (res.ok) {
+        const json = await res.json();
+        setModalAccessUrl(json.defaultAccessUrl || '');
+        if (json.savedAccessNote) setModalAccessNote(json.savedAccessNote);
+      }
+    } catch {
+      setModalAccessUrl('');
+    }
+  };
+
+  const handleModalFulfillSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fulfillModalOrder) return;
+    if (!modalAccessUrl.trim()) {
+      setModalError('Course Login URL is required');
+      return;
+    }
+
+    try {
+      setModalSubmitting(true);
+      setModalError(null);
+
+      const res = await fetch(`/api/orders/${fulfillModalOrder.id}/fulfill`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderStatus: 'delivered',
+          accessUrl: modalAccessUrl.trim(),
+          accessNote: modalAccessNote.trim(),
         }),
       });
 
+      const json = await res.json();
       if (!res.ok) {
-        throw new Error('Failed to update order fulfillment status');
+        throw new Error(json.error || 'Failed to submit proof of delivery');
       }
 
-      // Update state locally
+      // Update local state
       setOrders((prev) =>
         prev.map((ord) =>
-          ord.id === orderId
-            ? {
-                ...ord,
-                order_status: 'delivered',
-              }
+          ord.id === fulfillModalOrder.id
+            ? { ...ord, order_status: 'fulfilled' }
             : ord
         )
       );
 
-      setToastMessage(`Access granted for order #${orderId.slice(-6)}! Student access credentials fulfilled.`);
-      setTimeout(() => setToastMessage(null), 4000);
+      setFulfillModalOrder(null);
+      setToastMessage(`Access verified! Credentials emailed to ${fulfillModalOrder.customerEmail}`);
+      setTimeout(() => setToastMessage(null), 5000);
       fetchData(true);
     } catch (err: any) {
-      console.error('Error granting access:', err);
-      alert(err.message || 'Failed to update access');
+      console.error('Submit modal fulfillment error:', err);
+      setModalError(err.message || 'Failed to fulfill order');
     } finally {
-      setUpdatingOrderId(null);
+      setModalSubmitting(false);
     }
   };
 
@@ -551,8 +592,8 @@ export default function VendorDashboard() {
               className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-700 shadow-xs"
             >
               <option value="all">All Orders ({orders.length})</option>
-              <option value="pending">Pending Access ({orders.filter(o => o.order_status === 'pending' && o.payment_status !== 'refunded').length})</option>
-              <option value="delivered">Access Granted ({orders.filter(o => (o.order_status === 'delivered' || o.order_status === 'confirmed') && o.payment_status !== 'refunded').length})</option>
+              <option value="pending">Pending Access ({orders.filter(o => (o.order_status === 'pending' || o.order_status === 'pending_fulfillment') && o.payment_status !== 'refunded').length})</option>
+              <option value="delivered">Access Granted ({orders.filter(o => (o.order_status === 'fulfilled' || o.order_status === 'delivered') && o.payment_status !== 'refunded').length})</option>
               <option value="refunded">Refunded ({orders.filter(o => o.payment_status === 'refunded' || o.order_status === 'refunded' || o.commission_status === 'refunded').length})</option>
             </select>
             <button
@@ -599,9 +640,8 @@ export default function VendorDashboard() {
                   const diffMs = !isNaN(orderTime) ? (orderTime + 48 * 3600 * 1000) - nowMs : 0;
                   const remainingHours = Math.max(0, Math.ceil(diffMs / (3600 * 1000)));
                   const isWithin48hSafetyNet = !isRefunded && diffMs > 0;
-                  const isDelivered = order.order_status === 'delivered' || order.order_status === 'confirmed';
-                  const isPending = order.order_status === 'pending';
-                  const isUpdating = updatingOrderId === order.id;
+                  const isDelivered = order.order_status === 'fulfilled' || order.order_status === 'delivered';
+                  const isPending = order.order_status === 'pending' || order.order_status === 'pending_fulfillment' || order.order_status === 'confirmed';
                   const isRefunding = refundingOrderId === order.id;
 
                   const orderDate = new Date(order.createdAt);
@@ -737,16 +777,12 @@ export default function VendorDashboard() {
                             <div className="flex items-center gap-2 pt-1">
                               {isPending && (
                                 <button
-                                  onClick={() => handleGrantAccess(order.id)}
-                                  disabled={isUpdating}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                                  onClick={() => openFulfillModal(order)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                                  title="Open 1-Click Proof of Delivery Modal"
                                 >
-                                  {isUpdating ? (
-                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                  )}
-                                  Grant Access
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Confirm Access Granted
                                 </button>
                               )}
 
@@ -826,6 +862,114 @@ export default function VendorDashboard() {
           </div>
         )}
       </div>
+      {/* 1-Click Proof of Delivery Modal */}
+      {fulfillModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950/70">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  1-Click Proof of Delivery
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Order #{fulfillModalOrder.id.slice(-8)} • {fulfillModalOrder.productName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFulfillModalOrder(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleModalFulfillSubmit} className="p-6 space-y-4">
+              {modalError && (
+                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <p>{modalError}</p>
+                </div>
+              )}
+
+              {/* Student Details Card */}
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs space-y-1.5">
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>Student Name:</span>
+                  <strong className="text-white">{fulfillModalOrder.customerName}</strong>
+                </div>
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>Student Email:</span>
+                  <strong className="text-emerald-400 font-mono">{fulfillModalOrder.customerEmail}</strong>
+                </div>
+                <div className="flex justify-between items-center text-slate-400">
+                  <span>Your Net Payout:</span>
+                  <strong className="text-emerald-400">{formatCurrency(fulfillModalOrder.vendorPayout)}</strong>
+                </div>
+              </div>
+
+              {/* Input 1: Course Login URL */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                  Course Login Portal URL <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={modalAccessUrl}
+                  onChange={(e) => setModalAccessUrl(e.target.value)}
+                  placeholder="https://courses.yoursite.com/login"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Pre-filled from your course settings.</p>
+              </div>
+
+              {/* Input 2: Access Note / Credentials */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                  Access Note / Temporary Password
+                </label>
+                <textarea
+                  rows={3}
+                  value={modalAccessNote}
+                  onChange={(e) => setModalAccessNote(e.target.value)}
+                  placeholder="e.g. Access enabled on your registered email; use 'Forgot Password' or login with OTP"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFulfillModalOrder(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={modalSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                >
+                  {modalSubmitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Sending Credentials...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Submit Proof &amp; Send Credentials</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

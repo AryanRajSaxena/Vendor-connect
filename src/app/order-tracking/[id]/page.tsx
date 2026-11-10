@@ -102,36 +102,43 @@ function OrderTrackingContent() {
   const getTrackingTimeline = (): TrackingEvent[] => {
     if (!order) return [];
 
+    const normalizedStatus =
+      order.order_status === 'pending_fulfillment'
+        ? 'confirmed'
+        : order.order_status === 'fulfilled'
+        ? 'delivered'
+        : order.order_status;
+
     const statusOrder = ['pending', 'confirmed', 'shipped', 'delivered'];
-    const currentStatusIndex = statusOrder.indexOf(order.order_status);
+    const currentStatusIndex = statusOrder.indexOf(normalizedStatus);
 
     const events: TrackingEvent[] = [
       {
         status: 'pending',
         label: 'Order Placed',
-        description: 'Your order has been placed successfully',
+        description: 'Payment verified and order placed successfully',
         timestamp: order.created_at,
         completed: currentStatusIndex >= 0,
         current: currentStatusIndex === 0,
       },
       {
         status: 'confirmed',
-        label: 'Order Confirmed',
-        description: 'Vendor has confirmed your order',
+        label: 'Creator Notified',
+        description: 'Creator is provisioning your login credentials (24h SLA)',
         completed: currentStatusIndex >= 1,
         current: currentStatusIndex === 1,
       },
       {
         status: 'shipped',
-        label: 'Shipped',
-        description: 'Your order is on the way',
+        label: 'Access Prepared',
+        description: 'Course credentials and portal link are generated',
         completed: currentStatusIndex >= 2,
         current: currentStatusIndex === 2,
       },
       {
         status: 'delivered',
-        label: 'Delivered',
-        description: 'Order delivered successfully',
+        label: 'Access Granted',
+        description: 'Credentials delivered to your registered email',
         completed: currentStatusIndex >= 3,
         current: currentStatusIndex === 3,
       },

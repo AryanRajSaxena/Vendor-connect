@@ -6,11 +6,10 @@ import { PDFDocument } from 'pdf-lib';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = params ? await Promise.resolve(params) : null;
-    const id = resolvedParams?.id?.trim();
+    const { id } = await params;
 
     if (!id || id === 'undefined' || id === 'null') {
       return NextResponse.json(

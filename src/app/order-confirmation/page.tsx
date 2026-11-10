@@ -95,7 +95,10 @@ function OrderConfirmationContent() {
     order?.payment_status === 'completed' ||
     order?.payment_status === 'PAID' ||
     order?.payment_status === 'paid' ||
-    order?.order_status === 'confirmed';
+    order?.order_status === 'confirmed' ||
+    order?.order_status === 'pending_fulfillment' ||
+    order?.order_status === 'fulfilled' ||
+    order?.order_status === 'delivered';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-12 md:py-16 px-4">

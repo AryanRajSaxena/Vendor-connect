@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
-import { notifyVendorOfSale } from '@/lib/email';
+import { triggerHourZeroEmails } from '@/lib/email';
+import { generateFulfillmentToken } from '@/lib/fulfillment-token';
 import { isRefundWebhookPayload } from '@/lib/payu';
 
 export interface WebhookPayload {
@@ -287,8 +288,8 @@ export async function POST(request: NextRequest) {
       );
 
       if (!rpcError && rpcResult?.success) {
-        const { triggerVendorSaleNotification } = await import('@/lib/email');
-        await triggerVendorSaleNotification(orderId);
+        // Send Hour 0 emails (Buyer Receipt + Vendor Alert with Magic Link)
+        await triggerHourZeroEmails(orderId);
 
         return NextResponse.json({
           message: 'Order processed successfully via database transaction',
@@ -307,21 +308,23 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingOrder?.id) {
+      const fulfillmentToken = generateFulfillmentToken(existingOrder.id);
       await supabase
         .from('orders')
         .update({
           payment_status: 'completed',
-          order_status: 'confirmed',
+          order_status: 'pending_fulfillment',
+          fulfillment_token: fulfillmentToken,
           payment_gateway_payment_id: paymentGatewayPaymentId || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingOrder.id);
 
-      const { triggerVendorSaleNotification } = await import('@/lib/email');
-      await triggerVendorSaleNotification(existingOrder.id);
+      // Instant Webhook Trigger (Hour 0): Sends Buyer Receipt + Vendor Magic Link Alert
+      await triggerHourZeroEmails(existingOrder.id);
 
       return NextResponse.json({
-        message: 'Order confirmed and vendor notified',
+        message: 'Order confirmed and Hour 0 notifications sent',
         orderId: existingOrder.id,
       }, { status: 200 });
     }
@@ -438,6 +441,7 @@ export async function POST(request: NextRequest) {
 
     // 48-Hour PayU Safety Net Holding Window
     const releaseDate = new Date(Date.now() + 48 * 3600 * 1000);
+    const fulfillmentToken = generateFulfillmentToken(orderId);
 
     const customerDetails = {
       name: buyerName,
@@ -465,11 +469,12 @@ export async function POST(request: NextRequest) {
           customer_details: customerDetails,
           payment_method: paymentMethod,
           payment_status: 'completed',
-          order_status: 'confirmed',
+          order_status: 'pending_fulfillment',
           commission_status: 'pending',
           commission_release_date: releaseDate.toISOString(),
           payment_gateway_order_id: paymentGatewayOrderId || null,
           payment_gateway_payment_id: paymentGatewayPaymentId || null,
+          fulfillment_token: fulfillmentToken,
         },
       ])
       .select()
@@ -511,55 +516,14 @@ export async function POST(request: NextRequest) {
       .update({ sold_count: Number(product.sold_count || 0) + quantity })
       .eq('id', productId);
 
-    // Step 5: Notify Vendor of New Sale (24-Hour Fulfillment SLA)
+    // Step 5: Instant Webhook Trigger (Hour 0)
+    // Sends two automated emails:
+    // 1. To Buyer: Order receipt + credentials will arrive within 24 hours
+    // 2. To Vendor: Buyer details, net payout, and 1-Click Magic Link ("Confirm Access Granted")
     try {
-      let vendorEmail: string | undefined;
-      const { data: vendorRecord } = await supabase
-        .from('vendors')
-        .select('email')
-        .eq('id', product.vendor_id)
-        .maybeSingle();
-
-      vendorEmail = vendorRecord?.email;
-      if (!vendorEmail) {
-        const { data: userRecord } = await supabase
-          .from('users')
-          .select('email')
-          .eq('id', product.vendor_id)
-          .maybeSingle();
-        vendorEmail = userRecord?.email;
-      }
-
-      // Resolve buyer details from guest_customers table
-      let finalBuyerName = buyerName;
-      let finalBuyerEmail = buyerEmail;
-
-      if (guestCustomerId) {
-        const { data: guestRow } = await supabase
-          .from('guest_customers')
-          .select('name, email, phone')
-          .eq('id', guestCustomerId)
-          .maybeSingle();
-
-        if (guestRow?.email) finalBuyerEmail = guestRow.email;
-        if (guestRow?.name) finalBuyerName = guestRow.name;
-      }
-
-      const courseName = product.name || 'Course';
-
-      if (vendorEmail) {
-        await notifyVendorOfSale(
-          vendorEmail,
-          finalBuyerName,
-          finalBuyerEmail,
-          courseName,
-          newOrder?.id || orderId
-        );
-      } else {
-        console.warn(`[Webhook] No vendor email found for vendor_id: ${product.vendor_id}`);
-      }
+      await triggerHourZeroEmails(newOrder?.id || orderId);
     } catch (emailErr) {
-      console.error('[Webhook] Failed to dispatch vendor notification email:', emailErr);
+      console.error('[Webhook] Failed to dispatch Hour 0 emails:', emailErr);
     }
 
     return NextResponse.json(

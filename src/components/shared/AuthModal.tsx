@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { isValidEmail } from '@/utils/auth';
-import { X, Mail, Lock, User, Phone, Building2, FileText } from 'lucide-react';
+import { X, Store, TrendingUp, Shield, ArrowRight } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -12,15 +10,14 @@ interface AuthModalProps {
   defaultRole?: 'vendor' | 'seller' | 'customer';
 }
 
-export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }: AuthModalProps) {
-  const router = useRouter();
-  const { login, signup, signInWithGoogle } = useAuth();
+export default function AuthModal({ isOpen, onClose, defaultRole = 'vendor' }: AuthModalProps) {
+  const { signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState<'vendor' | 'seller' | 'customer'>(defaultRole);
-  const [isLoading, setIsLoading] = useState(false);
+  const [role, setRole] = useState<'vendor' | 'seller'>(
+    defaultRole === 'seller' ? 'seller' : 'vendor'
+  );
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const handleGoogleAuth = async () => {
     setError('');
@@ -33,422 +30,146 @@ export default function AuthModal({ isOpen, onClose, defaultRole = 'customer' }:
     }
   };
 
-  // Form state
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: '',
-    phone: '',
-    businessName: '',
-    gstNumber: '',
-    panNumber: '',
-  });
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setError('');
-  };
-
-  const validateForm = () => {
-    if (!isValidEmail(formData.email)) {
-      setError('Please enter a valid email');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return false;
-    }
-    if (!isLogin) {
-      if (!formData.name.trim()) {
-        setError('Please enter your name');
-        return false;
-      }
-      if (!formData.phone.trim()) {
-        setError('Please enter your phone number');
-        return false;
-      }
-      if (role === 'vendor') {
-        if (!formData.businessName.trim()) {
-          setError('Please enter business name');
-          return false;
-        }
-        if (!formData.gstNumber.trim()) {
-          setError('Please enter GST number');
-          return false;
-        }
-      }
-      if (role === 'seller') {
-        if (!formData.panNumber.trim()) {
-          setError('Please enter PAN number');
-          return false;
-        }
-      }
-    }
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMessage('');
-
-    if (!validateForm()) return;
-
-    setIsLoading(true);
-    try {
-      if (isLogin) {
-        await login(formData.email, formData.password);
-        setSuccessMessage('Login successful! Redirecting...');
-        
-        // Redirect based on the authenticated user's role from context
-        setTimeout(() => {
-          const handleRedirect = async () => {
-            // Get the current auth context to check the role
-            const storedAuth = localStorage.getItem('auth_user') || localStorage.getItem('auth');
-            if (storedAuth) {
-              try {
-                const user = JSON.parse(storedAuth);
-                const redirectPath = getRolePath(user.role);
-                onClose();
-                router.push(redirectPath);
-              } catch {
-                onClose();
-                window.location.reload();
-              }
-            }
-          };
-          handleRedirect();
-        }, 500);
-      } else {
-        await signup({
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-          role: role,
-          phone: formData.phone,
-          businessName: role === 'vendor' ? formData.businessName : undefined,
-          gstNumber: role === 'vendor' ? formData.gstNumber : undefined,
-          panNumber: role === 'seller' ? formData.panNumber : undefined,
-        });
-        setSuccessMessage('Account created successfully! Redirecting...');
-        setTimeout(() => {
-          onClose();
-          // For signup, we know the role from the form
-          router.push(getRolePath(role));
-        }, 500);
-      }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getRolePath = (userRole: string): string => {
-    switch (userRole) {
-      case 'vendor':
-        return '/vendor/dashboard';
-      case 'seller':
-        return '/seller/dashboard';
-      case 'admin':
-        return '/admin/dashboard';
-      case 'customer':
-      default:
-        return '/products';
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-large max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden text-slate-100">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950/60">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-white">
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {isLogin ? 'Login to continue' : 'Join Agent Croww today'}
+            <p className="text-xs text-slate-400 mt-1">
+              {isLogin ? 'Sign in with your verified Google account' : 'Select role and continue with Google'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        {/* Modal Body */}
+        <div className="p-6 space-y-5">
           {/* Error Message */}
           {error && (
-            <div className="alert-error animate-slide-down">
-              <div className="w-5 h-5 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
-                <span className="text-red-600 text-xs font-bold">!</span>
-              </div>
-              <p className="text-sm font-medium">{error}</p>
-            </div>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <div className="alert-success animate-slide-down">
-              <div className="w-5 h-5 rounded-full bg-green-200 flex items-center justify-center flex-shrink-0">
-                <span className="text-green-600 text-xs font-bold">✓</span>
-              </div>
-              <p className="text-sm font-medium">{successMessage}</p>
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+              {error}
             </div>
           )}
 
           {/* Role Selection (Sign Up only) */}
           {!isLogin && (
-            <div className="space-y-2">
-              <label className="label">I am a:</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['vendor', 'seller', 'customer'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`py-2.5 px-3 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${
-                      role === r
-                        ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm'
-                        : 'border-gray-200 text-gray-700 hover:border-primary-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                  </button>
-                ))}
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">
+                Select Your Role:
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setRole('vendor')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    role === 'vendor'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200'
+                      : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <Store className={`w-4 h-4 mb-1.5 ${role === 'vendor' ? 'text-emerald-400' : 'text-slate-500'}`} />
+                  <p className="font-semibold text-xs text-white">Vendor</p>
+                  <p className="text-[10px] text-slate-400">80% course payout</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRole('seller')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    role === 'seller'
+                      ? 'border-violet-500 bg-violet-500/10 text-violet-200'
+                      : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <TrendingUp className={`w-4 h-4 mb-1.5 ${role === 'seller' ? 'text-violet-400' : 'text-slate-500'}`} />
+                  <p className="font-semibold text-xs text-white">Seller</p>
+                  <p className="text-[10px] text-slate-400">10% referral share</p>
+                </button>
               </div>
             </div>
           )}
 
           {/* Google Auth Button */}
-          <button
-            type="button"
-            onClick={handleGoogleAuth}
-            disabled={isLoading || isGoogleLoading}
-            className="w-full py-2.5 px-4 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-semibold flex items-center justify-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            {isGoogleLoading ? (
-              <div className="w-5 h-5 border-2 border-gray-800/30 border-t-gray-800 rounded-full animate-spin"></div>
-            ) : (
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-            )}
-            <span>
-              {isGoogleLoading
-                ? 'Connecting to Google...'
-                : isLogin
-                ? 'Continue with Google'
-                : `Sign up with Google as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
-            </span>
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200"></div>
-            <span className="text-xs text-gray-500 uppercase tracking-wider">or with email</span>
-            <div className="flex-1 h-px bg-gray-200"></div>
+          <div className="space-y-2.5 pt-1">
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={isGoogleLoading}
+              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 active:scale-[0.99] text-slate-900 font-semibold flex items-center justify-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+            >
+              {isGoogleLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin flex-shrink-0" />
+                  <span>Connecting to Google...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                    />
+                  </svg>
+                  <span>
+                    {isLogin
+                      ? 'Continue with Google'
+                      : `Sign up with Google as ${role === 'vendor' ? 'Vendor' : 'Seller'}`}
+                  </span>
+                  <ArrowRight className="w-4 h-4 ml-1 text-slate-500" />
+                </>
+              )}
+            </button>
+            <p className="text-[11px] text-center text-slate-400">
+              One-click Google authentication. No password needed.
+            </p>
           </div>
 
-          {/* Email */}
-          <div>
-            <label className="label">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="you@example.com"
-                className="input pl-11"
-                disabled={isLoading}
-              />
-            </div>
+          {/* Quick trust note */}
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+            <Shield className="w-3.5 h-3.5 text-emerald-400" />
+            <span>256-Bit SSL Encrypted & OAuth 2.0 Protected</span>
           </div>
 
-          {/* Name (Sign Up only) */}
-          {!isLogin && (
-            <div>
-              <label className="label">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="John Doe"
-                  className="input pl-11"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Phone (Sign Up only) */}
-          {!isLogin && (
-            <div>
-              <label className="label">Phone Number</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="9876543210"
-                  className="input pl-11"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Business Name (Vendor only) */}
-          {!isLogin && role === 'vendor' && (
-            <div>
-              <label className="label">Business Name</label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="businessName"
-                  value={formData.businessName}
-                  onChange={handleInputChange}
-                  placeholder="Your Business Pvt Ltd"
-                  className="input pl-11"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* GST Number (Vendor only) */}
-          {!isLogin && role === 'vendor' && (
-            <div>
-              <label className="label">GST Number</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="gstNumber"
-                  value={formData.gstNumber}
-                  onChange={handleInputChange}
-                  placeholder="22AAAAA0000A1Z5"
-                  className="input pl-11"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* PAN Number (Seller only) */}
-          {!isLogin && role === 'seller' && (
-            <div>
-              <label className="label">PAN Number</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="panNumber"
-                  value={formData.panNumber}
-                  onChange={handleInputChange}
-                  placeholder="ABCDE1234F"
-                  className="input pl-11"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Password */}
-          <div>
-            <label className="label">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="••••••••"
-                className="input pl-11"
-                disabled={isLoading}
-              />
-            </div>
-            {!isLogin && (
-              <p className="text-xs text-gray-500 mt-1.5">Must be at least 6 characters</p>
-            )}
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full btn-primary btn-lg"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="spinner w-5 h-5"></div>
-                Processing...
-              </span>
-            ) : isLogin ? (
-              'Login to Account'
-            ) : (
-              'Create Account'
-            )}
-          </button>
-
-          {/* Toggle Login/Signup */}
-          <div className="text-center pt-2">
-            <p className="text-sm text-gray-600">
+          {/* Toggle Login / Signup */}
+          <div className="text-center pt-2 border-t border-slate-800">
+            <p className="text-xs text-slate-400">
               {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <button
                 type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setError('');
-                  setSuccessMessage('');
-                  setFormData({
-                    email: '',
-                    password: '',
-                    name: '',
-                    phone: '',
-                    businessName: '',
-                    gstNumber: '',
-                    panNumber: '',
-                  });
                 }}
-                className="text-primary-600 font-semibold hover:text-primary-700 hover:underline transition-colors"
+                className="text-emerald-400 font-semibold hover:text-emerald-300 hover:underline transition-colors ml-1"
               >
-                {isLogin ? 'Sign Up' : 'Login'}
+                {isLogin ? 'Sign up' : 'Sign in'}
               </button>
             </p>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
